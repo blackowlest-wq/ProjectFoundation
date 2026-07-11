@@ -574,7 +574,7 @@ else {
 | BackendCoverage | Wrapperで`-Pcoverage test` |
 | E2E | `npm --prefix frontend run e2e` |
 | DirectorySecrets | `gitleaks dir --redact --config .gitleaks.toml .` |
-| DependencyAudit | root/frontendの`npm audit --audit-level=high`とMaven dependency-check |
+| DependencyAudit | root/frontendの`npm audit --audit-level=high`と`org.owasp:dependency-check-maven:12.2.2:check` |
 
 - [ ] **Step 5: QuickとFullを検証する**
 
