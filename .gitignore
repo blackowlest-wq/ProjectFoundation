@@ -1,4 +1,12 @@
 frontend/playwright-report/
 frontend/test-results/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/debug.log
+backend/target/
 backend/config/oracle-test.properties
+logs/
+*.log
+.serena/
 .worktrees/

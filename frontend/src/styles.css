@@ -1,0 +1,317 @@
+/*
+ * 日報管理フロントエンドの共通スタイル。
+ * ログイン画面、認証後のシェル、日報登録・編集フォームの基本レイアウトと入力部品を定義する。
+ */
+:root {
+  color: #172033;
+  background: #f5f7fb;
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.login-screen {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  justify-content: center;
+}
+
+.login-panel {
+  background: #fff;
+  border: 1px solid #d9e0ec;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgb(34 48 72 / 12%);
+  display: grid;
+  gap: 18px;
+  max-width: 360px;
+  padding: 32px;
+  width: calc(100% - 48px);
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+.eyebrow {
+  color: #52637a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+label {
+  color: #334155;
+  display: grid;
+  font-size: 14px;
+  gap: 8px;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #b9c4d4;
+  border-radius: 6px;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+textarea {
+  min-height: 88px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+button {
+  align-items: center;
+  background: #2563eb;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+.secondary {
+  background: #334155;
+}
+
+.error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 6px;
+  color: #be123c;
+  padding: 10px 12px;
+}
+
+.success {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  color: #047857;
+  padding: 10px 12px;
+}
+
+.shell {
+  margin: 0 auto;
+  max-width: 1040px;
+  padding: 32px 24px;
+}
+
+.topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.summary {
+  background: #fff;
+  border: 1px solid #d9e0ec;
+  border-radius: 8px;
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.compact {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.report-panel {
+  background: #fff;
+  border: 1px solid #d9e0ec;
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.section-heading {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+h2 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.status-pill {
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  color: #075985;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.work-items {
+  display: grid;
+  gap: 12px;
+}
+
+.work-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr 120px auto;
+}
+
+.hint {
+  color: #52637a;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.calendar-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendar-weekday {
+  color: #52637a;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.calendar-cell {
+  align-content: start;
+  background: #f8fafc;
+  border: 1px solid #d9e0ec;
+  border-left: 4px solid transparent;
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  min-height: 82px;
+  padding: 8px;
+}
+
+.calendar-cell.muted {
+  opacity: 0.45;
+}
+
+.calendar-date {
+  color: #172033;
+  font-weight: 700;
+}
+
+.status-draft {
+  background: #f8fafc;
+  border-left-color: #64748b;
+}
+
+.status-pending {
+  background: #eff6ff;
+  border-left-color: #2563eb;
+}
+
+.status-rejected {
+  background: #fff1f2;
+  border-left-color: #e11d48;
+}
+
+.status-approved {
+  background: #ecfdf5;
+  border-left-color: #059669;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  min-width: 980px;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid #d9e0ec;
+  padding: 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  color: #52637a;
+  font-size: 13px;
+}
+
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 720px) {
+  .topbar,
+  .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .work-row {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-grid {
+    gap: 4px;
+  }
+
+  .calendar-cell {
+    min-height: 70px;
+    padding: 6px;
+  }
+}
+
+dl {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin: 0;
+}
+
+dt {
+  color: #52637a;
+  font-size: 13px;
+}
+
+dd {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 4px 0 0;
+}

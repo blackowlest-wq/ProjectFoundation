@@ -1,0 +1,29 @@
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "coverage:lcov": "vitest run --coverage --coverage.reporter=lcov --coverage.reportsDirectory=coverage",
+    "coverage:html": "vitest run --coverage --coverage.reporter=html --coverage.reportsDirectory=coverage",
+    "e2e": "npm run build && playwright test",
+    "e2e:headed": "npm run build && playwright test --headed",
+    "e2e:install": "playwright install chromium",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "dev": "vite --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@vitest/coverage-v8": "^4.1.9",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.9"
+  }
+}

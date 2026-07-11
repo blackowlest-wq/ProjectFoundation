@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日報管理システム UIモック</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d7dde5;
+      --line-strong: #aeb8c5;
+      --text: #1f2933;
+      --muted: #627386;
+      --head: #eef2f6;
+      --accent: #1f6feb;
+      --accent-dark: #174ea6;
+      --danger: #b42318;
+      --danger-bg: #fff1f0;
+      --warn: #8a5a00;
+      --warn-bg: #fff8db;
+      --ok: #176b43;
+      --ok-bg: #e9f7ef;
+      --disabled: #e4e8ee;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+      font-family: "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: #26313f;
+      color: #eef3f8;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      color: #b8c4d2;
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+
+    .nav-group {
+      margin-top: 18px;
+    }
+
+    .nav-title {
+      color: #b8c4d2;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #eef3f8;
+      margin-bottom: 4px;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.11);
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 56px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .userbox {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .content {
+      padding: 24px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      margin-bottom: 40px;
+      scroll-margin-top: 72px;
+    }
+
+    .screen-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .screen-note {
+      color: var(--muted);
+      margin: 4px 0 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      margin: 0;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--head);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .field {
+      min-width: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      margin-bottom: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 4px;
+      padding: 8px 9px;
+      min-height: 36px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 74px;
+    }
+
+    input[disabled], select[disabled], textarea[disabled] {
+      background: var(--disabled);
+      color: #667085;
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      min-height: 36px;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary.dark {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.disabled {
+      background: var(--disabled);
+      color: #667085;
+      border-color: var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-word;
+    }
+
+    th {
+      background: var(--head);
+      color: #344054;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+
+    .draft {
+      background: #eef2f6;
+      color: #344054;
+      border-color: #d0d5dd;
+    }
+
+    .pending {
+      background: var(--warn-bg);
+      color: var(--warn);
+      border-color: #f1d36b;
+    }
+
+    .rejected {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: #f5b5ae;
+    }
+
+    .approved {
+      background: var(--ok-bg);
+      color: var(--ok);
+      border-color: #a9dec0;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      padding: 9px 12px;
+      border: 1px solid transparent;
+      border-bottom: 0;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .tab.active {
+      color: var(--accent-dark);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .calendar-head,
+    .calendar-day {
+      min-height: 48px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+    }
+
+    .calendar-head {
+      min-height: 36px;
+      background: var(--head);
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: 0;
+    }
+
+    .day-num {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .day-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .calendar-day.cal-draft {
+      background: #eef2f6;
+      border-left: 4px solid #98a2b3;
+    }
+
+    .calendar-day.cal-pending {
+      background: var(--warn-bg);
+      border-left: 4px solid #d99a00;
+    }
+
+    .calendar-day.cal-rejected {
+      background: var(--danger-bg);
+      border-left: 4px solid var(--danger);
+    }
+
+    .calendar-day.cal-approved {
+      background: var(--ok-bg);
+      border-left: 4px solid var(--ok);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .info-item {
+      min-width: 0;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      margin-top: 2px;
+      font-weight: 700;
+    }
+
+    .alert {
+      border: 1px solid #f1d36b;
+      background: var(--warn-bg);
+      color: #604000;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .error {
+      border-color: #f5b5ae;
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .login-wrap {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .login-panel {
+      padding: 22px;
+    }
+
+    .mock-note {
+      background: #eaf1ff;
+      border: 1px solid #b9cffc;
+      color: #174ea6;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .grid,
+      .grid.two,
+      .grid.three,
+      .summary,
+      .login-wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <p class="brand">日報管理システム</p>
+      <div class="subtitle">HTML UIモック</div>
+      <div class="nav-group">
+        <p class="nav-title">共通</p>
+        <a class="nav-link" href="#login">ログイン</a>
+        <a class="nav-link" href="#list">日報カレンダー・一覧</a>
+        <a class="nav-link" href="#detail">日報詳細</a>
+      </div>
+      <div class="nav-group">
+        <p class="nav-title">社員</p>
+        <a class="nav-link" href="#entry">日報登録・編集</a>
+      </div>
+      <div class="nav-group">
+        <p class="nav-title">上長</p>
+        <a class="nav-link" href="#pending">未承認一覧</a>
+        <a class="nav-link" href="#reject">差戻し入力</a>
+      </div>
+      <div class="nav-group">
+        <p class="nav-title">管理者</p>
+        <a class="nav-link" href="#summary">月次集計</a>
+        <a class="nav-link" href="#csv">CSV出力</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+          <div>日報管理</div>
+        <div class="userbox">
+          <span>山田 太郎</span>
+          <span class="status draft">社員</span>
+          <button class="btn">ログアウト</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="mock-note">
+          本モックは画面構成、情報優先度、状態別操作の認識合わせを目的とする静的HTMLです。細かな色、余白、文言は実装時に調整します。
+        </div>
+
+        <section id="login" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-001 ログイン画面</h1>
+              <p class="screen-note">社員、上長、管理者がログインする。</p>
+            </div>
+          </div>
+          <div class="login-wrap">
+            <div class="panel login-panel">
+              <h2 class="panel-title">ログイン</h2>
+              <div class="panel-body">
+                <div class="alert error">ログインIDまたはパスワードが正しくありません。</div>
+                <div class="field">
+                  <label for="login-id">ログインID</label>
+                  <input id="login-id" value="employee001">
+                </div>
+                <div class="field" style="margin-top:12px">
+                  <label for="password">パスワード</label>
+                  <input id="password" type="password" value="password">
+                </div>
+                <div class="toolbar" style="margin-top:16px">
+                  <button class="btn primary">ログイン</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <h2 class="panel-title">初期ユーザー例</h2>
+              <div class="panel-body">
+                <table>
+                  <thead>
+                    <tr><th>ロール</th><th>ログインID</th><th>初期表示</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>社員</td><td>employee001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>上長</td><td>manager001</td><td>日報カレンダー・一覧</td></tr>
+                    <tr><td>管理者</td><td>admin001</td><td>日報カレンダー・一覧</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="list" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-002 日報カレンダー・一覧画面</h1>
+              <p class="screen-note">社員は当月の日報をカレンダーと一覧で確認し、対象日付から登録・編集・詳細へ遷移する。</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn primary">新規登録</button>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">表示条件</h2>
+            <div class="panel-body">
+              <div class="grid">
+                <div class="field"><label>対象年月</label><input type="month" value="2026-06"></div>
+                <div class="field"><label>社員</label><select><option>山田 太郎</option><option>佐藤 花子</option></select></div>
+                <div class="field"><label>承認状態</label><select><option>すべて</option><option>未提出</option><option>承認待ち</option><option>差戻し</option><option>承認済み</option></select></div>
+                <div class="field"><label>休日区分</label><select><option>すべて</option><option>通常勤務</option><option>休日</option><option>有給休暇</option><option>午前休</option><option>午後休</option></select></div>
+              </div>
+              <div class="toolbar" style="margin-top:12px">
+                <button class="btn primary">検索</button>
+                <button class="btn">条件クリア</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">日報カレンダー</h2>
+            <div class="panel-body">
+              <div class="calendar">
+                <div class="calendar-head">月</div><div class="calendar-head">火</div><div class="calendar-head">水</div><div class="calendar-head">木</div><div class="calendar-head">金</div><div class="calendar-head">土</div><div class="calendar-head">日</div>
+                <div class="calendar-day cal-rejected"><div class="day-num">1</div><div class="day-meta">7:00</div></div>
+                <div class="calendar-day cal-approved"><div class="day-num">2</div><div class="day-meta">有給</div></div>
+                <div class="calendar-day cal-pending"><div class="day-num">3</div><div class="day-meta">8:00</div></div>
+                <div class="calendar-day cal-draft"><div class="day-num">4</div><div class="day-meta">未提出</div></div>
+                <div class="calendar-day cal-draft"><div class="day-num">5</div><div class="day-meta">未提出</div></div>
+                <div class="calendar-day"><div class="day-num">6</div><div class="day-meta">休日</div></div>
+                <div class="calendar-day"><div class="day-num">7</div><div class="day-meta">休日</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">当月日報一覧</h2>
+            <div class="panel-body">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日付</th><th>グループ</th><th>社員名</th><th>休日区分</th><th class="num">実勤務</th><th class="num">作業時間</th><th>承認状態</th><th>提出日時</th><th>承認者</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>2026-06-03</td><td>第一開発グループ</td><td>山田 太郎</td><td>通常勤務</td><td class="num">8:00</td><td class="num">8:00</td><td><span class="status pending">承認待ち</span></td><td>2026-06-03 18:10</td><td></td><td><button class="btn">詳細</button></td>
+                  </tr>
+                  <tr>
+                    <td>2026-06-02</td><td>第一開発グループ</td><td>山田 太郎</td><td>有給休暇</td><td class="num">0:00</td><td class="num">0:00</td><td><span class="status approved">承認済み</span></td><td>2026-06-02 09:02</td><td>鈴木 一郎</td><td><button class="btn">詳細</button></td>
+                  </tr>
+                  <tr>
+                    <td>2026-06-01</td><td>第一開発グループ</td><td>山田 太郎</td><td>通常勤務</td><td class="num">7:30</td><td class="num">7:00</td><td><span class="status rejected">差戻し</span></td><td>2026-06-01 18:20</td><td></td><td><button class="btn">詳細</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="entry" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-003/S-004 日報登録・編集画面</h1>
+              <p class="screen-note">休日区分に応じて入力可否を切り替え、実勤務時間と作業時間合計を確認する。</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn">一覧へ戻る</button>
+              <button class="btn">保存</button>
+              <button class="btn primary">保存して提出</button>
+            </div>
+          </div>
+          <div class="alert error">作業時間合計が実勤務時間と一致していません。</div>
+          <div class="panel">
+            <h2 class="panel-title">入力項目</h2>
+            <div class="panel-body">
+              <div class="grid">
+                <div class="field"><label>日付</label><input type="date" value="2026-06-03"></div>
+                <div class="field"><label>休日区分</label><select><option>通常勤務</option><option>休日</option><option>有給休暇</option><option>午前休</option><option>午後休</option></select></div>
+                <div class="field"><label>勤務開始時刻</label><input value="09:00"></div>
+                <div class="field"><label>勤務終了時刻</label><input value="18:00"></div>
+              </div>
+              <div class="field" style="margin-top:12px">
+                <label>備考</label>
+                <textarea>顧客向け設計レビュー準備。</textarea>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">日報情報</h2>
+            <div class="panel-body">
+              <div class="info-grid">
+                <div class="info-item"><div class="info-label">社員名</div><div class="info-value">山田 太郎</div></div>
+                <div class="info-item"><div class="info-label">所属グループ</div><div class="info-value">第一開発グループ</div></div>
+                <div class="info-item"><div class="info-label">承認状態</div><div class="info-value">未提出</div></div>
+                <div class="info-item"><div class="info-label">休憩区分</div><div class="info-value">標準休憩 12:00-13:00</div></div>
+                <div class="info-item"><div class="info-label">勤務区分</div><div class="info-value">勤務区分A 09:00-18:00</div></div>
+                <div class="info-item"><div class="info-label">自動算出休憩時間</div><div class="info-value">1:00</div></div>
+                <div class="info-item"><div class="info-label">実勤務時間</div><div class="info-value">8:00</div></div>
+                <div class="info-item"><div class="info-label">通常勤務</div><div class="info-value">8:00</div></div>
+                <div class="info-item"><div class="info-label">残業</div><div class="info-value">0:00</div></div>
+                <div class="info-item"><div class="info-label">深夜</div><div class="info-value">0:00</div></div>
+                <div class="info-item"><div class="info-label">作業時間合計</div><div class="info-value">7:30</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">作業明細</h2>
+            <div class="panel-body">
+              <table>
+                <thead>
+                  <tr><th>案件</th><th>作業分類</th><th class="num">作業時間</th><th></th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><select><option>案件A</option></select></td><td><select><option>設計</option></select></td><td><input class="num" value="5:00"></td><td><button class="btn">削除</button></td></tr>
+                  <tr><td><select><option>案件B</option></select></td><td><select><option>レビュー</option></select></td><td><input class="num" value="2:30"></td><td><button class="btn">削除</button></td></tr>
+                </tbody>
+              </table>
+              <div class="toolbar" style="margin-top:12px"><button class="btn">明細追加</button></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">休日区分による入力制御例</h2>
+            <div class="panel-body">
+              <div class="grid two">
+                <div class="field"><label>有給休暇の場合</label><input value="勤務時刻、休憩時間、作業明細は登録不可" disabled></div>
+                <div class="field"><label>休日作業なしの場合</label><input value="勤務時刻、休憩時間、作業明細は登録不可" disabled></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="detail" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-005 日報詳細画面</h1>
+              <p class="screen-note">状態とロールに応じて操作ボタンを出し分ける。</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn">一覧へ戻る</button>
+              <button class="btn">編集する</button>
+              <button class="btn primary">提出する</button>
+              <button class="btn primary dark">承認する</button>
+              <button class="btn danger">差戻しする</button>
+            </div>
+          </div>
+          <div class="summary">
+            <div class="metric"><div class="metric-label">承認状態</div><div class="metric-value"><span class="status pending">承認待ち</span></div></div>
+            <div class="metric"><div class="metric-label">実勤務時間</div><div class="metric-value">8:00</div></div>
+            <div class="metric"><div class="metric-label">作業時間合計</div><div class="metric-value">8:00</div></div>
+            <div class="metric"><div class="metric-label">休日区分</div><div class="metric-value">通常勤務</div></div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">日報ヘッダ</h2>
+            <div class="panel-body">
+              <div class="grid">
+                <div class="field"><label>日付</label><input value="2026-06-03" disabled></div>
+                <div class="field"><label>社員名</label><input value="山田 太郎" disabled></div>
+                <div class="field"><label>所属グループ</label><input value="第一開発グループ" disabled></div>
+                <div class="field"><label>休憩区分</label><input value="標準休憩 12:00-13:00" disabled></div>
+                <div class="field"><label>勤務区分</label><input value="勤務区分A 09:00-18:00" disabled></div>
+                <div class="field"><label>勤務開始</label><input value="09:00" disabled></div>
+                <div class="field"><label>勤務終了</label><input value="18:00" disabled></div>
+                <div class="field"><label>自動算出休憩時間</label><input value="1:00" disabled></div>
+                <div class="field"><label>通常勤務</label><input value="8:00" disabled></div>
+                <div class="field"><label>残業</label><input value="0:00" disabled></div>
+                <div class="field"><label>深夜</label><input value="0:00" disabled></div>
+                <div class="field"><label>提出日時</label><input value="2026-06-03 18:10" disabled></div>
+                <div class="field"><label>承認者</label><input value="" disabled></div>
+                <div class="field"><label>承認日時</label><input value="" disabled></div>
+              </div>
+              <div class="field" style="margin-top:12px"><label>備考</label><textarea disabled>顧客向け設計レビュー準備。</textarea></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">作業明細</h2>
+            <div class="panel-body">
+              <table>
+                <thead><tr><th>案件</th><th>作業分類</th><th class="num">作業時間</th></tr></thead>
+                <tbody>
+                  <tr><td>案件A</td><td>設計</td><td class="num">5:00</td></tr>
+                  <tr><td>案件B</td><td>レビュー</td><td class="num">3:00</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">差戻し情報</h2>
+            <div class="panel-body">
+              <div class="grid three">
+                <div class="field"><label>差戻し者</label><input value="鈴木 一郎" disabled></div>
+                <div class="field"><label>差戻し日時</label><input value="2026-06-01 18:40" disabled></div>
+                <div class="field"><label>最新差戻しコメント</label><input value="作業時間合計を確認してください。" disabled></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="pending" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-006 未承認一覧画面</h1>
+              <p class="screen-note">上長が承認対象グループの承認待ち日報を確認する。</p>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">検索条件</h2>
+            <div class="panel-body">
+              <div class="grid three">
+                <div class="field"><label>日付From</label><input type="date" value="2026-06-01"></div>
+                <div class="field"><label>日付To</label><input type="date" value="2026-06-30"></div>
+                <div class="field"><label>グループ</label><select><option>第一開発グループ</option><option>第二開発グループ</option></select></div>
+                <div class="field"><label>社員</label><select><option>すべて</option><option>山田 太郎</option><option>佐藤 花子</option></select></div>
+              </div>
+              <div class="toolbar" style="margin-top:12px"><button class="btn primary">検索</button><button class="btn">条件クリア</button></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">未承認一覧</h2>
+            <div class="panel-body">
+              <table>
+                <thead><tr><th>日付</th><th>グループ</th><th>社員名</th><th>休日区分</th><th class="num">実勤務</th><th class="num">作業時間</th><th>提出日時</th><th></th></tr></thead>
+                <tbody>
+                  <tr><td>2026-06-03</td><td>第一開発グループ</td><td>山田 太郎</td><td>通常勤務</td><td class="num">8:00</td><td class="num">8:00</td><td>2026-06-03 18:10</td><td><button class="btn">詳細</button></td></tr>
+                  <tr><td>2026-06-03</td><td>第一開発グループ</td><td>佐藤 花子</td><td>午前休</td><td class="num">4:00</td><td class="num">4:00</td><td>2026-06-03 13:05</td><td><button class="btn">詳細</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="reject" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-007 差戻し入力ダイアログ</h1>
+              <p class="screen-note">承認待ちの日報に対して差戻しコメントを必須入力する。</p>
+            </div>
+          </div>
+          <div class="panel" style="max-width:720px">
+            <h2 class="panel-title">差戻し入力</h2>
+            <div class="panel-body">
+              <div class="alert error">差戻しコメントを入力してください。</div>
+              <div class="grid two">
+                <div class="field"><label>対象日付</label><input value="2026-06-03" disabled></div>
+                <div class="field"><label>社員名</label><input value="山田 太郎" disabled></div>
+              </div>
+              <div class="field" style="margin-top:12px"><label>差戻しコメント</label><textarea>作業時間合計を確認してください。</textarea></div>
+              <div class="toolbar" style="margin-top:12px"><button class="btn danger">差戻しを確定する</button><button class="btn">キャンセル</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="summary" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-008 月次集計画面</h1>
+              <p class="screen-note">承認済み日報のみを対象に、4種類の集計を確認する。</p>
+            </div>
+            <div class="toolbar"><button class="btn">CSV出力画面へ</button></div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">検索条件</h2>
+            <div class="panel-body">
+              <div class="grid three">
+                <div class="field"><label>対象年月</label><input type="month" value="2026-06"></div>
+                <div class="field"><label>集計対象</label><input value="承認済み日報のみ" disabled></div>
+              </div>
+              <div class="toolbar" style="margin-top:12px"><button class="btn primary">集計表示</button></div>
+            </div>
+          </div>
+          <div class="tabs">
+            <div class="tab active">社員別</div>
+            <div class="tab">案件別</div>
+            <div class="tab">作業分類別</div>
+            <div class="tab">休日区分別</div>
+          </div>
+          <div class="summary">
+            <div class="metric"><div class="metric-label">総作業時間</div><div class="metric-value">9,600分</div></div>
+            <div class="metric"><div class="metric-label">対象社員</div><div class="metric-value">12名</div></div>
+            <div class="metric"><div class="metric-label">有給日数</div><div class="metric-value">8日</div></div>
+            <div class="metric"><div class="metric-label">休日作業</div><div class="metric-value">2日</div></div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">社員別作業時間</h2>
+            <div class="panel-body">
+              <table>
+                <thead><tr><th>社員ID</th><th>社員名</th><th class="num">合計作業時間</th></tr></thead>
+                <tbody>
+                  <tr><td>E001</td><td>山田 太郎</td><td class="num">9,600分</td></tr>
+                  <tr><td>E002</td><td>佐藤 花子</td><td class="num">8,880分</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="csv" class="screen">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">S-009 CSV出力画面</h1>
+              <p class="screen-note">月次集計CSVまたは日報明細CSVを出力する。</p>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">出力条件</h2>
+            <div class="panel-body">
+              <div class="grid three">
+                <div class="field"><label>対象年月</label><input type="month" value="2026-06"></div>
+                <div class="field"><label>出力種別</label><select><option>月次集計CSV</option><option>日報明細CSV</option></select></div>
+                <div class="field"><label>出力対象</label><input value="承認済み日報のみ" disabled></div>
+              </div>
+              <div class="toolbar" style="margin-top:12px"><button class="btn primary">CSV出力</button><button class="btn">月次集計画面へ戻る</button></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2 class="panel-title">出力仕様</h2>
+            <div class="panel-body">
+              <table>
+                <thead><tr><th>項目</th><th>内容</th></tr></thead>
+                <tbody>
+                  <tr><td>文字コード</td><td>UTF-8 BOM付き</td></tr>
+                  <tr><td>改行コード</td><td>CRLF</td></tr>
+                  <tr><td>ファイル名</td><td>monthly-summary-202606.csv / daily-report-details-202606.csv</td></tr>
+                  <tr><td>対象データなし</td><td>ヘッダー行のみ出力する</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
