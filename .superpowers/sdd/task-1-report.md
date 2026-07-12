@@ -1,7 +1,7 @@
 # Task 1 report
 
 - Status: DONE
-- Commit: _pending_
+- Commit: 78d5526
 
 ## What changed
 
@@ -12,6 +12,10 @@
 
 - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-test-layout.ps1` → failed as expected and reported `frontend/src/dailyReport/dailyReportSearch.test.ts`.
 - `git diff --check -- scripts/check-test-layout.ps1 frontend/package.json` → passed.
+
+## Fix verification
+
+- Updated frontend matcher from `\.(test|spec)\.[^.]+$` to `\.(test|spec)\..+$` so names like `foo.test.d.ts` and `foo.spec.browser.ts` are caught.
 
 ## Notes
 

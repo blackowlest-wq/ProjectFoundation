@@ -14,7 +14,7 @@ $backendMain = Join-Path $ProjectRoot 'backend\src\main'
 
 if (Test-Path -LiteralPath $frontendSource) {
     $violations += Get-ChildItem -LiteralPath $frontendSource -Recurse -File |
-        Where-Object { $_.Name -match '\.(test|spec)\.[^.]+$' } |
+        Where-Object { $_.Name -match '\.(test|spec)\..+$' } |
         ForEach-Object { "frontend/src test file: $($_.FullName)" }
 }
 
