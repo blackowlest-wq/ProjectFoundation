@@ -1,5 +1,8 @@
 {
   "scripts": {
+    "check:test-layout": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/check-test-layout.ps1",
+    "pretest": "npm run check:test-layout",
+    "precoverage": "npm run check:test-layout",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
