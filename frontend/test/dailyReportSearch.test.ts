@@ -3,7 +3,7 @@ import {
   buildDailyReportSearchUrl,
   monthRange,
   validateDailyReportSearch,
-} from './dailyReportSearch';
+} from '../src/dailyReport/dailyReportSearch';
 
 describe('daily report search helpers', () => {
   test('monthRange returns first and last day of selected month', () => {
