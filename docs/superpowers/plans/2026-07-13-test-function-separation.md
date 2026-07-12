@@ -15,7 +15,7 @@
 - 既存テストのテストケース、期待値、describe/test 名、アサーションは変更しない。
 - フロント `frontend/src` に `*.test.*` / `*.spec.*` を置かない。
 - バックエンド `backend/src/main` にテストクラスを置かない。
-- 今回の未追跡 `.github` 配下は変更しない。
+- 既存 `.github/workflows/oracle.yml` の品質ハーネス全体は再設計しない。
 - 日本語資料は PowerShell で `-Encoding UTF8` を指定して読む・更新する。
 - 実装前に確認した公式資料: Spring MVC Handler Methods、Spring `@Transactional`、Vitest Configuration。
 
@@ -475,7 +475,7 @@
 
 - [ ] **Step 6: 作業記録を更新する**
 
-  2026-07-13 の節を追加し、対象範囲、変更ファイル、既存テスト確認内容を維持したこと、実行したコマンド、未実行の Oracle 確認がある場合は「DDL・SQL・DB接続設定を変更していないため対象外」と記録する。
+  2026-07-13 の節を追加し、対象範囲、変更ファイル、既存テスト確認内容を維持したこと、実行したコマンド、未実行の Oracle 確認がある場合は「DDL・SQL・DB接続設定を変更していないため対象外」と記録する。既存 `.github/workflows/oracle.yml` は確認したが、別作業で導入予定の `scripts/check.ps1` を呼び出す構成のため、今回の分離では変更していないことも記録する。
 
 - [ ] **Step 7: 文書差分を検証する**
 
