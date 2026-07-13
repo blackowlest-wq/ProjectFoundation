@@ -23,12 +23,18 @@ public class DailyReportSubmissionController {
     }
 
     @PostMapping("/{reportId}/submit")
+    /**
+     * 下書き日報を提出し、承認待ち状態へ遷移した結果を返す。
+     */
     public SubmitResponse submit(@PathVariable String reportId,
                                  @AuthenticationPrincipal AuthenticatedUser principal) {
         return service.submit(reportId, principal);
     }
 
     @PostMapping("/{reportId}/resubmit")
+    /**
+     * 差戻し日報を再提出し、承認待ち状態へ遷移した結果を返す。
+     */
     public SubmitResponse resubmit(@PathVariable String reportId,
                                    @AuthenticationPrincipal AuthenticatedUser principal) {
         return service.resubmit(reportId, principal);

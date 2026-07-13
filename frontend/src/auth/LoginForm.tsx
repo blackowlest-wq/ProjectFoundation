@@ -17,15 +17,22 @@ export const LOGIN_FORM_TEXT = {
   fallbackError: 'ログインに失敗しました。',
 } as const;
 
+/**
+ * ログイン入力を管理し、補助検証を通過した場合だけ認証APIを呼び出す。
+ */
 export function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void }) {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  /**
+   * フォーム送信を検証し、成功時は親へ利用者を通知し、失敗時は画面へエラーを表示する。
+   */
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError('');
     const validationError = validateLoginInput(loginId, password);
+    // How: 送信前検証でエラーがあればAPIを呼び出さず、検証結果を画面に表示して終了する。
     if (validationError) {
       // Why not: すべてをバックエンド送信後に検証すると明らかな入力不備の応答を待たせるため、補助検証だけを送信前に行う。
       setError(validationError);

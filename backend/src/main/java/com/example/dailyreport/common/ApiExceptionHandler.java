@@ -22,12 +22,18 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(BadCredentialsException.class)
+    /**
+     * 認証失敗を、利用者の存在を推測できない共通401レスポンスへ変換する。
+     */
     public ResponseEntity<ErrorResponse> badCredentials() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse("AUTHENTICATION_FAILED", "ログインIDまたはパスワードが正しくありません。", List.of()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
+    /**
+     * Bean Validationの項目別エラーを、画面が表示できる共通400レスポンスへ変換する。
+     */
     public ResponseEntity<ErrorResponse> validation(MethodArgumentNotValidException exception) {
         List<ErrorDetail> details = exception.getBindingResult().getFieldErrors().stream()
                 .map(error -> new ErrorDetail(error.getField(), error.getDefaultMessage()))
@@ -37,6 +43,9 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    /**
+     * URLパラメータ等の型変換失敗を、入力項目名付きの共通400レスポンスへ変換する。
+     */
     public ResponseEntity<ErrorResponse> argumentTypeMismatch(MethodArgumentTypeMismatchException exception) {
         String fieldName = exception.getName() != null ? exception.getName() : "request";
         return ResponseEntity.badRequest()
@@ -45,6 +54,9 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(ApiException.class)
+    /**
+     * 業務処理が投げたAPI例外を、指定されたステータスと詳細を持つレスポンスへ変換する。
+     */
     public ResponseEntity<ErrorResponse> apiException(ApiException exception) {
         return ResponseEntity.status(exception.status())
                 .body(new ErrorResponse(exception.code(), exception.getMessage(), exception.details()));

@@ -29,6 +29,9 @@ public class DailyReportSearchController {
     }
 
     @GetMapping
+    /**
+     * 認証済み利用者の権限範囲内で日報を条件検索し、一覧表示用DTOを返す。
+     */
     public List<DailyReportListItemResponse> search(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
@@ -41,6 +44,9 @@ public class DailyReportSearchController {
     }
 
     @GetMapping("/{reportId}")
+    /**
+     * 指定日報を認可確認後に取得し、詳細表示用DTOを返す。
+     */
     public DailyReportResponse get(@PathVariable String reportId,
                                    @AuthenticationPrincipal AuthenticatedUser principal) {
         return service.get(reportId, principal);

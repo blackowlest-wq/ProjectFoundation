@@ -31,11 +31,15 @@ public class DailyReportSubmissionService {
     }
 
     @Transactional
+    /**
+     * 下書き日報を提出直前に再検証し、承認待ち状態へ遷移させる。
+     */
     public SubmitResponse submit(String reportId, AuthenticatedUser principal) {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
         // Why not: 初回提出と再提出を同じ入口にすると許可する状態を区別しにくいため、初回は下書き、差戻し後は専用APIに限定する。
+        // How: 下書き以外は初回提出の状態遷移へ進めず、状態エラーを返す。
         if (report.getApprovalStatus() != ApprovalStatus.DRAFT) {
             throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Only draft reports can be submitted.");
         }
@@ -46,11 +50,15 @@ public class DailyReportSubmissionService {
     }
 
     @Transactional
+    /**
+     * 差戻し日報を提出直前に再検証し、再提出として承認待ち状態へ遷移させる。
+     */
     public SubmitResponse resubmit(String reportId, AuthenticatedUser principal) {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
         // Why not: 下書きや承認済みを再提出可能にすると状態遷移が崩れるため、再提出元をREJECTEDだけに限定する。
+        // How: 差戻し以外は再提出の状態遷移へ進めず、状態エラーを返す。
         if (report.getApprovalStatus() != ApprovalStatus.REJECTED) {
             throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Only rejected reports can be resubmitted.");
         }

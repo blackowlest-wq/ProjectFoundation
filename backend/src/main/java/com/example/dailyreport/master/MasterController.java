@@ -17,16 +17,25 @@ public class MasterController {
     }
 
     @GetMapping("/api/master/projects")
+    /**
+     * 有効な案件マスタを画面の選択肢として返す。
+     */
     public List<MasterDataRepository.ProjectOption> projects() {
         return masterDataRepository.projects();
     }
 
     @GetMapping("/api/master/work-categories")
+    /**
+     * 有効な作業分類マスタを画面の選択肢として返す。
+     */
     public List<MasterDataRepository.WorkCategoryOption> workCategories() {
         return masterDataRepository.workCategories();
     }
 
     @GetMapping("/api/master/holiday-types")
+    /**
+     * 有効な休日区分マスタと、各区分の入力ルールを返す。
+     */
     public List<MasterDataRepository.HolidayTypeOption> holidayTypes() {
         return masterDataRepository.holidayTypes();
     }

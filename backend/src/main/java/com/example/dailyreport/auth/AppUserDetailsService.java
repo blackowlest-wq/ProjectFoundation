@@ -18,6 +18,10 @@ public class AppUserDetailsService implements UserDetailsService {
     }
 
     @Override
+    /**
+     * ログインIDから利用者を検索し、Spring Securityが認証できるユーザー情報へ変換する。
+     * 利用者が存在しない場合も、存在する場合と同じ認証失敗として扱う。
+     */
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         // Why not: 存在しないログインIDだけ別応答にすると利用者の有無を推測されるため、認証失敗として同じ扱いにする。
         return userRepository.findByLoginId(username)

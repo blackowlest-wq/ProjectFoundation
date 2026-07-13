@@ -20,12 +20,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Profile({"test", "oracle-test"})
 public class DataInitializer {
     @Bean
+    /**
+     * Oracleの開発・テスト環境向けに、必要な表・マスタ・利用者・上長権限を依存順で初期化するRunnerを返す。
+     */
     CommandLineRunner seedUsers(UserRepository userRepository, PasswordEncoder passwordEncoder, JdbcTemplate jdbcTemplate) {
         return args -> {
             // How: マスタ表・権限表を必要時だけ作成し、マスタ、利用者、上長権限の順に投入して依存関係を満たす。
             createMasterTablesIfNeeded(jdbcTemplate);
             createPermissionTablesIfNeeded(jdbcTemplate);
             seedMasterData(jdbcTemplate);
+            // How: 利用者表が空の場合だけテスト用利用者を初期投入し、既存利用者を上書きしない。
             if (userRepository.count() == 0) {
                 userRepository.save(employee(passwordEncoder));
                 userRepository.save(manager(passwordEncoder));
@@ -35,6 +39,9 @@ public class DataInitializer {
         };
     }
 
+    /**
+     * 日報入力に必要なマスタ表を、既存表を壊さず必要時だけ作成する。
+     */
     private void createMasterTablesIfNeeded(JdbcTemplate jdbcTemplate) {
         // Why not: 既存Oracle環境で再実行可能にしつつ、存在済み以外のDDLエラーは見逃さないため、ORA-00955だけを無視する。
         executeIgnoringAlreadyExists(jdbcTemplate, """
@@ -99,6 +106,9 @@ public class DataInitializer {
                 """);
     }
 
+    /**
+     * 上長のグループ参照権限を保持する表を、既存表を壊さず作成する。
+     */
     private void createPermissionTablesIfNeeded(JdbcTemplate jdbcTemplate) {
         executeIgnoringAlreadyExists(jdbcTemplate, """
                 CREATE TABLE manager_group_permissions (
@@ -110,24 +120,33 @@ public class DataInitializer {
                 """);
     }
 
+    /**
+     * DDLを実行し、既存オブジェクトを示す例外だけを再実行可能な結果として扱う。
+     */
     private void executeIgnoringAlreadyExists(JdbcTemplate jdbcTemplate, String sql) {
         try {
             jdbcTemplate.execute(sql);
         } catch (DataAccessException exception) {
+            // How: 既存オブジェクトの例外だけを処理済みとして終了し、それ以外のDDLエラーは再送出する。
             if (!isAlreadyExists(exception)) {
                 throw exception;
             }
         }
     }
 
+    /**
+     * 例外チェーンをたどり、Oracleの既存オブジェクトエラーに該当するかを判定する。
+     */
     private boolean isAlreadyExists(Throwable exception) {
         Throwable current = exception;
         while (current != null) {
+            // How: SQLExceptionのエラーコード955を検出したら、例外チェーンの探索を終了する。
             if (current instanceof SQLException sqlException && sqlException.getErrorCode() == 955) {
                 // Why not: 他のOracle例外を無視せず、既存オブジェクトを表すORA-00955だけを再実行可能として扱う。
                 return true;
             }
             String message = current.getMessage();
+            // How: JDBCドライバがエラーコードを保持しない場合は、メッセージのORA-00955表記で同じ判定を行う。
             if (message != null && message.contains("ORA-00955")) {
                 return true;
             }
@@ -136,6 +155,9 @@ public class DataInitializer {
         return false;
     }
 
+    /**
+     * 案件、作業分類、休日、休憩、勤務時間帯のマスタをMERGEで同期する。
+     */
     private void seedMasterData(JdbcTemplate jdbcTemplate) {
         // Why not: INSERTだけにすると既存テスト環境の名称・表示順を更新できないため、マスタはMERGEで同期する。
         mergeProject(jdbcTemplate, "P001", "プロジェクトA", 1);
@@ -160,6 +182,9 @@ public class DataInitializer {
         mergeWorkTimeType(jdbcTemplate, "WT002", "短時間勤務", 540, 1050, 1320, 300, 2);
     }
 
+    /**
+     * テスト用上長にグループ参照権限を登録し、既存登録時は何もしない。
+     */
     private void seedManagerPermissions(JdbcTemplate jdbcTemplate) {
         jdbcTemplate.update("""
                 MERGE INTO manager_group_permissions target
@@ -170,6 +195,9 @@ public class DataInitializer {
                 """);
     }
 
+    /**
+     * 案件マスタをID単位で追加または更新する。
+     */
     private void mergeProject(JdbcTemplate jdbcTemplate, String id, String name, int order) {
         jdbcTemplate.update("""
                 MERGE INTO projects target
@@ -181,6 +209,9 @@ public class DataInitializer {
                 """, id, name, order);
     }
 
+    /**
+     * 作業分類マスタをID単位で追加または更新する。
+     */
     private void mergeWorkCategory(JdbcTemplate jdbcTemplate, String id, String name, int order) {
         jdbcTemplate.update("""
                 MERGE INTO work_categories target
@@ -192,6 +223,9 @@ public class DataInitializer {
                 """, id, name, order);
     }
 
+    /**
+     * 休日区分と、その区分が許可する入力条件をDBマスタへ同期する。
+     */
     private void mergeHolidayType(JdbcTemplate jdbcTemplate, String id, String name, int requiresWorkTime,
                                   int allowsWorkItems, int order) {
         // Why not: 日報入力ルールをJavaの固定分岐だけで管理するとマスタ変更と乖離するため、requires_work_time / allows_work_itemsでDB側に表す。
@@ -207,6 +241,9 @@ public class DataInitializer {
                 """, id, name, requiresWorkTime, allowsWorkItems, order);
     }
 
+    /**
+     * 休憩区分マスタをID単位で追加または更新する。
+     */
     private void mergeBreakType(JdbcTemplate jdbcTemplate, String id, String name, int order) {
         jdbcTemplate.update("""
                 MERGE INTO break_types target
@@ -218,10 +255,16 @@ public class DataInitializer {
                 """, id, name, order);
     }
 
+    /**
+     * 指定した休憩区分の既存休憩帯を全削除し、現在の定義へ置き換えられる状態にする。
+     */
     private void deleteBreakPeriods(JdbcTemplate jdbcTemplate, String breakTypeId) {
         jdbcTemplate.update("DELETE FROM break_type_periods WHERE break_type_id = ?", breakTypeId);
     }
 
+    /**
+     * 休憩区分に属する休憩帯を表示順付きで登録する。
+     */
     private void insertBreakPeriod(JdbcTemplate jdbcTemplate, String breakTypeId, int start, int end, int order) {
         jdbcTemplate.update("""
                 INSERT INTO break_type_periods (break_type_id, start_minutes, end_minutes, display_order)
@@ -229,6 +272,9 @@ public class DataInitializer {
                 """, breakTypeId, start, end, order);
     }
 
+    /**
+     * 通常・深夜の勤務時間帯を持つ勤務区分マスタをID単位で追加または更新する。
+     */
     private void mergeWorkTimeType(JdbcTemplate jdbcTemplate, String id, String name, int regularStart, int regularEnd,
                                    int nightStart, int nightEnd, int order) {
         // Why not: 時刻文字列をDBで比較すると日付跨ぎの計算が複雑になるため、通常・深夜の時間帯を分で保持してTimeRulesで計算する。
@@ -248,18 +294,27 @@ public class DataInitializer {
                 """, id, name, regularStart, regularEnd, nightStart, nightEnd, order);
     }
 
+    /**
+     * テスト用社員を、通常勤務に必要な所属・休憩・勤務設定付きで生成する。
+     */
     private AppUser employee(PasswordEncoder passwordEncoder) {
         return new AppUser("U001", "E001", "employee001", passwordEncoder.encode("password"),
                 "山田 太郎", Role.EMPLOYEE, "G001", "第1開発グループ",
                 "BT001", "標準休憩", "WT001", "通常勤務");
     }
 
+    /**
+     * テスト用上長を生成する。
+     */
     private AppUser manager(PasswordEncoder passwordEncoder) {
         return new AppUser("U002", "M001", "manager001", passwordEncoder.encode("password"),
                 "佐藤 花子", Role.MANAGER, "G900", "管理グループ",
                 null, null, null, null);
     }
 
+    /**
+     * テスト用管理者を生成する。
+     */
     private AppUser admin(PasswordEncoder passwordEncoder) {
         return new AppUser("U003", "A001", "admin001", passwordEncoder.encode("password"),
                 "鈴木 一郎", Role.ADMIN, null, null, null, null, null, null);

@@ -32,6 +32,10 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    /**
+     * 認証を実行し、セッションへ認証状態を保存したうえで画面用の利用者情報を返す。
+     * 認証失敗時は共通例外ハンドラーへ委ね、認証成功時だけ利用者情報を公開する。
+     */
     public CurrentUserResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         // How: AuthenticationManagerで認証し、SecurityContextをセッションへ保存してから画面表示用の利用者情報へ変換する。
         Authentication authentication = authenticationManager.authenticate(
@@ -40,6 +44,9 @@ public class AuthController {
         return CurrentUserResponse.from(((AuthenticatedUser) authentication.getPrincipal()).user());
     }
 
+    /**
+     * 認証情報をSecurityContextとHTTPセッションへ保存し、ログイン成功時にセッションIDを再発行する。
+     */
     private void establishAuthenticatedSession(HttpServletRequest request, Authentication authentication) {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
@@ -51,9 +58,13 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    /**
+     * SecurityContextを消去し、存在するサーバー側セッションを破棄してログアウトを完了する。
+     */
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
+        // How: 既存セッションがある場合だけ破棄し、未作成ならログアウト処理をそのまま完了する。
         if (session != null) {
             // Why not: Cookieだけを削除するとサーバー側セッションが残るため、セッションを破棄して保護APIを再利用できないようにする。
             session.invalidate();
@@ -62,6 +73,9 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    /**
+     * 現在の認証済み利用者を画面表示用レスポンスへ変換して返す。
+     */
     public CurrentUserResponse me(@AuthenticationPrincipal AuthenticatedUser principal) {
         return CurrentUserResponse.from(principal.user());
     }

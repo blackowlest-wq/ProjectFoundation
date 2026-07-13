@@ -47,6 +47,9 @@ public record DailyReportResponse(
         String rejectComment,
         List<WorkItemResponse> workItems
 ) {
+    /**
+     * 日報Entityを詳細表示・編集用DTOへ変換し、明細の表示名と計算表示を付加する。
+     */
     public static DailyReportResponse from(DailyReportEntity report, MasterDataRepository masterDataRepository) {
         // Why not: Entityの内部構造をそのまま返すと画面入力とDB表現が結合するため、編集用の入力構造へ戻す。
         WorkMinuteSummary workMinuteSummary = WorkMinuteSummary.from(report);
@@ -84,6 +87,9 @@ public record DailyReportResponse(
                 workItemResponses(report, masterDataRepository));
     }
 
+    /**
+     * 明細を保存順で並べ、IDに対応する案件名・作業分類名を付けてレスポンス化する。
+     */
     private static List<WorkItemResponse> workItemResponses(DailyReportEntity report, MasterDataRepository masterDataRepository) {
         // Why not: IDだけを返すと履歴表示の時点でマスタ参照が必要になり、表示順も失われるため、保存順と表示名を返す。
         return report.getWorkItems().stream()
@@ -99,6 +105,9 @@ public record DailyReportResponse(
             String nightWorkTimeDisplay,
             int totalWorkItemMinutes
     ) {
+        /**
+         * ヘッダの計算結果と明細合計を画面表示用の勤務時間サマリへまとめる。
+         */
         static WorkMinuteSummary from(DailyReportEntity report) {
             // Why not: 画面側で再計算するとバックエンドの計算結果と二重基準になるため、ヘッダ結果と明細合計を同じレスポンスで返す。
             int total = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkMinutes).sum();
@@ -119,6 +128,9 @@ public record DailyReportResponse(
             String workCategoryName,
             int workMinutes
     ) {
+        /**
+         * 作業明細Entityを表示用DTOへ変換し、現在取得できるマスタ名を付ける。
+         */
         static WorkItemResponse from(DailyReportWorkItemEntity item, MasterDataRepository masterDataRepository) {
             return new WorkItemResponse(item.getWorkItemId(), item.getProjectId(),
                     masterDataRepository.projectName(item.getProjectId()), item.getWorkCategoryId(),

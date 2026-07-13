@@ -32,11 +32,15 @@ public class DailyReportCommandService {
     }
 
     @Transactional
+    /**
+     * 社員本人の日報を、入力検証・重複確認・利用者スナップショット後に新規登録する。
+     */
     public DailyReportSummaryResponse create(DailyReportRequest request, AuthenticatedUser principal) {
         // How: 本人認可、入力・勤務計算、重複確認、利用者スナップショット、Entity適用、保存の順に処理する。
         AppUser user = accessPolicy.requireEmployee(principal);
         // Why not: 未検証の入力をEntityへ保存すると計算済み時間と明細が不整合になるため、登録前に検証と計算を完了する。
         TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(request, user, masterDataRepository);
+        // How: 同一社員・同一日付の日報が存在する場合は、新規Entityを作成せず重複エラーを返す。
         if (repository.existsByEmployeeUserIdAndReportDate(user.getUserId(), request.reportDate())) {
             throw new ApiException(HttpStatus.CONFLICT, "DUPLICATE_REPORT", "Daily report already exists.");
         }
@@ -49,15 +53,20 @@ public class DailyReportCommandService {
     }
 
     @Transactional
+    /**
+     * 社員本人の下書きまたは差戻し日報を、再検証と重複確認後に更新する。
+     */
     public DailyReportSummaryResponse update(String reportId, DailyReportRequest request, AuthenticatedUser principal) {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
         // Why not: 提出済み・承認済みを編集可能にすると承認内容と実データがずれるため、差戻しだけを修正可能にする。
+        // How: 下書き・差戻し以外の状態は内容変更へ進めず、状態エラーを返す。
         if (report.getApprovalStatus() != ApprovalStatus.DRAFT && report.getApprovalStatus() != ApprovalStatus.REJECTED) {
             throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Daily report cannot be edited in the current status.");
         }
         TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(request, user, masterDataRepository);
+        // How: 更新対象以外に同一社員・同一日付の日報があれば、更新せず重複エラーを返す。
         if (repository.existsByEmployeeUserIdAndReportDateAndReportIdNot(user.getUserId(), request.reportDate(), reportId)) {
             throw new ApiException(HttpStatus.CONFLICT, "DUPLICATE_REPORT", "Daily report already exists.");
         }
@@ -65,7 +74,11 @@ public class DailyReportCommandService {
         return new DailyReportSummaryResponse(report.getReportId(), report.getApprovalStatus());
     }
 
+    /**
+     * 計算結果に勤務時間がある場合だけ勤務設定を保存し、日報本体と明細を更新する。
+     */
     private void apply(DailyReportRequest request, AppUser user, DailyReportEntity report, TimeRules.CalculatedWorkTime calculated) {
+        // How: 勤務時間がある場合だけ勤務設定を取得して保存し、勤務実績のない区分は設定を空にする。
         if (calculated.hasWorkTime()) {
             // Why not: 勤務入力がない日まで勤務設定を保存すると有給・休日の記録に不要な勤務実績が残るため、勤務入力がある日だけ保存する。
             MasterDataRepository.WorkSettings workSettings =

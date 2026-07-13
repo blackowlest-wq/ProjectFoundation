@@ -15,6 +15,9 @@ public class ManagerGroupPermissionRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /**
+     * 指定した上長が参照できるグループIDをDBから取得し、グループID順で返す。
+     */
     public List<String> permittedGroupIds(String managerUserId) {
         return jdbcTemplate.queryForList("""
                 SELECT group_id

@@ -22,6 +22,9 @@ const roleLabelByRole: Record<Role, string> = {
   ADMIN: '管理者',
 };
 
+/**
+ * 認証済み利用者向けの共通画面を表示し、ロールに応じて日報機能を切り替える。
+ */
 function AuthenticatedHome({
   user,
   onLogout,
@@ -67,6 +70,9 @@ function AuthenticatedHome({
   );
 }
 
+/**
+ * 起動時のセッション確認と、ログイン済み・未ログイン画面の切り替えを管理する。
+ */
 function App() {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +86,9 @@ function App() {
       .finally(() => setLoading(false));
   }, []);
 
+  /**
+   * ログイン成功時の利用者状態とロール別初期URLを更新する。
+   */
   function handleLogin(currentUser: CurrentUser) {
     // How: 認証成功後に利用者状態を更新し、ロール別の初期URLへ履歴を置き換える。
     setUser(currentUser);
@@ -89,6 +98,9 @@ function App() {
     window.history.replaceState(null, '', initialPathFor(currentUser.role));
   }
 
+  /**
+   * ログアウトAPI成功時だけ画面状態とURLをログイン画面へ戻し、失敗時は認証状態を維持する。
+   */
   async function handleLogout() {
     setLogoutError('');
     try {
@@ -102,6 +114,9 @@ function App() {
     }
   }
 
+  /**
+   * 一覧取得などで401を受けた場合に利用者状態を破棄し、ログイン画面へ戻す。
+   */
   function handleUnauthorized() {
     setUser(null);
     setSessionMessage('ログインが必要です。');
@@ -109,10 +124,12 @@ function App() {
     window.history.replaceState(null, '', '/login');
   }
 
+  // How: セッション確認が終わるまで画面を確定せず、読み込み中表示だけを返す。
   if (loading) {
     return <main className="shell">読み込み中...</main>;
   }
 
+  // How: 未認証なら保護画面を表示せず、セッションメッセージ付きのログイン画面へ切り替える。
   if (!user) {
     return (
       <>

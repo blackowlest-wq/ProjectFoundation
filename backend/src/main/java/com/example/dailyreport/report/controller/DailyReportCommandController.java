@@ -29,6 +29,9 @@ public class DailyReportCommandController {
     }
 
     @PostMapping
+    /**
+     * 認証済み社員の日報を登録し、作成したリソースのLocationと概要を返す。
+     */
     public ResponseEntity<DailyReportSummaryResponse> create(@Valid @RequestBody DailyReportRequest request,
                                                              @AuthenticationPrincipal AuthenticatedUser principal) {
         DailyReportSummaryResponse response = service.create(request, principal);
@@ -36,6 +39,9 @@ public class DailyReportCommandController {
     }
 
     @PutMapping("/{reportId}")
+    /**
+     * 認証済み社員の日報を更新し、更新後の日報IDと承認状態を返す。
+     */
     public DailyReportSummaryResponse update(@PathVariable String reportId,
                                              @Valid @RequestBody DailyReportRequest request,
                                              @AuthenticationPrincipal AuthenticatedUser principal) {

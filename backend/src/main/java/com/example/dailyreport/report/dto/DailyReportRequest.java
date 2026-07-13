@@ -18,6 +18,9 @@ public record DailyReportRequest(
         @Size(max = 1000) String remarks,
         @Valid List<WorkItemRequest> workItems
 ) {
+    /**
+     * 作業明細がnullの場合も業務ルールが扱える空リストへ正規化する。
+     */
     public DailyReportRequest {
         // Why not: nullと空リストを業務ルール側で分岐すると入力判定が二重になるため、空リストへ正規化する。
         workItems = workItems == null ? List.of() : List.copyOf(workItems);

@@ -9,6 +9,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class DailyReportApplication {
+    /**
+     * Spring Bootアプリケーションを起動する。
+     */
     public static void main(String[] args) {
         SpringApplication.run(DailyReportApplication.class, args);
     }

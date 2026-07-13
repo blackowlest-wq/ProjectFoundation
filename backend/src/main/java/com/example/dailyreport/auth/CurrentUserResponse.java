@@ -16,6 +16,9 @@ public record CurrentUserResponse(
         String workTimeTypeId,
         String workTimeTypeName
 ) {
+    /**
+     * 利用者Entityから、フロントエンドへ公開してよい属性だけをレスポンスへ写像する。
+     */
     public static CurrentUserResponse from(AppUser user) {
         return new CurrentUserResponse(
                 user.getUserId(),

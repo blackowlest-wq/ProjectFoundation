@@ -144,6 +144,9 @@ public class DailyReportEntity {
     public String getRejectComment() { return rejectComment; }
     public List<DailyReportWorkItemEntity> getWorkItems() { return workItems; }
 
+    /**
+     * 保存時点の利用者情報を日報へスナップショットとして設定する。
+     */
     public void setEmployeeSnapshot(String userId, String employeeId, String employeeName, String groupId, String groupName) {
         // Why not: 利用者マスタを都度参照すると過去の日報が現在の所属・氏名に変わるため、保存時点の値を保持する。
         this.employeeUserId = userId;
@@ -153,6 +156,9 @@ public class DailyReportEntity {
         this.groupName = groupName;
     }
 
+    /**
+     * 入力DTOと計算結果を日報へ反映し、作業明細はリクエスト順で全差し替えする。
+     */
     public void applyContent(DailyReportRequest request, TimeRules.CalculatedWorkTime calculated, String breakTypeId,
                              String breakTypeName, String workTimeTypeId, String workTimeTypeName) {
         this.reportDate = request.reportDate();
@@ -179,6 +185,9 @@ public class DailyReportEntity {
         }
     }
 
+    /**
+     * 日報を提出または再提出し、提出時刻を記録して承認待ちへ遷移させる。
+     */
     public void submit(OffsetDateTime now) {
         // Why not: 再提出だけ別の承認待ち状態を持つと承認側の状態判定が増えるため、提出・再提出とも承認待ちへ遷移させる。
         this.approvalStatus = ApprovalStatus.PENDING;

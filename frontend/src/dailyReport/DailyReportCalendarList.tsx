@@ -24,6 +24,7 @@ const statusClassByStatus: Record<ApprovalStatus, string> = {
   APPROVED: 'status-approved',
 };
 
+/** 対象月を月曜始まりの最大6週分へ展開し、カレンダー表示用の日付配列を返す。 */
 function calendarDays(targetMonth: string) {
   const { dateFrom, dateTo } = monthRange(targetMonth);
   const first = new Date(`${dateFrom}T00:00:00`);
@@ -40,19 +41,23 @@ function calendarDays(targetMonth: string) {
   return days.filter((day, index) => index < 35 || new Date(`${day.date}T00:00:00`) <= last);
 }
 
+/** 日報の休日区分IDを表示名へ変換し、マスタにない場合はIDを表示する。 */
 function holidayName(item: DailyReportListItem, holidayTypes: HolidayTypeOption[]) {
   return holidayTypes.find((option) => option.holidayType === item.holidayType)?.holidayTypeName ?? item.holidayType;
 }
 
+/** APIエラーから画面表示用メッセージを取り出し、未知のエラーには既定文言を返す。 */
 function readErrorMessage(error: unknown) {
   const apiError = error as Partial<ApiError>;
   return apiError.message ?? '日報一覧の取得に失敗しました。';
 }
 
+/** 分数を一覧表示用のH:mm形式へ変換する。 */
 function formatMinutes(minutes: number) {
   return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
+/** 検索条件・カレンダー・一覧を管理し、401時は親へ再認証を通知する。 */
 export function DailyReportCalendarList({ user, onUnauthorized }: { user: CurrentUser; onUnauthorized?: () => void }) {
   const [criteria, setCriteria] = useState<DailyReportSearchCriteria>(() => initialSearchCriteria());
   const [reports, setReports] = useState<DailyReportListItem[]>([]);
@@ -80,22 +85,27 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** 検索条件の指定フィールドだけを更新する。 */
   function setField<K extends keyof DailyReportSearchCriteria>(key: K, value: DailyReportSearchCriteria[K]) {
     setCriteria((current) => ({ ...current, [key]: value }));
   }
 
+  /** 対象年月を更新し、同じ月の開始日・終了日も連動して更新する。 */
   function changeTargetMonth(value: string) {
     setCriteria((current) => ({ ...current, targetMonth: value, ...monthRange(value) }));
   }
 
+  /** 検索条件を現在月の初期値へ戻し、直前のエラー表示を消す。 */
   function clearConditions() {
     const next = initialSearchCriteria();
     setCriteria(next);
     setError('');
   }
 
+  /** 検索条件を検証して一覧を取得し、401は一覧を消して親へ通知する。 */
   async function runSearch(current: DailyReportSearchCriteria = criteria) {
     const validationError = validateDailyReportSearch(current);
+    // How: 検索条件にエラーがあればAPIを呼び出さず、検索を終了する。
     if (validationError) {
       setError(validationError);
       return;
@@ -105,6 +115,7 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
     try {
       setReports(await searchDailyReports(current));
     } catch (searchError) {
+      // How: 401は一覧を消して親の認証画面へ戻し、それ以外のエラーは一覧画面に表示する。
       if ((searchError as Partial<ApiError>).code === 'UNAUTHORIZED') {
         setReports([]);
         onUnauthorized?.();

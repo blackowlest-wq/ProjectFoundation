@@ -18,6 +18,9 @@ public class MasterDataRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /**
+     * 有効な案件マスタを表示順で取得する。
+     */
     public List<ProjectOption> projects() {
         return jdbcTemplate.query("""
                 SELECT project_id, project_name
@@ -27,6 +30,9 @@ public class MasterDataRepository {
                 """, (rs, rowNum) -> new ProjectOption(rs.getString("project_id"), rs.getString("project_name")));
     }
 
+    /**
+     * 有効な作業分類マスタを表示順で取得する。
+     */
     public List<WorkCategoryOption> workCategories() {
         return jdbcTemplate.query("""
                 SELECT work_category_id, work_category_name
@@ -36,6 +42,9 @@ public class MasterDataRepository {
                 """, (rs, rowNum) -> new WorkCategoryOption(rs.getString("work_category_id"), rs.getString("work_category_name")));
     }
 
+    /**
+     * 有効な休日区分と、その区分が要求する勤務時刻・作業明細のルールを取得する。
+     */
     public List<HolidayTypeOption> holidayTypes() {
         return jdbcTemplate.query("""
                 SELECT holiday_type, holiday_type_name, requires_work_time, allows_work_items
@@ -49,6 +58,9 @@ public class MasterDataRepository {
                 rs.getInt("allows_work_items") == 1));
     }
 
+    /**
+     * 指定された休日区分を検証し、有効なマスタがなければ入力エラーを返す。
+     */
     public HolidayTypeOption requireHolidayType(String holidayType) {
         // Why not: 無効な休日区分を後続処理へ渡すと業務ルールの分岐を誤るため、入力エラーとして即時に扱う。
         return jdbcTemplate.query("""
@@ -69,6 +81,9 @@ public class MasterDataRepository {
                                 "holidayType", "休日区分が存在しません。"))));
     }
 
+    /**
+     * 休憩区分、勤務区分、休憩帯を同じ計算用設定として取得する。
+     */
     public WorkSettings requireWorkSettings(String breakTypeId, String workTimeTypeId) {
         // How: 休憩区分、勤務区分、表示順付き休憩帯を読み込み、TimeRulesが同じ設定スナップショットで計算できる形にまとめる。
         // Why not: 休憩区分と勤務区分を別々に取得すると計算時点の設定がずれるため、同じ計算用設定としてまとめて取得する。
@@ -117,12 +132,18 @@ public class MasterDataRepository {
         return new WorkSettings(breakType, workTimeType, breakPeriods);
     }
 
+    /**
+     * 指定された案件IDが有効なマスタに存在するかを返す。
+     */
     public boolean projectExists(String projectId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM projects WHERE project_id = ? AND enabled = 1", Integer.class, projectId);
         return count != null && count > 0;
     }
 
+    /**
+     * 指定された作業分類IDが有効なマスタに存在するかを返す。
+     */
     public boolean workCategoryExists(String workCategoryId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM work_categories WHERE work_category_id = ? AND enabled = 1",
@@ -130,6 +151,9 @@ public class MasterDataRepository {
         return count != null && count > 0;
     }
 
+    /**
+     * 保存済み履歴を表示するため、案件名が取得できない場合は案件IDへフォールバックして返す。
+     */
     public String projectName(String projectId) {
         // Why not: 無効化・削除済みマスタを理由に保存済み日報を表示不能にすると履歴を失うため、名称はIDへフォールバックする。
         return projects().stream()
@@ -139,6 +163,9 @@ public class MasterDataRepository {
                 .orElse(projectId);
     }
 
+    /**
+     * 保存済み履歴を表示するため、作業分類名が取得できない場合は作業分類IDへフォールバックして返す。
+     */
     public String workCategoryName(String workCategoryId) {
         // Why not: 作業マスタの欠落で日報全体を表示不能にすると保存済み履歴を確認できないため、明細はIDを表示して継続する。
         return workCategories().stream()
@@ -170,6 +197,9 @@ public class MasterDataRepository {
     }
 
     public record TimePeriod(int startMinutes, int endMinutes) {
+        /**
+         * 指定分が時間帯に含まれるかを、日付跨ぎを考慮した半開区間で判定する。
+         */
         public boolean contains(int minute) {
             // How: 日付跨ぎは開始以降または終了前、通常帯は開始以上かつ終了未満として半開区間で判定する。
             if (endMinutes < startMinutes) {
@@ -179,6 +209,9 @@ public class MasterDataRepository {
             return minute >= startMinutes && minute < endMinutes;
         }
 
+        /**
+         * 指定された勤務時間帯と、この休憩帯が重なる分数を返す。
+         */
         public int overlapMinutes(int start, int end) {
             // Why not: 勤務していない休憩帯まで控除すると勤務時間を過少計上するため、勤務時間帯との重なりだけを控除対象にする。
             return Math.max(0, Math.min(end, endMinutes) - Math.max(start, startMinutes));

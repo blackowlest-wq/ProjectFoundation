@@ -40,6 +40,9 @@ public record DailyReportListItemResponse(
         OffsetDateTime approvedAt,
         boolean rejected
 ) {
+    /**
+     * 日報Entityを一覧表示用へ変換し、時刻表示・勤務時間表示・明細合計を組み立てる。
+     */
     public static DailyReportListItemResponse from(DailyReportEntity report) {
         return new DailyReportListItemResponse(
                 report.getReportId(),

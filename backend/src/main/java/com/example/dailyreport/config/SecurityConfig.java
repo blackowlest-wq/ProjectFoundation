@@ -30,6 +30,9 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 @Configuration
 public class SecurityConfig {
     @Bean
+    /**
+     * Cookieセッション、CSRF、未認証時の401、認可失敗時の共通403レスポンスを設定する。
+     */
     public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
         CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
         // How: CookieCsrfTokenRepositoryがXSRF-TOKEN Cookieを発行し、SPAは変更系リクエストでX-XSRF-TOKENヘッダーへ返す。
@@ -55,10 +58,16 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * 認可失敗時に、画面が扱える共通JSONレスポンスを書き込むハンドラーを生成する。
+     */
     private AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
         return (request, response, accessDeniedException) -> writeForbiddenResponse(response, objectMapper);
     }
 
+    /**
+     * 認可失敗を共通の403 JSON形式へ書き込む。
+     */
     private void writeForbiddenResponse(HttpServletResponse response, ObjectMapper objectMapper) throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
@@ -70,6 +79,9 @@ public class SecurityConfig {
     }
 
     @Bean
+    /**
+     * DB利用者をSpring Securityの認証プロバイダーへ接続するAuthenticationManagerを生成する。
+     */
     public AuthenticationManager authenticationManager(AppUserDetailsService userDetailsService,
                                                        PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -79,6 +91,9 @@ public class SecurityConfig {
     }
 
     @Bean
+    /**
+     * パスワードを保存・照合するBCryptエンコーダーを生成する。
+     */
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
