@@ -21,7 +21,7 @@ export function readCookie(name: string): string | null {
 
 export async function readError(response: Response): Promise<ApiError> {
   try {
-    // バックエンドが返す共通エラー形式を優先して、そのまま画面側へ渡す。
+    // Why not: フロントエンド独自のエラー変換を行うとAPI間で内容がずれるため、バックエンドの共通形式を優先して渡す。
     return (await response.json()) as ApiError;
   } catch {
     if (response.status === 401) {
@@ -32,6 +32,7 @@ export async function readError(response: Response): Promise<ApiError> {
 }
 
 export async function readJson<T>(response: Response): Promise<T> {
+  // How: 成功時はJSONを型Tへ変換し、失敗時は共通エラーを読み取って例外として伝播する。
   if (response.ok) {
     return (await response.json()) as T;
   }
@@ -45,7 +46,7 @@ export async function getJson<T>(url: string): Promise<T> {
 export async function getJsonOrNullOnUnauthorized<T>(url: string): Promise<T | null> {
   const response = await fetch(url, { credentials: 'include' });
   if (response.status === 401) {
-    // 起動時のログイン状態確認では、未ログインを例外ではなくnullとして扱う。
+    // Why not: 未ログインは起動時に起こり得る通常状態であり、例外表示にするとログイン画面の初期表示をエラー扱いするためnullで返す。
     return null;
   }
   return readJson<T>(response);
@@ -99,7 +100,7 @@ export async function postNoContentWithCsrf(url: string): Promise<void> {
 
 export function csrfHeader(): Record<string, string> | undefined {
   const csrfToken = readCookie('XSRF-TOKEN');
-  // Spring SecurityのCookieCsrfTokenRepositoryが発行した値を変更系APIのヘッダーへ戻す。
+  // Why not: CSRFトークンを独自生成せず、Spring SecurityのCookieCsrfTokenRepositoryが発行した値を変更系APIへ戻して契約を合わせる。
   return csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : undefined;
 }
 

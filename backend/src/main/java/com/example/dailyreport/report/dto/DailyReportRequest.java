@@ -19,7 +19,7 @@ public record DailyReportRequest(
         @Valid List<WorkItemRequest> workItems
 ) {
     public DailyReportRequest {
-        // workItemsをnullのまま扱うと業務ルール側が複雑になるため、空リストへ正規化する。
+        // Why not: nullと空リストを業務ルール側で分岐すると入力判定が二重になるため、空リストへ正規化する。
         workItems = workItems == null ? List.of() : List.copyOf(workItems);
     }
 

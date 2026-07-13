@@ -18,7 +18,7 @@ export async function logout(): Promise<void> {
 }
 
 export function initialPathForRole(role: CurrentUser['role']): string {
-  // ログイン成功後の遷移先をロールごとに定義する。未実装画面もURLだけ先に固定しておく。
+  // Why not: 画面実装の有無から遷移先を推測するとロール追加時にURL契約が揺れるため、ロールごとの初期URLを先に固定する。
   switch (role) {
     case 'MANAGER':
       return '/pending-approvals';

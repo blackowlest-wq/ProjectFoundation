@@ -19,7 +19,7 @@ public class AppUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 存在しないログインIDでも認証失敗として扱い、利用者の有無を外部へ露出しない。
+        // Why not: 存在しないログインIDだけ別応答にすると利用者の有無を推測されるため、認証失敗として同じ扱いにする。
         return userRepository.findByLoginId(username)
                 .map(AuthenticatedUser::new)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid login id or password."));

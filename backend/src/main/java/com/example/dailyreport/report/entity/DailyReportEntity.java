@@ -145,7 +145,7 @@ public class DailyReportEntity {
     public List<DailyReportWorkItemEntity> getWorkItems() { return workItems; }
 
     public void setEmployeeSnapshot(String userId, String employeeId, String employeeName, String groupId, String groupName) {
-        // 利用者マスタの変更に影響されず、当時の所属・氏名で日報を表示するため保存時点の値を持つ。
+        // Why not: 利用者マスタを都度参照すると過去の日報が現在の所属・氏名に変わるため、保存時点の値を保持する。
         this.employeeUserId = userId;
         this.employeeId = employeeId;
         this.employeeName = employeeName;
@@ -155,7 +155,6 @@ public class DailyReportEntity {
 
     public void applyContent(DailyReportRequest request, TimeRules.CalculatedWorkTime calculated, String breakTypeId,
                              String breakTypeName, String workTimeTypeId, String workTimeTypeName) {
-        // 日報本文と計算済み時間を一括で反映し、Service側にEntity内部の更新順序を漏らさない。
         this.reportDate = request.reportDate();
         this.holidayType = request.holidayType();
         this.remarks = request.remarks();
@@ -170,17 +169,18 @@ public class DailyReportEntity {
         this.regularWorkMinutes = calculated.regularWorkMinutes();
         this.overtimeWorkMinutes = calculated.overtimeWorkMinutes();
         this.nightWorkMinutes = calculated.nightWorkMinutes();
+        // How: 既存明細を消してリクエスト順に作り直し、表示順とorphanRemovalの削除対象を同時に確定する。
         this.workItems.clear();
         int index = 1;
         for (DailyReportRequest.WorkItemRequest item : request.workItems()) {
-            // 明細は画面入力を正として全差し替えし、orphanRemovalで不要明細をDBから削除する。
+            // Why not: 明細ごとの差分更新を行うと削除漏れと画面状態のずれが起きるため、画面入力を正として全差し替えする。
             this.workItems.add(new DailyReportWorkItemEntity(this, item.projectId(), item.workCategoryId(),
                     item.workMinutes(), index++));
         }
     }
 
     public void submit(OffsetDateTime now) {
-        // 提出・再提出はいずれも承認待ちへ遷移し、提出日時を更新する。
+        // Why not: 再提出だけ別の承認待ち状態を持つと承認側の状態判定が増えるため、提出・再提出とも承認待ちへ遷移させる。
         this.approvalStatus = ApprovalStatus.PENDING;
         this.submittedAt = now;
     }

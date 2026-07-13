@@ -50,7 +50,7 @@ public class MasterDataRepository {
     }
 
     public HolidayTypeOption requireHolidayType(String holidayType) {
-        // 休日区分は業務ルール分岐の起点になるため、無効値は入力エラーとして即時に扱う。
+        // Why not: 無効な休日区分を後続処理へ渡すと業務ルールの分岐を誤るため、入力エラーとして即時に扱う。
         return jdbcTemplate.query("""
                         SELECT holiday_type, holiday_type_name, requires_work_time, allows_work_items
                         FROM holiday_types
@@ -70,7 +70,8 @@ public class MasterDataRepository {
     }
 
     public WorkSettings requireWorkSettings(String breakTypeId, String workTimeTypeId) {
-        // 休憩区分と勤務区分はセットで実勤務・通常/残業/深夜を計算するため、まとめて取得する。
+        // How: 休憩区分、勤務区分、表示順付き休憩帯を読み込み、TimeRulesが同じ設定スナップショットで計算できる形にまとめる。
+        // Why not: 休憩区分と勤務区分を別々に取得すると計算時点の設定がずれるため、同じ計算用設定としてまとめて取得する。
         BreakTypeOption breakType = jdbcTemplate.query("""
                         SELECT break_type_id, break_type_name
                         FROM break_types
@@ -130,7 +131,7 @@ public class MasterDataRepository {
     }
 
     public String projectName(String projectId) {
-        // 無効化済みや削除済みマスタでも、保存済みIDを画面表示できるようIDをフォールバック表示する。
+        // Why not: 無効化・削除済みマスタを理由に保存済み日報を表示不能にすると履歴を失うため、名称はIDへフォールバックする。
         return projects().stream()
                 .filter(project -> project.projectId().equals(projectId))
                 .map(ProjectOption::projectName)
@@ -139,7 +140,7 @@ public class MasterDataRepository {
     }
 
     public String workCategoryName(String workCategoryId) {
-        // 作業明細の表示では、マスタ名が取れない場合でも日報自体を表示不能にしない。
+        // Why not: 作業マスタの欠落で日報全体を表示不能にすると保存済み履歴を確認できないため、明細はIDを表示して継続する。
         return workCategories().stream()
                 .filter(category -> category.workCategoryId().equals(workCategoryId))
                 .map(WorkCategoryOption::workCategoryName)
@@ -170,15 +171,16 @@ public class MasterDataRepository {
 
     public record TimePeriod(int startMinutes, int endMinutes) {
         public boolean contains(int minute) {
+            // How: 日付跨ぎは開始以降または終了前、通常帯は開始以上かつ終了未満として半開区間で判定する。
             if (endMinutes < startMinutes) {
-                // 深夜帯のように日付をまたぐ時間帯は、開始以降または終了前を範囲内として扱う。
+                // Why not: 日付跨ぎの時間帯を単純な開始<=時刻<=終了で判定すると深夜帯を取りこぼすため、開始以降または終了前を範囲内とする。
                 return minute >= startMinutes || minute < endMinutes;
             }
             return minute >= startMinutes && minute < endMinutes;
         }
 
         public int overlapMinutes(int start, int end) {
-            // 勤務時間帯と休憩時間帯の重なりだけを休憩控除対象にする。
+            // Why not: 勤務していない休憩帯まで控除すると勤務時間を過少計上するため、勤務時間帯との重なりだけを控除対象にする。
             return Math.max(0, Math.min(end, endMinutes) - Math.max(start, startMinutes));
         }
     }

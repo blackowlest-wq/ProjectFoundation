@@ -33,9 +33,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public CurrentUserResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        // How: AuthenticationManagerで認証し、SecurityContextをセッションへ保存してから画面表示用の利用者情報へ変換する。
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.loginId(), request.password()));
-        // 認証成功後にSecurityContextをHTTPセッションへ保存し、以後の保護APIで同じCookieを利用する。
         establishAuthenticatedSession(httpRequest, authentication);
         return CurrentUserResponse.from(((AuthenticatedUser) authentication.getPrincipal()).user());
     }
@@ -45,7 +45,7 @@ public class AuthController {
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
         HttpSession session = request.getSession(true);
-        // セッション固定攻撃を避けるため、ログイン成功時にセッションIDを再発行する。
+        // Why not: 認証前のセッションIDを継続利用するとセッション固定攻撃を許すため、ログイン成功時に再発行する。
         request.changeSessionId();
         session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
     }
@@ -55,7 +55,7 @@ public class AuthController {
         SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
         if (session != null) {
-            // サーバー側セッションを破棄し、同じCookieで保護APIを再利用できないようにする。
+            // Why not: Cookieだけを削除するとサーバー側セッションが残るため、セッションを破棄して保護APIを再利用できないようにする。
             session.invalidate();
         }
         return ResponseEntity.noContent().build();
@@ -63,7 +63,6 @@ public class AuthController {
 
     @GetMapping("/me")
     public CurrentUserResponse me(@AuthenticationPrincipal AuthenticatedUser principal) {
-        // 認証済みユーザーだけが到達するAPIなので、画面表示用の利用者情報に変換して返す。
         return CurrentUserResponse.from(principal.user());
     }
 }

@@ -22,7 +22,7 @@ public class DailyReportAccessPolicy {
     }
 
     public AppUser requireEmployee(AuthenticatedUser principal) {
-        // 日報登録・編集・提出は社員本人の操作に限定する。
+        // Why not: リクエストの社員IDを信頼すると他者の日報を操作できるため、登録・編集・提出は本人だけに限定する。
         if (principal.user().getRole() != Role.EMPLOYEE) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only employees can use this operation.");
         }

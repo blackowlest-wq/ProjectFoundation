@@ -48,7 +48,7 @@ public record DailyReportResponse(
         List<WorkItemResponse> workItems
 ) {
     public static DailyReportResponse from(DailyReportEntity report, MasterDataRepository masterDataRepository) {
-        // 画面で再編集しやすいよう、保存済みEntityを入力フォームに近い構造へ戻す。
+        // Why not: Entityの内部構造をそのまま返すと画面入力とDB表現が結合するため、編集用の入力構造へ戻す。
         WorkMinuteSummary workMinuteSummary = WorkMinuteSummary.from(report);
         return new DailyReportResponse(
                 report.getReportId(),
@@ -85,7 +85,7 @@ public record DailyReportResponse(
     }
 
     private static List<WorkItemResponse> workItemResponses(DailyReportEntity report, MasterDataRepository masterDataRepository) {
-        // 明細は登録時の表示順を保ち、IDだけでなく表示名も付けて返す。
+        // Why not: IDだけを返すと履歴表示の時点でマスタ参照が必要になり、表示順も失われるため、保存順と表示名を返す。
         return report.getWorkItems().stream()
                 .sorted(Comparator.comparingInt(DailyReportWorkItemEntity::getDisplayOrder))
                 .map(item -> WorkItemResponse.from(item, masterDataRepository))
@@ -100,7 +100,7 @@ public record DailyReportResponse(
             int totalWorkItemMinutes
     ) {
         static WorkMinuteSummary from(DailyReportEntity report) {
-            // ヘッダの計算結果と明細合計を一緒に返し、画面やテストで整合性を確認しやすくする。
+            // Why not: 画面側で再計算するとバックエンドの計算結果と二重基準になるため、ヘッダ結果と明細合計を同じレスポンスで返す。
             int total = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkMinutes).sum();
             return new WorkMinuteSummary(
                     TimeRules.formatDuration(report.getWorkMinutes()),

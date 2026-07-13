@@ -17,7 +17,7 @@ function parseTime(value: string | null): number | null {
   if (hour > 23 || minute > 59) {
     return null;
   }
-  // バックエンドと同じく、画面上のHH:mmを日付内の分へ変換して比較する。
+  // Why not: 文字列の大小比較では日付内の時刻として扱えないため、バックエンドと同じくHH:mmを分へ変換して比較する。
   return hour * 60 + minute;
 }
 
@@ -35,14 +35,14 @@ export function validateDailyReportInput(request: DailyReportRequest): string | 
   const hasTimes = Boolean(request.startTime || request.endTime);
   const hasItems = request.workItems.length > 0;
   if (request.holidayType === 'PAID_LEAVE') {
-    // 有給休暇は勤務実績を持たないため、時刻と作業明細を同時に禁止する。
+    // Why not: 有給休暇を勤務実績として保存すると勤務集計と矛盾するため、時刻と作業明細を同時に受け付けない。
     if (hasTimes || hasItems) {
       return '有給休暇では勤務時刻と作業明細を入力できません。';
     }
     return null;
   }
   if (request.holidayType === 'HOLIDAY' && !hasItems) {
-    // 休日で作業しない場合は勤務ゼロとして扱い、時刻だけの入力を矛盾として返す。
+    // Why not: 作業しない休日に時刻だけを許すと勤務時間の根拠がなくなるため、勤務ゼロとして時刻入力を拒否する。
     return hasTimes ? '休日で作業明細がない場合、勤務時刻は入力できません。' : null;
   }
   if (!request.startTime || !request.endTime || !hasItems) {

@@ -27,7 +27,7 @@ export function LoginForm({ onLogin }: { onLogin: (user: CurrentUser) => void })
     setError('');
     const validationError = validateLoginInput(loginId, password);
     if (validationError) {
-      // バックエンド検証を正としつつ、明らかな入力不備は送信前に利用者へ返す。
+      // Why not: すべてをバックエンド送信後に検証すると明らかな入力不備の応答を待たせるため、補助検証だけを送信前に行う。
       setError(validationError);
       return;
     }

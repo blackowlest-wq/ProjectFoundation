@@ -32,15 +32,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
         CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
-        // SPAからCookieでCSRFトークンを受け渡すため、リクエスト属性名の遅延解決を無効化する。
+        // How: CookieCsrfTokenRepositoryがXSRF-TOKEN Cookieを発行し、SPAは変更系リクエストでX-XSRF-TOKENヘッダーへ返す。
+        // Why not: SPAがCookieからCSRFトークンを読む契約を維持するため、リクエスト属性名の遅延解決を無効化する。
         csrfHandler.setCsrfRequestAttributeName(null);
 
         http
                 .csrf(csrf -> csrf
-                        // フロントエンドJavaScriptがXSRF-TOKENを読み取り、変更系APIでヘッダー送信する。
+                        // Why not: トークンをレスポンス本文へ埋め込まず、フロントエンドがCookieから読み取り変更系APIのヘッダーへ送る方式に合わせる。
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(csrfHandler)
-                        // ログイン前はCSRFトークンを取得できないため、ログインAPIだけ除外する。
+                        // Why not: ログイン前はCSRFトークンを取得できないため、保護を全APIから外さずログインAPIだけを除外する。
                         .ignoringRequestMatchers("/api/auth/login"))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
@@ -61,7 +62,7 @@ public class SecurityConfig {
     private void writeForbiddenResponse(HttpServletResponse response, ObjectMapper objectMapper) throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
-        // Spring Security標準のHTML/空レスポンスではなく、フロントが扱いやすい共通エラー形式で返す。
+        // Why not: Spring Security標準のHTML/空レスポンスでは画面側のエラー処理を統一できないため、共通JSON形式で返す。
         objectMapper.writeValue(response.getWriter(), Map.of(
                 "code", "FORBIDDEN",
                 "message", "権限がありません。",
@@ -72,7 +73,6 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AppUserDetailsService userDetailsService,
                                                        PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        // DB上のAppUserをSpring Securityの認証基盤へ接続する。
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder);
         return new ProviderManager(provider);

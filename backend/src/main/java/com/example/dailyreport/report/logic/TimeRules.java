@@ -30,7 +30,7 @@ public final class TimeRules {
             Integer nightWorkMinutes
     ) {
         public boolean hasWorkTime() {
-            // 勤務開始・終了がそろっている場合だけ、休憩区分や勤務区分のスナップショットを保存する。
+            // Why not: 開始・終了が欠けた状態で勤務設定を保存すると勤務実績のない記録に設定だけが残るため、時刻がそろう場合だけ保存する。
             return startTimeMinutes != null && endTimeMinutes != null;
         }
 
@@ -43,12 +43,13 @@ public final class TimeRules {
             DailyReportRequest request,
             AppUser employee,
             MasterDataRepository masterDataRepository) {
+        // How: 明細・休日区分・マスタ・時刻形式を先に検証し、区分別入力検証を通過した後に勤務時間を計算する。
         List<ApiExceptionHandler.ErrorDetail> errors = validateItems(request, masterDataRepository);
         if (request.holidayType() == null) {
             errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "休日区分を選択してください。"));
         }
         if (!errors.isEmpty()) {
-            // マスタ存在チェックなど、後続の業務分岐に進めないエラーは先に返す。
+            // Why not: マスタ不在のまま休日区分の業務分岐へ進むと誤った計算になるため、後続処理へ進めないエラーを先に返す。
             throw validation(errors);
         }
         MasterDataRepository.HolidayTypeOption holidayType = masterDataRepository.requireHolidayType(request.holidayType());
@@ -63,6 +64,7 @@ public final class TimeRules {
     }
 
     public static void validateStoredReport(DailyReportEntity report, MasterDataRepository masterDataRepository) {
+        // How: 保存値を休日区分別に検証し、勤務実績がある場合は現在の勤務設定から再計算して保存値と照合する。
         List<ApiExceptionHandler.ErrorDetail> errors = new ArrayList<>();
         if (report.getHolidayType() == null) {
             errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "休日区分を選択してください。"));
@@ -74,7 +76,7 @@ public final class TimeRules {
         boolean hasWorkTimes = report.getStartTimeMinutes() != null || report.getEndTimeMinutes() != null;
 
         if (!holidayType.requiresWorkTime() && !holidayType.allowsWorkItems()) {
-            // 有給休暇のように勤務入力も作業明細も持てない区分は、ここで完結させる。
+            // Why not: 有給休暇を通常勤務と同じ計算へ通すと勤務入力を要求してしまうため、勤務入力・明細を持たない区分としてここで完結させる。
             if (hasWorkTimes || hasWorkItems) {
                 errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "有給休暇では勤務時刻と作業明細を入力できません。"));
             }
@@ -83,7 +85,7 @@ public final class TimeRules {
         }
 
         if (!holidayType.requiresWorkTime() && holidayType.allowsWorkItems() && !hasWorkItems) {
-            // 休日で作業しない場合は勤務時間ゼロとして扱い、勤務時刻だけの入力を禁止する。
+            // Why not: 作業のない休日に時刻だけを許すと勤務時間の根拠がなくなるため、勤務ゼロとして時刻入力を禁止する。
             if (hasWorkTimes) {
                 errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "休日で作業明細がない場合、勤務時刻は入力できません。"));
             }
@@ -104,7 +106,7 @@ public final class TimeRules {
         MasterDataRepository.WorkSettings workSettings =
                 masterDataRepository.requireWorkSettings(report.getBreakTypeId(), report.getWorkTimeTypeId());
 
-        // 保存済み日報の計算値を、現在のマスタ設定から再計算した期待値と照合する。
+        // Why not: 保存済みの計算値だけを信頼すると外部更新による不整合を検出できないため、現在のマスタ設定から再計算して照合する。
         int start = report.getStartTimeMinutes();
         int end = report.getEndTimeMinutes();
         if (end <= start) {
@@ -138,7 +140,7 @@ public final class TimeRules {
         if (minutes == null) {
             return null;
         }
-        // DBでは分単位で保持し、APIレスポンスでは画面入力と同じHH:mm形式へ戻す。
+        // Why not: DBに時刻文字列を保存すると日付跨ぎや差分計算が複雑になるため、分で保持しAPIでHH:mmへ戻す。
         return "%02d:%02d".formatted(minutes / 60, minutes % 60);
     }
 
@@ -160,15 +162,16 @@ public final class TimeRules {
         boolean hasTimes = start != null || end != null;
         boolean hasItems = !request.workItems().isEmpty();
 
+        // How: 有給、作業なし休日、勤務日・作業休日の順に分岐し、最後の経路だけ勤務設定を取得して計算する。
         if (!holidayType.requiresWorkTime() && !holidayType.allowsWorkItems()) {
-            // 有給休暇などは勤務時間を計算せず、空の計算結果として保存する。
+            // Why not: 勤務入力を持たない区分を0分として扱うと勤務実績があるように見えるため、計算結果を空として返す。
             validatePaidLeave(hasTimes, hasItems, errors);
             throwIfInvalid(errors);
             return CalculatedWorkTime.empty();
         }
 
         if (!holidayType.requiresWorkTime() && holidayType.allowsWorkItems() && !hasItems) {
-            // 休日かつ作業なしは勤務時間ゼロ。時刻入力があれば矛盾として扱う。
+            // Why not: 休日かつ作業なしに時刻だけを許すと勤務ゼロと矛盾するため、入力エラーとして扱う。
             validateHolidayWithoutWorkItems(hasTimes, errors);
             throwIfInvalid(errors);
             return CalculatedWorkTime.empty();
@@ -205,7 +208,7 @@ public final class TimeRules {
             Integer end,
             List<ApiExceptionHandler.ErrorDetail> errors) {
         if (holidayType.requiresWorkTime() || !request.workItems().isEmpty()) {
-            // 通常勤務、または休日作業ありの場合は、勤務時刻と作業明細をセットで必須にする。
+            // Why not: 勤務時刻と作業明細の片方だけを許すと集計基準が二つになるため、通常勤務・休日作業ありではセットで必須にする。
             if (start == null) {
                 errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "勤務開始時刻を入力してください。"));
             }
@@ -244,12 +247,12 @@ public final class TimeRules {
         }
         int itemTotal = request.workItems().stream().mapToInt(DailyReportRequest.WorkItemRequest::workMinutes).sum();
         if (itemTotal != workMinutes) {
-            // 実勤務時間と作業明細合計の不一致を許すと、日報の集計値が二重基準になるため拒否する。
+            // Why not: 実勤務時間と作業明細合計のどちらかを正とすると集計が二重基準になるため、不一致を拒否する。
             errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "作業時間の合計は実勤務時間と一致させてください。"));
         }
         throwIfInvalid(errors);
 
-        // 入力チェックを通過してから、通常・残業・深夜の内訳を分単位で確定する。
+        // How: 入力検証後に勤務区分ごとの分数へ分割し、計算済み値を一つのrecordへまとめる。
         int[] split = splitWork(workSettings, start, end);
         return new CalculatedWorkTime(start, end, breakMinutes, workMinutes, split[0], split[1], split[2]);
     }
@@ -277,7 +280,7 @@ public final class TimeRules {
         List<ApiExceptionHandler.ErrorDetail> errors = new ArrayList<>();
         for (int i = 0; i < request.workItems().size(); i++) {
             DailyReportRequest.WorkItemRequest item = request.workItems().get(i);
-            // 明細ごとにfield名へindexを入れ、画面側でどの行のエラーか追えるようにする。
+            // Why not: 明細全体のエラーだけを返すと入力行を特定できないため、field名にindexを付けて返す。
             if (!masterDataRepository.projectExists(item.projectId())) {
                 errors.add(new ApiExceptionHandler.ErrorDetail("workItems[%d].projectId".formatted(i), "案件が存在しません。"));
             }
@@ -292,13 +295,14 @@ public final class TimeRules {
     }
 
     private static int breakMinutes(MasterDataRepository.WorkSettings workSettings, int start, int end) {
-        // 複数休憩帯に対応するため、勤務時間帯との重なりを休憩帯ごとに合算する。
+        // Why not: 休憩帯が一つとは限らないため、勤務時間帯との重なりを休憩帯ごとに合算する。
         return workSettings.breaks().stream()
                 .mapToInt(period -> period.overlapMinutes(start, end))
                 .sum();
     }
 
     private static int[] splitWork(MasterDataRepository.WorkSettings workSettings, int start, int end) {
+        // How: 1分ずつ休憩を除外し、深夜、通常、残業の優先順位で分類する。
         MasterDataRepository.WorkTimeTypeOption workTimeType = workSettings.workTimeType();
         MasterDataRepository.TimePeriod regularTime = new MasterDataRepository.TimePeriod(
                 workTimeType.regularStartMinutes(), workTimeType.regularEndMinutes());
@@ -309,11 +313,11 @@ public final class TimeRules {
         int overtime = 0;
         int night = 0;
         for (int minute = start; minute < end; minute++) {
-            // 休憩中の分は、通常・残業・深夜のどの勤務時間にも含めない。
+            // Why not: 休憩分を勤務区分へ残すと実勤務時間を過大計上するため、通常・残業・深夜から除外する。
             if (containsAny(breaks, minute)) {
                 continue;
             }
-            // 深夜時間は通常/残業より優先して分類し、深夜残業の二重計上を避ける。
+            // Why not: 深夜帯を通常・残業にも重ねると深夜残業を二重計上するため、深夜時間を優先して分類する。
             if (nightTime.contains(minute)) {
                 night++;
             } else if (regularTime.contains(minute)) {

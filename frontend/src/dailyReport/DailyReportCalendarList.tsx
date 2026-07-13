@@ -73,8 +73,10 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
   }, []);
 
   useEffect(() => {
+    // How: マウント時は初期条件で一度だけ検索し、以後は同じrunSearchを検索ボタンから呼ぶ。
     void runSearch(criteria);
-    // 初期表示だけ自動検索し、以後は検索ボタンで明示的に取得する。
+    // Why not: 条件変更のたびに自動検索すると入力途中の条件で通信するため、初期表示だけ自動検索し以後はボタン操作に限定する。
+    // Why not: 依存配列へrunSearchを加えると条件変更ごとに自動検索されるため、初期表示限定の副作用として抑制する。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

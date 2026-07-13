@@ -49,7 +49,6 @@ function emptyReport(): DailyReportRequest {
 }
 
 function reportIdFromPath(): string | null {
-  // URLが編集画面形式なら既存日報を読み込み、新規登録URLなら空フォームを表示する。
   const match = window.location.pathname.match(/^\/daily-reports\/([^/]+)\/edit$/);
   return match ? decodeURIComponent(match[1]) : null;
 }
@@ -59,7 +58,6 @@ function totalMinutes(items: DailyReportWorkItemInput[]): number {
 }
 
 function toEditableReport(report: Awaited<ReturnType<typeof fetchDailyReport>>): DailyReportRequest {
-  // APIの詳細レスポンスから、フォームで編集する入力DTO部分だけを取り出す。
   return {
     reportDate: report.reportDate,
     holidayType: report.holidayType,
@@ -75,7 +73,6 @@ function toEditableReport(report: Awaited<ReturnType<typeof fetchDailyReport>>):
 }
 
 function useDailyReportEditor() {
-  // 画面の入力状態とAPI操作をまとめ、JSX側を表示ロジック中心に保つ。
   const [reportId, setReportId] = useState<string | null>(() => reportIdFromPath());
   const [status, setStatus] = useState<ApprovalStatus>('DRAFT');
   const [form, setForm] = useState<DailyReportRequest>(() => emptyReport());
@@ -86,7 +83,8 @@ function useDailyReportEditor() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // プルダウンは画面表示直後に一括取得し、入力行の追加時にも同じ選択肢を利用する。
+    // How: 3種類のマスタを並列取得し、完了後に各選択肢を同じフォーム状態へ設定する。
+    // Why not: 入力行ごとにマスタを取得すると選択肢と通信回数が不安定になるため、画面表示時に一括取得して共有する。
     Promise.all([fetchProjects(), fetchWorkCategories(), fetchHolidayTypes()])
       .then(([projectOptions, categoryOptions, holidayOptions]) => {
         setProjects(projectOptions);
@@ -97,10 +95,10 @@ function useDailyReportEditor() {
   }, []);
 
   useEffect(() => {
+    // How: 編集URLのreportIdがある場合だけ既存日報を取得して入力DTOへ変換し、新規URLは初期値を維持する。
     if (!reportId) {
       return;
     }
-    // 編集URLの場合だけ既存日報を読み込み、取得結果でフォーム初期値を上書きする。
     fetchDailyReport(reportId)
       .then((report) => {
         setStatus(report.approvalStatus);
@@ -115,7 +113,7 @@ function useDailyReportEditor() {
 
   function changeHolidayType(value: HolidayType) {
     if (value === 'PAID_LEAVE') {
-      // 有給休暇は勤務時刻・作業明細を持てないため、区分変更時に関連入力を即時クリアする。
+      // Why not: 区分変更前の勤務入力を残すと保存時に有給休暇の業務ルール違反になるため、関連入力を即時クリアする。
       setForm((current) => ({ ...current, holidayType: value, startTime: null, endTime: null, workItems: [] }));
       return;
     }
@@ -131,6 +129,7 @@ function useDailyReportEditor() {
   }
 
   async function save(thenSubmit: boolean) {
+    // How: 画面入力を検証し、reportIdの有無で登録/更新を選び、提出時は差戻しだけ再提出APIへ分岐する。
     setError('');
     setMessage('');
     const validationError = validateDailyReportInput(form);
@@ -143,7 +142,7 @@ function useDailyReportEditor() {
       setReportId(saved.reportId);
       setStatus(saved.approvalStatus);
       if (thenSubmit) {
-        // 差戻し日報は通常提出ではなく再提出APIを使い、状態遷移をバックエンドのルールに合わせる。
+        // Why not: 差戻し日報を通常提出APIへ送ると状態遷移の入口を分けられないため、再提出APIへ限定する。
         const submitted = saved.approvalStatus === 'REJECTED'
           ? await resubmitDailyReport(saved.reportId)
           : await submitDailyReport(saved.reportId);
@@ -152,17 +151,18 @@ function useDailyReportEditor() {
       } else {
         setMessage('保存しました。');
       }
-      // 新規登録後も同じ画面で編集を継続できるよう、URLを編集URLへ置き換える。
+      // Why not: 登録後に新規URLを残すと再読込時に新規作成として扱われるため、編集URLへ置き換える。
       window.history.replaceState(null, '', `/daily-reports/${encodeURIComponent(saved.reportId)}/edit`);
     } catch (e) {
       const apiError = e as ApiError;
-      // バックエンドのfield別エラーがあれば最優先で表示し、なければAPI全体のメッセージを使う。
+      // Why not: API全体のメッセージだけを表示すると入力箇所を特定できないため、field別エラーを優先する。
       setError(apiError.details?.[0]?.message ?? apiError.message ?? '保存に失敗しました。');
     }
   }
 
   function addItem() {
-    // 追加行は先頭マスタを初期選択にし、マスタ未取得時も既定IDで一旦入力できるようにする。
+    // How: 現在のマスタ先頭値を選び、未取得時は既定IDを使って明細を末尾へ追加する。
+    // Why not: マスタ取得完了まで追加操作を止めると入力を開始できないため、先頭値または既定IDで行を作成する。
     setForm((current) => ({
       ...current,
       workItems: [
@@ -177,7 +177,6 @@ function useDailyReportEditor() {
   }
 
   function updateItem(index: number, item: DailyReportWorkItemInput) {
-    // Reactの状態更新を検知させるため、対象行だけ差し替えた新しい配列を作る。
     setForm((current) => ({
       ...current,
       workItems: current.workItems.map((currentItem, itemIndex) => (itemIndex === index ? item : currentItem)),
@@ -185,7 +184,7 @@ function useDailyReportEditor() {
   }
 
   function deleteItem(index: number) {
-    // 削除後の明細は保存時に全差し替えされ、バックエンド側で不要明細が削除される。
+    // Why not: 明細ごとの差分APIを持つと画面とバックエンドで削除状態がずれるため、保存時に入力配列を全差し替えする。
     setForm((current) => ({
       ...current,
       workItems: current.workItems.filter((_, itemIndex) => itemIndex !== index),
@@ -260,7 +259,7 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
   const editor = useDailyReportEditor();
   const workDisabled = editor.form.holidayType === 'PAID_LEAVE'
     || (editor.form.holidayType === 'HOLIDAY' && editor.form.workItems.length === 0);
-  // 有給休暇、または作業なし休日では勤務時刻入力を無効にして、業務ルール違反を起こしにくくする。
+  // Why not: 画面で勤務時刻を入力可能にするとバックエンド検証まで業務ルール違反を保持できるため、対象区分では入力を無効にする。
 
   return (
     <section className="report-panel">

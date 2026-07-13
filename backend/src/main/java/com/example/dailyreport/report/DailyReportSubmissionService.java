@@ -35,11 +35,11 @@ public class DailyReportSubmissionService {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
-        // 初回提出は下書きだけ許可し、差戻し後は専用の再提出APIに寄せる。
+        // Why not: 初回提出と再提出を同じ入口にすると許可する状態を区別しにくいため、初回は下書き、差戻し後は専用APIに限定する。
         if (report.getApprovalStatus() != ApprovalStatus.DRAFT) {
             throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Only draft reports can be submitted.");
         }
-        // 保存済みデータが外部要因で不整合になっていても、提出直前に再検証して防ぐ。
+        // Why not: 保存後にマスタやデータが変わる可能性があるため、保存時の検証結果だけを信頼せず提出直前にも再検証する。
         TimeRules.validateStoredReport(report, masterDataRepository);
         report.submit(OffsetDateTime.now());
         return new SubmitResponse(report.getReportId(), report.getApprovalStatus(), report.getSubmittedAt());
@@ -50,7 +50,7 @@ public class DailyReportSubmissionService {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
-        // 差戻し以外を再提出できると状態遷移が崩れるため、明示的にREJECTEDへ限定する。
+        // Why not: 下書きや承認済みを再提出可能にすると状態遷移が崩れるため、再提出元をREJECTEDだけに限定する。
         if (report.getApprovalStatus() != ApprovalStatus.REJECTED) {
             throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Only rejected reports can be resubmitted.");
         }

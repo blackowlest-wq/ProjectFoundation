@@ -22,6 +22,7 @@ public class DataInitializer {
     @Bean
     CommandLineRunner seedUsers(UserRepository userRepository, PasswordEncoder passwordEncoder, JdbcTemplate jdbcTemplate) {
         return args -> {
+            // How: マスタ表・権限表を必要時だけ作成し、マスタ、利用者、上長権限の順に投入して依存関係を満たす。
             createMasterTablesIfNeeded(jdbcTemplate);
             createPermissionTablesIfNeeded(jdbcTemplate);
             seedMasterData(jdbcTemplate);
@@ -35,7 +36,7 @@ public class DataInitializer {
     }
 
     private void createMasterTablesIfNeeded(JdbcTemplate jdbcTemplate) {
-        // 既存Oracle環境へ繰り返し起動できるよう、CREATE TABLEは存在済みエラーだけ無視する。
+        // Why not: 既存Oracle環境で再実行可能にしつつ、存在済み以外のDDLエラーは見逃さないため、ORA-00955だけを無視する。
         executeIgnoringAlreadyExists(jdbcTemplate, """
                 CREATE TABLE projects (
                     project_id VARCHAR2(20 CHAR) NOT NULL,
@@ -123,7 +124,7 @@ public class DataInitializer {
         Throwable current = exception;
         while (current != null) {
             if (current instanceof SQLException sqlException && sqlException.getErrorCode() == 955) {
-                // ORA-00955: name is already used by an existing object
+                // Why not: 他のOracle例外を無視せず、既存オブジェクトを表すORA-00955だけを再実行可能として扱う。
                 return true;
             }
             String message = current.getMessage();
@@ -136,7 +137,7 @@ public class DataInitializer {
     }
 
     private void seedMasterData(JdbcTemplate jdbcTemplate) {
-        // マスタはMERGEで投入し、名称変更や表示順変更をテスト環境へ反映しやすくする。
+        // Why not: INSERTだけにすると既存テスト環境の名称・表示順を更新できないため、マスタはMERGEで同期する。
         mergeProject(jdbcTemplate, "P001", "プロジェクトA", 1);
         mergeProject(jdbcTemplate, "P002", "プロジェクトB", 2);
         mergeWorkCategory(jdbcTemplate, "WC001", "設計", 1);
@@ -149,7 +150,7 @@ public class DataInitializer {
         mergeHolidayType(jdbcTemplate, "PM_OFF", "午後休", 1, 1, 5);
         mergeBreakType(jdbcTemplate, "BT001", "標準休憩", 1);
         mergeBreakType(jdbcTemplate, "BT002", "分割休憩", 2);
-        // 休憩時間帯は複数行で構成されるため、既存行を消してから現在定義を入れ直す。
+        // Why not: 既存行へ追記すると古い休憩帯が残るため、複数行の定義を一度削除して現在定義へ置き換える。
         deleteBreakPeriods(jdbcTemplate, "BT001");
         insertBreakPeriod(jdbcTemplate, "BT001", 720, 780, 1);
         deleteBreakPeriods(jdbcTemplate, "BT002");
@@ -193,7 +194,7 @@ public class DataInitializer {
 
     private void mergeHolidayType(JdbcTemplate jdbcTemplate, String id, String name, int requiresWorkTime,
                                   int allowsWorkItems, int order) {
-        // requires_work_time / allows_work_items は、日報入力ルールの分岐をDBマスタ側で表す。
+        // Why not: 日報入力ルールをJavaの固定分岐だけで管理するとマスタ変更と乖離するため、requires_work_time / allows_work_itemsでDB側に表す。
         jdbcTemplate.update("""
                 MERGE INTO holiday_types target
                 USING (SELECT ? holiday_type, ? holiday_type_name, ? requires_work_time, ? allows_work_items, ? display_order FROM dual) source
@@ -230,7 +231,7 @@ public class DataInitializer {
 
     private void mergeWorkTimeType(JdbcTemplate jdbcTemplate, String id, String name, int regularStart, int regularEnd,
                                    int nightStart, int nightEnd, int order) {
-        // 勤務区分は通常時間帯と深夜時間帯を分で持ち、TimeRulesが内訳計算に利用する。
+        // Why not: 時刻文字列をDBで比較すると日付跨ぎの計算が複雑になるため、通常・深夜の時間帯を分で保持してTimeRulesで計算する。
         jdbcTemplate.update("""
                 MERGE INTO work_time_types target
                 USING (SELECT ? work_time_type_id, ? work_time_type_name, ? regular_start_minutes, ? regular_end_minutes,
