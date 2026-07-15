@@ -12,10 +12,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/daily-reports")
 public class DailyReportSubmissionController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DailyReportSubmissionController.class);
     private final DailyReportSubmissionService service;
 
     public DailyReportSubmissionController(DailyReportSubmissionService service) {
@@ -28,7 +31,10 @@ public class DailyReportSubmissionController {
      */
     public SubmitResponse submit(@PathVariable String reportId,
                                  @AuthenticationPrincipal AuthenticatedUser principal) {
-        return service.submit(reportId, principal);
+        SubmitResponse response = service.submit(reportId, principal);
+        LOGGER.info("event=daily_report.submitted feature=DAILY_REPORT useCase=SUBMIT reportId={} status={}",
+                response.reportId(), response.approvalStatus());
+        return response;
     }
 
     @PostMapping("/{reportId}/resubmit")
@@ -37,6 +43,9 @@ public class DailyReportSubmissionController {
      */
     public SubmitResponse resubmit(@PathVariable String reportId,
                                    @AuthenticationPrincipal AuthenticatedUser principal) {
-        return service.resubmit(reportId, principal);
+        SubmitResponse response = service.resubmit(reportId, principal);
+        LOGGER.info("event=daily_report.submitted feature=DAILY_REPORT useCase=RESUBMIT reportId={} status={}",
+                response.reportId(), response.approvalStatus());
+        return response;
     }
 }

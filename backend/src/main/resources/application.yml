@@ -16,3 +16,9 @@ server:
         http-only: true
         same-site: strict
         secure: ${SESSION_COOKIE_SECURE:true}
+logging:
+  level:
+    root: WARN
+    com.example.dailyreport: INFO
+  pattern:
+    level: "%5p [requestId:%X{requestId:-}]"

@@ -1,0 +1,12 @@
+min_version: 2.1.10
+no_tty: true
+
+pre-commit:
+  jobs:
+    - name: quick-check
+      run: pwsh -NoProfile -File scripts/check.ps1 -Mode Quick
+
+pre-push:
+  jobs:
+    - name: full-check
+      run: pwsh -NoProfile -File scripts/check.ps1 -Mode Full

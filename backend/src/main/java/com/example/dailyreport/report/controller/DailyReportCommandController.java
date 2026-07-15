@@ -18,10 +18,13 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/daily-reports")
 public class DailyReportCommandController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DailyReportCommandController.class);
     private final DailyReportCommandService service;
 
     public DailyReportCommandController(DailyReportCommandService service) {
@@ -35,6 +38,8 @@ public class DailyReportCommandController {
     public ResponseEntity<DailyReportSummaryResponse> create(@Valid @RequestBody DailyReportRequest request,
                                                              @AuthenticationPrincipal AuthenticatedUser principal) {
         DailyReportSummaryResponse response = service.create(request, principal);
+        LOGGER.info("event=daily_report.saved feature=DAILY_REPORT useCase=CREATE reportId={} status={}",
+                response.reportId(), response.approvalStatus());
         return ResponseEntity.created(URI.create("/api/daily-reports/" + response.reportId())).body(response);
     }
 
@@ -45,6 +50,9 @@ public class DailyReportCommandController {
     public DailyReportSummaryResponse update(@PathVariable String reportId,
                                              @Valid @RequestBody DailyReportRequest request,
                                              @AuthenticationPrincipal AuthenticatedUser principal) {
-        return service.update(reportId, request, principal);
+        DailyReportSummaryResponse response = service.update(reportId, request, principal);
+        LOGGER.info("event=daily_report.saved feature=DAILY_REPORT useCase=UPDATE reportId={} status={}",
+                response.reportId(), response.approvalStatus());
+        return response;
     }
 }

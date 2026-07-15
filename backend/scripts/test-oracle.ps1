@@ -1,62 +1,37 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$MavenArgs = @("test"),
-    [string]$ConfigPath
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+    [string[]]$MavenArgs = @('test'),
+    [string]$ConfigPath,
+    [switch]$AllowDdl,
+    [string]$DdlScript
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$backendDir = Resolve-Path (Join-Path $scriptDir "..")
+$backendDir = (Resolve-Path (Join-Path $scriptDir '..')).Path
+. (Join-Path $scriptDir 'oracle-test-helpers.ps1')
 
-if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
-    $ConfigPath = Join-Path $backendDir "config/oracle-test.properties"
-}
-
-if (-not (Test-Path -LiteralPath $ConfigPath)) {
-    $examplePath = Join-Path $backendDir "config/oracle-test.example.properties"
-    Write-Error "Oracle test config was not found: $ConfigPath. Copy $examplePath to $ConfigPath and set the password."
-}
-
-$values = @{}
-Get-Content -Encoding UTF8 -LiteralPath $ConfigPath | ForEach-Object {
-    $line = $_.Trim()
-    if ($line.Length -eq 0 -or $line.StartsWith("#")) {
-        return
-    }
-
-    $separator = $line.IndexOf("=")
-    if ($separator -le 0) {
-        Write-Error "Invalid config line. Expected KEY=VALUE: $line"
-    }
-
-    $key = $line.Substring(0, $separator).Trim()
-    $value = $line.Substring($separator + 1).Trim()
-    $values[$key] = $value
-}
-
-$requiredKeys = @("DAILY_REPORT_DB_URL", "DAILY_REPORT_DB_USER", "DAILY_REPORT_DB_PASSWORD")
-foreach ($key in $requiredKeys) {
-    if (-not $values.ContainsKey($key) -or [string]::IsNullOrWhiteSpace($values[$key])) {
-        Write-Error "Oracle test config key is required: $key"
-    }
-}
-
-foreach ($entry in $values.GetEnumerator()) {
-    [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
-}
+$oracleEnvironment = Get-OracleTestEnvironment -BackendDir $backendDir -ConfigPath $ConfigPath -AllowDdl:$AllowDdl -DdlScript $DdlScript
+Set-OracleTestEnvironment -Environment $oracleEnvironment -AllowDdl:$AllowDdl
 
 Push-Location $backendDir
 try {
-    $settingsPath = Join-Path $backendDir "local-maven-settings.xml"
-    if (Test-Path -LiteralPath $settingsPath) {
-        & mvn.cmd -s $settingsPath @MavenArgs
+    $settingsPath = Join-Path $backendDir 'local-maven-settings.xml'
+    $wrapperPath = Join-Path $backendDir 'mvnw.cmd'
+    $hasTestGoal = @($MavenArgs | Where-Object { $_ -eq 'test' }).Count -gt 0
+    $hasTestSelector = @($MavenArgs | Where-Object { $_ -like '-Dtest=*' }).Count -gt 0
+    if ($hasTestGoal -and -not $hasTestSelector) {
+        $MavenArgs = @('-Dtest=**/*Test,**/*IT') + $MavenArgs
     }
-    else {
-        & mvn.cmd @MavenArgs
+    $mavenArguments = @('-s', $settingsPath, '-B') + $MavenArgs
+    & $wrapperPath @mavenArguments
+    $mavenExitCode = $LASTEXITCODE
+    if ($mavenExitCode -eq 0 -and $null -ne $oracleEnvironment.DdlPath) {
+        Invoke-OracleSqlPlus -Environment $oracleEnvironment -Path $oracleEnvironment.DdlPath -WorkingDirectory $backendDir
     }
-    exit $LASTEXITCODE
+    exit $mavenExitCode
 }
 finally {
     Pop-Location

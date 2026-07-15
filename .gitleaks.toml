@@ -1,0 +1,13 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated and local-only directories"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)backend/target/''',
+  '''(^|/)frontend/(dist|coverage|playwright-report|test-results)/''',
+  '''(^|/)backend/config/oracle-test\.properties$''',
+  '''(^|/)logs/''',
+  '''(^|/)\.tools/'''
+]

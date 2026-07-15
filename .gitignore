@@ -1,13 +1,34 @@
-frontend/playwright-report/
-frontend/test-results/
-frontend/node_modules/
+# Node / frontend
+node_modules/
 frontend/dist/
 frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/playwright-report-oracle/
+frontend/test-results-oracle/
+frontend/node_modules/
 frontend/debug.log
+
+# Maven / Java
 backend/target/
+
+# Local database and secret-bearing configuration
 backend/config/oracle-test.properties
+
+# Local tools and reports
+.tools/
 logs/
 *.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local agent state
+.serena/cache/
 .serena/
 .worktrees/
 .superpowers/

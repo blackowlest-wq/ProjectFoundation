@@ -21,10 +21,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
     private final AuthenticationManager authenticationManager;
 
     public AuthController(AuthenticationManager authenticationManager) {
@@ -41,7 +44,10 @@ public class AuthController {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.loginId(), request.password()));
         establishAuthenticatedSession(httpRequest, authentication);
-        return CurrentUserResponse.from(((AuthenticatedUser) authentication.getPrincipal()).user());
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) authentication.getPrincipal();
+        LOGGER.info("event=auth.login_succeeded feature=AUTH useCase=LOGIN userId={}",
+                authenticatedUser.user().getUserId());
+        return CurrentUserResponse.from(authenticatedUser.user());
     }
 
     /**
@@ -62,6 +68,10 @@ public class AuthController {
      * SecurityContextを消去し、存在するサーバー側セッションを破棄してログアウトを完了する。
      */
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user
+                ? user.user().getUserId()
+                : "anonymous";
         SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
         // How: 既存セッションがある場合だけ破棄し、未作成ならログアウト処理をそのまま完了する。
@@ -69,6 +79,7 @@ public class AuthController {
             // Why not: Cookieだけを削除するとサーバー側セッションが残るため、セッションを破棄して保護APIを再利用できないようにする。
             session.invalidate();
         }
+        LOGGER.info("event=auth.logout_succeeded feature=AUTH useCase=LOGOUT userId={}", userId);
         return ResponseEntity.noContent().build();
     }
 

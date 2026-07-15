@@ -8,6 +8,8 @@ import com.example.dailyreport.auth.AppUser;
 import com.example.dailyreport.auth.Role;
 import com.example.dailyreport.auth.UserRepository;
 import java.sql.SQLException;
+import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,24 +21,83 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Configuration
 @Profile({"test", "oracle-test"})
 public class DataInitializer {
+    private final boolean allowDdl;
+
+    DataInitializer(
+            @Value("${DAILY_REPORT_ALLOW_DDL:false}") boolean allowDdl,
+            @Value("${DAILY_REPORT_DDL_CLI_APPROVED:false}") boolean cliDdlApproved) {
+        this.allowDdl = allowDdl && cliDdlApproved;
+    }
+
     @Bean
     /**
      * Oracleの開発・テスト環境向けに、必要な表・マスタ・利用者・上長権限を依存順で初期化するRunnerを返す。
      */
     CommandLineRunner seedUsers(UserRepository userRepository, PasswordEncoder passwordEncoder, JdbcTemplate jdbcTemplate) {
         return args -> {
-            // How: マスタ表・権限表を必要時だけ作成し、マスタ、利用者、上長権限の順に投入して依存関係を満たす。
-            createMasterTablesIfNeeded(jdbcTemplate);
-            createPermissionTablesIfNeeded(jdbcTemplate);
-            seedMasterData(jdbcTemplate);
-            // How: 利用者表が空の場合だけテスト用利用者を初期投入し、既存利用者を上書きしない。
-            if (userRepository.count() == 0) {
-                userRepository.save(employee(passwordEncoder));
-                userRepository.save(manager(passwordEncoder));
-                userRepository.save(admin(passwordEncoder));
+            // How: DDL・seedより先にOracleの論理識別値を確認し、誤接続先への副作用を防ぐ。
+            verifyExpectedDatabase(jdbcTemplate);
+            // How: DDL許可が有効な場合だけマスタ表・権限表を作成し、通常の実DBテストは既存スキーマを使う。
+            // Why not: Oracle実DBテストでDDLを常時実行すると共有スキーマを破壊するため、設定と入口の二重許可に限定する。
+            if (allowDdl) {
+                createMasterTablesIfNeeded(jdbcTemplate);
+                createPermissionTablesIfNeeded(jdbcTemplate);
             }
+            seedMasterData(jdbcTemplate);
+            // How: 利用者表の件数に依存せず、不足している標準テスト利用者だけを追加し、既存利用者を上書きしない。
+            saveIfAbsent(userRepository, employee(passwordEncoder));
+            saveIfAbsent(userRepository, manager(passwordEncoder));
+            saveIfAbsent(userRepository, admin(passwordEncoder));
             seedManagerPermissions(jdbcTemplate);
         };
+    }
+
+    /**
+     * 同じ利用者IDまたはログインIDが存在しない場合だけ、標準テスト利用者を追加する。
+     */
+    private void saveIfAbsent(UserRepository userRepository, AppUser user) {
+        if (!userRepository.existsById(user.getUserId()) && userRepository.findByLoginId(user.getLoginId()).isEmpty()) {
+            userRepository.save(user);
+        }
+    }
+
+    /**
+     * 接続後に確認したOracleのDB名、サービス名、セッションユーザーを期待値と照合する。
+     */
+    private void verifyExpectedDatabase(JdbcTemplate jdbcTemplate) {
+        String expectedName = requiredEnvironment("DAILY_REPORT_DB_EXPECTED_NAME");
+        String expectedService = requiredEnvironment("DAILY_REPORT_DB_EXPECTED_SERVICE");
+        String expectedUser = requiredEnvironment("DAILY_REPORT_DB_EXPECTED_USER");
+        Map<String, Object> identity = jdbcTemplate.queryForMap("""
+                SELECT
+                    SYS_CONTEXT('USERENV', 'DB_NAME') AS DB_NAME,
+                    SYS_CONTEXT('USERENV', 'SERVICE_NAME') AS SERVICE_NAME,
+                    SYS_CONTEXT('USERENV', 'SESSION_USER') AS SESSION_USER
+                FROM dual
+                """);
+        assertIdentity(expectedName, identity.get("DB_NAME"), "DB_NAME");
+        assertIdentity(expectedService, identity.get("SERVICE_NAME"), "SERVICE_NAME");
+        assertIdentity(expectedUser, identity.get("SESSION_USER"), "SESSION_USER");
+    }
+
+    /**
+     * Oracle接続先の識別に必要な環境変数が設定されていることを確認する。
+     */
+    private String requiredEnvironment(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Required Oracle identity environment variable is missing: " + name);
+        }
+        return value;
+    }
+
+    /**
+     * Oracleから返された識別値を大小文字を区別せず期待値と照合する。
+     */
+    private void assertIdentity(String expected, Object actual, String field) {
+        if (!expected.equalsIgnoreCase(String.valueOf(actual))) {
+            throw new IllegalStateException("Oracle test identity mismatch: " + field);
+        }
     }
 
     /**

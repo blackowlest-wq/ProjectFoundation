@@ -6,6 +6,7 @@ export type ApiError = {
   code: string;
   message: string;
   details: { field: string; message: string }[];
+  requestId?: string;
 };
 
 export const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -24,13 +25,27 @@ export function readCookie(name: string): string | null {
 export async function readError(response: Response): Promise<ApiError> {
   try {
     // Why not: フロントエンド独自のエラー変換を行うとAPI間で内容がずれるため、バックエンドの共通形式を優先して渡す。
-    return (await response.json()) as ApiError;
+    const payload = await response.json() as Partial<ApiError>;
+    const error: ApiError = {
+      code: typeof payload.code === 'string' ? payload.code : fallbackErrorCode(response.status),
+      message: typeof payload.message === 'string' ? payload.message : fallbackErrorMessage(response.status),
+      details: Array.isArray(payload.details) ? payload.details : [],
+      requestId: typeof payload.requestId === 'string' && payload.requestId.length > 0
+        ? payload.requestId
+        : response.headers.get('X-Request-Id') ?? undefined,
+    };
+    logHttpFailure(response, error);
+    return error;
   } catch {
     // How: エラー本文を読めない場合でも401だけは未認証として扱い、それ以外は共通の不明エラーへ落とす。
-    if (response.status === 401) {
-      return { code: 'UNAUTHORIZED', message: 'ログインが必要です。', details: [] };
-    }
-    return { code: 'UNKNOWN_ERROR', message: 'リクエストに失敗しました。', details: [] };
+    const error: ApiError = {
+      code: fallbackErrorCode(response.status),
+      message: fallbackErrorMessage(response.status),
+      details: [],
+      requestId: response.headers.get('X-Request-Id') ?? undefined,
+    };
+    logHttpFailure(response, error);
+    return error;
   }
 }
 
@@ -45,12 +60,12 @@ export async function readJson<T>(response: Response): Promise<T> {
 
 /** Cookieセッション付きGETを実行し、JSONレスポンスを返す。 */
 export async function getJson<T>(url: string): Promise<T> {
-  return readJson<T>(await fetch(url, { credentials: 'include' }));
+  return readJson<T>(await fetchWithDiagnostics(url, { credentials: 'include' }));
 }
 
 /** GETを実行し、401だけは未ログイン状態としてnullへ変換する。 */
 export async function getJsonOrNullOnUnauthorized<T>(url: string): Promise<T | null> {
-  const response = await fetch(url, { credentials: 'include' });
+  const response = await fetchWithDiagnostics(url, { credentials: 'include' });
   // How: 起動時の未認証だけをnullへ変換し、その他の失敗はreadJsonへ委譲して例外にする。
   if (response.status === 401) {
     // Why not: 未ログインは起動時に起こり得る通常状態であり、例外表示にするとログイン画面の初期表示をエラー扱いするためnullで返す。
@@ -61,7 +76,7 @@ export async function getJsonOrNullOnUnauthorized<T>(url: string): Promise<T | n
 
 /** JSON本文を持つCookieセッション付きPOSTを実行する。 */
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
-  return readJson<T>(await fetch(url, {
+  return readJson<T>(await fetchWithDiagnostics(url, {
     method: 'POST',
     headers: jsonHeaders,
     credentials: 'include',
@@ -71,7 +86,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
 
 /** CSRFヘッダー付きPUTを実行し、JSONレスポンスを返す。 */
 export async function putJsonWithCsrf<T>(url: string, body: unknown): Promise<T> {
-  return readJson<T>(await fetch(url, {
+  return readJson<T>(await fetchWithDiagnostics(url, {
     method: 'PUT',
     credentials: 'include',
     headers: jsonCsrfHeaders(),
@@ -81,7 +96,7 @@ export async function putJsonWithCsrf<T>(url: string, body: unknown): Promise<T>
 
 /** CSRFヘッダー付きJSON POSTを実行する。 */
 export async function postJsonWithCsrf<T>(url: string, body: unknown): Promise<T> {
-  return readJson<T>(await fetch(url, {
+  return readJson<T>(await fetchWithDiagnostics(url, {
     method: 'POST',
     credentials: 'include',
     headers: jsonCsrfHeaders(),
@@ -91,7 +106,7 @@ export async function postJsonWithCsrf<T>(url: string, body: unknown): Promise<T
 
 /** 本文なしのCSRFヘッダー付きPOSTを実行し、JSONレスポンスを返す。 */
 export async function postNoBodyWithCsrf<T>(url: string): Promise<T> {
-  return readJson<T>(await fetch(url, {
+  return readJson<T>(await fetchWithDiagnostics(url, {
     method: 'POST',
     credentials: 'include',
     headers: csrfHeader(),
@@ -100,7 +115,7 @@ export async function postNoBodyWithCsrf<T>(url: string): Promise<T> {
 
 /** 本文なしのCSRFヘッダー付きPOSTを実行し、204以外をエラーとして送出する。 */
 export async function postNoContentWithCsrf(url: string): Promise<void> {
-  const response = await fetch(url, {
+  const response = await fetchWithDiagnostics(url, {
     method: 'POST',
     credentials: 'include',
     headers: csrfHeader(),
@@ -121,4 +136,42 @@ export function csrfHeader(): Record<string, string> | undefined {
 /** JSON Content-TypeとCSRFヘッダーを組み合わせて返す。 */
 export function jsonCsrfHeaders(): Record<string, string> {
   return { ...jsonHeaders, ...(csrfHeader() ?? {}) };
+}
+
+function fallbackErrorCode(status: number): string {
+  return status === 401 ? 'UNAUTHORIZED' : 'UNKNOWN_ERROR';
+}
+
+function fallbackErrorMessage(status: number): string {
+  return status === 401 ? 'ログインが必要です。' : 'リクエストに失敗しました。';
+}
+
+function logHttpFailure(response: Response, error: ApiError): void {
+  if (response.status < 500 && error.code !== 'UNKNOWN_ERROR') {
+    return;
+  }
+  console.error('event=api.http_failure', {
+    path: pathOnly(response.url),
+    status: response.status,
+    code: error.code,
+    requestId: error.requestId,
+  });
+}
+
+async function fetchWithDiagnostics(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    console.error('event=api.network_failure', { path: pathOnly(input) });
+    throw error;
+  }
+}
+
+function pathOnly(input: RequestInfo | URL | string): string {
+  const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  try {
+    return new URL(rawUrl, globalThis.location?.origin ?? 'http://localhost').pathname;
+  } catch {
+    return '/unknown';
+  }
 }

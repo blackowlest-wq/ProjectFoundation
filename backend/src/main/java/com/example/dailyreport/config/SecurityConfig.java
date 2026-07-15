@@ -5,11 +5,13 @@
 package com.example.dailyreport.config;
 
 import com.example.dailyreport.auth.AppUserDetailsService;
+import com.example.dailyreport.common.ApiExceptionHandler.ErrorResponse;
+import com.example.dailyreport.observability.RequestContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -22,13 +24,16 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Configuration
 public class SecurityConfig {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SecurityConfig.class);
+
     @Bean
     /**
      * Cookieセッション、CSRF、未認証時の401、認可失敗時の共通403レスポンスを設定する。
@@ -53,7 +58,9 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        .authenticationEntryPoint((request, response, authenticationException) ->
+                                writeErrorResponse(request, response, objectMapper, HttpStatus.UNAUTHORIZED,
+                                        "UNAUTHORIZED", "ログインが必要です。", "security.authentication_required"))
                         .accessDeniedHandler(accessDeniedHandler(objectMapper)));
         return http.build();
     }
@@ -62,20 +69,24 @@ public class SecurityConfig {
      * 認可失敗時に、画面が扱える共通JSONレスポンスを書き込むハンドラーを生成する。
      */
     private AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
-        return (request, response, accessDeniedException) -> writeForbiddenResponse(response, objectMapper);
+        return (request, response, accessDeniedException) -> writeErrorResponse(request, response, objectMapper,
+                HttpStatus.FORBIDDEN, "FORBIDDEN", "権限がありません。", "security.access_denied");
     }
 
     /**
-     * 認可失敗を共通の403 JSON形式へ書き込む。
+     * Security由来の認証・認可失敗を共通JSON形式へ書き込む。
      */
-    private void writeForbiddenResponse(HttpServletResponse response, ObjectMapper objectMapper) throws IOException {
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+    private void writeErrorResponse(HttpServletRequest request, HttpServletResponse response, ObjectMapper objectMapper,
+                                    HttpStatus status, String code, String message, String event) throws IOException {
+        String requestId = RequestContext.requestId(request);
+        response.setStatus(status.value());
+        response.setHeader(RequestContext.REQUEST_ID_HEADER, requestId);
         response.setContentType("application/json");
+        response.setCharacterEncoding(java.nio.charset.StandardCharsets.UTF_8.name());
+        LOGGER.warn("event={} requestId={} feature={} useCase={} status={} code={}", event, requestId,
+                RequestContext.feature(request), RequestContext.useCase(request), status.value(), code);
         // Why not: Spring Security標準のHTML/空レスポンスでは画面側のエラー処理を統一できないため、共通JSON形式で返す。
-        objectMapper.writeValue(response.getWriter(), Map.of(
-                "code", "FORBIDDEN",
-                "message", "権限がありません。",
-                "details", List.of()));
+        objectMapper.writeValue(response.getWriter(), new ErrorResponse(code, message, List.of(), requestId));
     }
 
     @Bean

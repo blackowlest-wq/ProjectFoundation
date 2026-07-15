@@ -1,0 +1,6 @@
+/.github/workflows/ @blackowlest-wq
+/.github/CODEOWNERS @blackowlest-wq
+/scripts/ @blackowlest-wq
+/lefthook.yml @blackowlest-wq
+/.gitleaks.toml @blackowlest-wq
+/backend/pom.xml @blackowlest-wq

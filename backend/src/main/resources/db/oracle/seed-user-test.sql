@@ -11,7 +11,7 @@ USING (
         'U901' AS user_id,
         'E901' AS employee_id,
         'employee901' AS login_id,
-        '$2a$10$7EqJtq98hPqEX7fNZaFWoOhi0b5AgP4V7AIXe4P83fPnt7JgcHKu' AS password_hash,
+        '$2a$10$NTS.B70pC4gg017cKYh/xuY/RQk6w2FTUswp9YTxKDUtuIYkRwRuS' AS password_hash,
         '確認用 社員' AS user_name,
         'EMPLOYEE' AS user_role,
         'G001' AS group_id,

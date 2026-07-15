@@ -1,0 +1,9 @@
+logging:
+  level:
+    root: INFO
+    com.example.dailyreport: DEBUG
+  file:
+    name: target/e2e/backend.log
+  logback:
+    rollingpolicy:
+      max-history: 3

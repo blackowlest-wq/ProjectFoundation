@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -94,7 +95,10 @@ class AuthControllerTest {
     @Test
     void meRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists("X-Request-Id"))
+                .andExpect(jsonPath("$.code", equalTo("UNAUTHORIZED")))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test
@@ -102,7 +106,10 @@ class AuthControllerTest {
         MockHttpSession session = loginAs("manager001", "password");
 
         mockMvc.perform(post("/api/auth/logout").session(session))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(header().exists("X-Request-Id"))
+                .andExpect(jsonPath("$.code", equalTo("FORBIDDEN")))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test

@@ -1,0 +1,47 @@
+name: Security
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  history-gitleaks:
+    name: Gitleaks / History
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Install pinned Gitleaks
+        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Gitleaks
+      - name: Scan Git history
+        run: ./.tools/gitleaks/8.30.1/gitleaks git --redact --config .gitleaks.toml
+
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.18.0
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install dependencies
+        run: |
+          pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
+          pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
+      - name: Run dependency audit
+        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask DependencyAudit

@@ -30,6 +30,7 @@
 ### Task 1: Repository hygiene and root tooling
 
 **Files:**
+
 - Create: `.editorconfig`
 - Create: `.gitattributes`
 - Create: `.node-version`
@@ -41,6 +42,7 @@
 - Test: Git ignore、改行属性、root npm lockfile
 
 **Interfaces:**
+
 - Consumes: Node.js 24.18.0、npm 11.16.0、既存の生成物配置
 - Produces: 後続タスクが使用するroot tooling、Markdown/Gitleaks設定、生成物除外
 
@@ -227,6 +229,7 @@ git commit -m "build: add repository quality tooling baseline"
 ### Task 2: Frontend ESLint and existing-violation baseline
 
 **Files:**
+
 - Create: `frontend/eslint.config.mjs`
 - Modify: `frontend/package.json`
 - Modify: `frontend/package-lock.json`
@@ -234,6 +237,7 @@ git commit -m "build: add repository quality tooling baseline"
 - Test: frontend ESLint、既存unit test、typecheck
 
 **Interfaces:**
+
 - Consumes: frontend TypeScript/React構成、rootとは独立したfrontend npm project
 - Produces: `npm run lint`、Quickでファイル指定できるESLint設定、既存違反記録
 
@@ -242,7 +246,7 @@ git commit -m "build: add repository quality tooling baseline"
 Run in `frontend`:
 
 ```powershell
-npm.cmd install --save-dev --save-exact eslint@10.6.0 @eslint/js@10.6.0 typescript-eslint@8.62.1 eslint-plugin-react-hooks@7.1.1
+npm.cmd install --save-dev --save-exact eslint@10.6.0 @eslint/js@10.0.1 typescript-eslint@8.62.1 eslint-plugin-react-hooks@7.1.1
 npm.cmd install --save-dev --save-exact @playwright/test@1.58.0
 ```
 
@@ -331,6 +335,7 @@ git commit -m "build: add frontend static analysis baseline"
 ### Task 3: Maven Wrapper and backend static-analysis baseline
 
 **Files:**
+
 - Create: `backend/mvnw`
 - Create: `backend/mvnw.cmd`
 - Create: `backend/.mvn/wrapper/maven-wrapper.properties`
@@ -341,6 +346,7 @@ git commit -m "build: add frontend static analysis baseline"
 - Test: Wrapper version、unit test、Spotless、Checkstyle、SpotBugs
 
 **Interfaces:**
+
 - Consumes: Java 21、Maven core 3.9.16、既存Spring Boot pom
 - Produces: `backend/mvnw(.cmd)`とFullが呼ぶ静的解析goal
 
@@ -484,10 +490,12 @@ git commit -m "build: add backend quality tooling baseline"
 ### Task 4: Shared Quick, Full, and CI task runner
 
 **Files:**
+
 - Create: `scripts/check.ps1`
 - Test: Quick対象選択、Full、CI専用タスク、失敗集約
 
 **Interfaces:**
+
 - Consumes: root/frontend npm scripts、backend Wrapper、Gitleaks
 - Produces: `check.ps1 -Mode Quick|Full|Oracle|All [-Offline] [-CiTask ...]`
 
@@ -544,7 +552,7 @@ frontend-lint
 frontend-typecheck
 frontend-unit-test
 frontend-build
-backend-unit-test
+backend-test-compile
 backend-spotless
 backend-checkstyle
 backend-spotbugs
@@ -586,7 +594,10 @@ pwsh -NoProfile -File scripts/check.ps1 -Mode Full
 pwsh -NoProfile -File scripts/check.ps1 -Mode Full -CiTask FrontendCoverage
 ```
 
-Expected: Quickはstaged対象だけ、FullはOracleなしで全通常チェック、CI taskは指定チェックだけを実行する。いずれも成功時0、意図的に失敗コマンドを与える試験では最後に失敗名を表示して1を返す。
+Expected: Quickはstaged対象だけ、FullはOracleなしでfrontendの通常テストとbackendの
+`test-compile`・静的解析、CI taskは指定チェックだけを実行する。backendの既存テストは
+Oracle接続前提のため、実行とcoverageはOracle用ジョブが担当する。いずれも成功時0、
+意図的に失敗コマンドを与える試験では最後に失敗名を表示して1を返す。
 
 - [ ] **Step 6: Task 4をコミットする**
 
@@ -600,13 +611,17 @@ git commit -m "build: add shared quality check runner"
 ### Task 5: Oracle safety guard and Oracle modes
 
 **Files:**
+
 - Modify: `backend/config/oracle-test.example.properties`
 - Modify: `backend/scripts/test-oracle.ps1`
+- Modify: `backend/scripts/test-oracle.cmd`
+- Modify: `backend/src/main/java/com/example/dailyreport/config/DataInitializer.java`
 - Create: `backend/src/test/java/com/example/dailyreport/config/OracleSafetyGuardIT.java`
 - Modify: `scripts/check.ps1`
 - Test: 不正environment、user、host/service、DB識別情報、DDL許可、Oracle integration
 
 **Interfaces:**
+
 - Consumes: `DAILY_REPORT_DB_*`、expected Oracle識別値、Maven Wrapper
 - Produces: 安全ガード通過後だけ動くOracle、All、任意DDL処理
 
@@ -703,6 +718,7 @@ git commit -m "test: guard Oracle integration checks"
 ### Task 6: Bootstrap, doctor, and Lefthook
 
 **Files:**
+
 - Create: `scripts/tool-versions.psd1`
 - Create: `scripts/bootstrap.ps1`
 - Create: `scripts/doctor.ps1`
@@ -710,6 +726,7 @@ git commit -m "test: guard Oracle integration checks"
 - Test: clean bootstrap、doctor、Lefthook validation、hook calls
 
 **Interfaces:**
+
 - Consumes: 固定版一覧、root/frontend npm projects、Maven Wrapper
 - Produces: 非対話セットアップ、環境診断、pre-commit Quick、pre-push Full
 
@@ -806,6 +823,7 @@ git commit -m "build: add environment bootstrap and hooks"
 ### Task 7: Split GitHub Actions quality gates
 
 **Files:**
+
 - Create: `.github/workflows/quality.yml`
 - Create: `.github/workflows/security.yml`
 - Create: `.github/workflows/oracle.yml`
@@ -813,6 +831,7 @@ git commit -m "build: add environment bootstrap and hooks"
 - Test: workflow syntax、SHA pins、permissions、local-equivalent commands
 
 **Interfaces:**
+
 - Consumes: `bootstrap.ps1`、`check.ps1`、GitHub-hosted runner、隔離self-hosted Oracle runner
 - Produces: 分割CI status checks、定期security scan、Oracle post-merge/manual gate
 
@@ -913,6 +932,7 @@ git commit -m "ci: add split quality and Oracle workflows"
 ### Task 8: Documentation, records, and end-to-end verification
 
 **Files:**
+
 - Create: `docs/AI活用開発研究/構想メモ/標準化/品質ゲート運用.md`
 - Create: `docs/AI活用開発研究/作業記録/品質ハーネス構築_2026-07-12.md`
 - Modify: `README.md`
@@ -923,6 +943,7 @@ git commit -m "ci: add split quality and Oracle workflows"
 - Test: 文書リンク、全モード、全CI相当ジョブ、Git状態
 
 **Interfaces:**
+
 - Consumes: 実装済みハーネスと実行結果
 - Produces: 重複しない運用正本、branch protection手順、最終証跡
 

@@ -1,0 +1,133 @@
+name: Oracle Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: projectfoundation-oracle-test
+  cancel-in-progress: false
+
+jobs:
+  oracle-integration:
+    name: Oracle / Integration
+    runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
+    concurrency:
+      group: projectfoundation-oracle-test-db
+      cancel-in-progress: false
+    environment: oracle-test
+    env:
+      DAILY_REPORT_DB_URL: ${{ secrets.DAILY_REPORT_DB_URL }}
+      DAILY_REPORT_DB_USER: ${{ secrets.DAILY_REPORT_DB_USER }}
+      DAILY_REPORT_DB_PASSWORD: ${{ secrets.DAILY_REPORT_DB_PASSWORD }}
+      DAILY_REPORT_DB_ENV: TEST
+      DAILY_REPORT_DB_EXPECTED_HOST: ${{ vars.DAILY_REPORT_DB_EXPECTED_HOST }}
+      DAILY_REPORT_DB_EXPECTED_SERVICE: ${{ vars.DAILY_REPORT_DB_EXPECTED_SERVICE }}
+      DAILY_REPORT_DB_EXPECTED_NAME: ${{ vars.DAILY_REPORT_DB_EXPECTED_NAME }}
+      DAILY_REPORT_DB_EXPECTED_USER: ${{ vars.DAILY_REPORT_DB_EXPECTED_USER }}
+      DAILY_REPORT_ALLOW_DDL: 'false'
+    steps:
+      - name: Checkout merged source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Diagnose isolated runner
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/doctor.ps1
+      - name: Run Oracle integration
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Oracle
+
+  oracle-coverage:
+    name: Oracle / Backend Coverage
+    runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
+    concurrency:
+      group: projectfoundation-oracle-test-db
+      cancel-in-progress: false
+    environment: oracle-test
+    env:
+      DAILY_REPORT_DB_URL: ${{ secrets.DAILY_REPORT_DB_URL }}
+      DAILY_REPORT_DB_USER: ${{ secrets.DAILY_REPORT_DB_USER }}
+      DAILY_REPORT_DB_PASSWORD: ${{ secrets.DAILY_REPORT_DB_PASSWORD }}
+      DAILY_REPORT_DB_ENV: TEST
+      DAILY_REPORT_DB_EXPECTED_HOST: ${{ vars.DAILY_REPORT_DB_EXPECTED_HOST }}
+      DAILY_REPORT_DB_EXPECTED_SERVICE: ${{ vars.DAILY_REPORT_DB_EXPECTED_SERVICE }}
+      DAILY_REPORT_DB_EXPECTED_NAME: ${{ vars.DAILY_REPORT_DB_EXPECTED_NAME }}
+      DAILY_REPORT_DB_EXPECTED_USER: ${{ vars.DAILY_REPORT_DB_EXPECTED_USER }}
+      DAILY_REPORT_ALLOW_DDL: 'false'
+    steps:
+      - name: Checkout merged source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Run Oracle coverage
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask BackendCoverage
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-coverage
+          path: backend/target/site/jacoco
+          if-no-files-found: ignore
+
+  oracle-e2e:
+    name: Oracle / Real Backend E2E
+    runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
+    concurrency:
+      group: projectfoundation-oracle-test-db
+      cancel-in-progress: false
+    environment: oracle-test
+    env:
+      DAILY_REPORT_DB_URL: ${{ secrets.DAILY_REPORT_DB_URL }}
+      DAILY_REPORT_DB_USER: ${{ secrets.DAILY_REPORT_DB_USER }}
+      DAILY_REPORT_DB_PASSWORD: ${{ secrets.DAILY_REPORT_DB_PASSWORD }}
+      DAILY_REPORT_DB_ENV: TEST
+      DAILY_REPORT_DB_EXPECTED_HOST: ${{ vars.DAILY_REPORT_DB_EXPECTED_HOST }}
+      DAILY_REPORT_DB_EXPECTED_SERVICE: ${{ vars.DAILY_REPORT_DB_EXPECTED_SERVICE }}
+      DAILY_REPORT_DB_EXPECTED_NAME: ${{ vars.DAILY_REPORT_DB_EXPECTED_NAME }}
+      DAILY_REPORT_DB_EXPECTED_USER: ${{ vars.DAILY_REPORT_DB_EXPECTED_USER }}
+      DAILY_REPORT_ALLOW_DDL: 'false'
+    steps:
+      - name: Checkout merged source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Diagnose isolated runner
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/doctor.ps1
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.18.0
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Node dependencies and browser
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
+          pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Playwright
+      - name: Prepare Maven dependencies
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
+      - name: Run real Backend and Oracle E2E
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask E2EOracle
+      - name: Upload Oracle E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oracle-e2e-artifacts
+          path: |
+            backend/target/e2e
+            frontend/playwright-report-oracle
+            frontend/test-results-oracle
+          if-no-files-found: ignore
