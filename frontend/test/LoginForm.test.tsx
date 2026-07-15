@@ -54,6 +54,14 @@ function change(input: HTMLInputElement, value: string) {
   });
 }
 
+function jsonResponse(body: unknown, init: ResponseInit = {}) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  });
+}
+
 async function submit() {
   const form = document.querySelector('form');
   if (!form) {
@@ -108,5 +116,21 @@ describe('LoginForm', () => {
     await submit();
 
     expect(onLogin).toHaveBeenCalledWith(currentUser);
+  });
+
+  it('shows the API error message when login fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      code: 'AUTHENTICATION_FAILED',
+      message: 'ログインIDまたはパスワードが正しくありません。',
+      details: [],
+    }, { status: 401 })));
+    renderLoginForm();
+
+    change(inputByLabel(LOGIN_FORM_TEXT.loginIdLabel), 'employee001');
+    change(inputByLabel(LOGIN_FORM_TEXT.passwordLabel), 'wrong');
+    await submit();
+
+    expect(document.querySelector('[role="alert"]')?.textContent)
+      .toBe('ログインIDまたはパスワードが正しくありません。');
   });
 });
