@@ -129,8 +129,6 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Local agent state
-.serena/cache/
 ```
 
 - [ ] **Step 4: root npm toolingを追加する**

@@ -20,10 +20,12 @@
 ### Task 1: リポジトリ入口READMEの追加
 
 **Files:**
+
 - Create: `README.md`
 - Test: `README.md` のリンク先3件
 
 **Interfaces:**
+
 - Consumes: `AGENTS.md`、`docs/AI活用開発研究/構想メモ/標準化/標準化資料一覧.md`、`docs/AI活用開発研究/作業記録/`
 - Produces: GitHub上で最初に表示されるプロジェクト概要と文書導線
 

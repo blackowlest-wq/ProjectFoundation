@@ -84,7 +84,7 @@ return null;
 - `docs/AI活用開発研究/構想メモ/標準化/実装後レビュー表.md`
 - `docs/AI活用開発研究/構想メモ/標準化/テスト方針.md`
 - `docs/AI活用開発研究/構想メモ/標準化/作業記録テンプレート.md`
-- `docs/AI活用開発研究/構想メモ/標準化/プロンプトテンプレート集.md`
+- `docs/AI活用開発研究/構想メモ/標準化/AI内部プロンプト定義.md`
 - `docs/AI活用開発研究/構想メモ/標準化/skills/projectfoundation-review-ja/SKILL.md`
 
 ### 本体コード

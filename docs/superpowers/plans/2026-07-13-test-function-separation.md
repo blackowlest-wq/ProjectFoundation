@@ -64,10 +64,12 @@
 ### Task 1: レイアウトチェックを追加し、現状の違反をREDで確認する
 
 **Files:**
+
 - Create: `scripts/check-test-layout.ps1`
 - Modify: `frontend/package.json`
 
 **Interfaces:**
+
 - Produces: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-test-layout.ps1` が、`frontend/src` 内の `*.test.*` / `*.spec.*` と `backend/src/main` 内の `*Test.java` / `*IT.java` を検出した場合に終了コード1を返す。
 - Produces: `npm.cmd test` と `npm.cmd run coverage` の前処理で同じレイアウトチェックを実行する。
 
@@ -137,9 +139,11 @@
 ### Task 2: フロントエンドの既存テストをテスト専用ディレクトリへ移動する
 
 **Files:**
+
 - Move: `frontend/src/dailyReport/dailyReportSearch.test.ts` -> `frontend/test/dailyReportSearch.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1 のレイアウトチェック。
 - Produces: 既存の6テストケースを同じ内容で `frontend/test` から実行できる状態。
 
@@ -183,9 +187,11 @@
 ### Task 3: 分割後のバックエンド Bean を検証する保護テストを先に追加する
 
 **Files:**
+
 - Create: `backend/src/test/java/com/example/dailyreport/report/DailyReportSeparationTest.java`
 
 **Interfaces:**
+
 - Produces: 分割後に `dailyReportSearchController`、`dailyReportCommandController`、`dailyReportSubmissionController`、`dailyReportSearchService`、`dailyReportCommandService`、`dailyReportSubmissionService`、`dailyReportAccessPolicy` が存在し、`dailyReportController` と `dailyReportService` が存在しないことを確認するテスト。
 
 - [ ] **Step 1: 失敗する構造テストを書く**
@@ -238,6 +244,7 @@
 ### Task 4: バックエンド本体を検索・登録更新・提出単位へ分割する
 
 **Files:**
+
 - Create: `backend/src/main/java/com/example/dailyreport/report/DailyReportAccessPolicy.java`
 - Create: `backend/src/main/java/com/example/dailyreport/report/DailyReportSearchService.java`
 - Create: `backend/src/main/java/com/example/dailyreport/report/DailyReportCommandService.java`
@@ -249,6 +256,7 @@
 - Delete: `backend/src/main/java/com/example/dailyreport/report/controller/DailyReportController.java`
 
 **Interfaces:**
+
 - `DailyReportSearchService.search(LocalDate dateFrom, LocalDate dateTo, String groupId, String employeeId, ApprovalStatus status, String holidayType, AuthenticatedUser principal)` returns `List<DailyReportListItemResponse>`.
 - `DailyReportSearchService.get(String reportId, AuthenticatedUser principal)` returns `DailyReportResponse`.
 - `DailyReportCommandService.create(DailyReportRequest request, AuthenticatedUser principal)` returns `DailyReportSummaryResponse`.
@@ -321,6 +329,7 @@
 ### Task 5: バックエンドテストを機能別クラスへ移設する
 
 **Files:**
+
 - Create: `backend/src/test/java/com/example/dailyreport/support/MockMvcTestSupport.java`
 - Create: `backend/src/test/java/com/example/dailyreport/report/support/DailyReportTestSupport.java`
 - Create: `backend/src/test/java/com/example/dailyreport/report/DailyReportSearchControllerTest.java`
@@ -330,6 +339,7 @@
 - Delete: `backend/src/test/java/com/example/dailyreport/report/DailyReportControllerTest.java`
 
 **Interfaces:**
+
 - `MockMvcTestSupport.loginAs(MockMvc mockMvc, ObjectMapper objectMapper, String loginId)` returns `MockHttpSession`。
 - `DailyReportTestSupport.createReport(MockMvc mockMvc, ObjectMapper objectMapper, MockHttpSession session, LocalDate date, int workMinutes)` returns `ResultActions`。
 - `DailyReportTestSupport.createReportId(MockMvc mockMvc, ObjectMapper objectMapper, MockHttpSession session, LocalDate date, int workMinutes)` returns `String`。
@@ -438,6 +448,7 @@
 ### Task 6: 標準資料・指摘一覧・作業記録へ再発防止を反映する
 
 **Files:**
+
 - Modify: `docs/AI活用開発研究/構想メモ/標準化/ディレクトリ構成ルール.md`
 - Modify: `docs/AI活用開発研究/構想メモ/標準化/実装前確認観点.md`
 - Modify: `docs/AI活用開発研究/構想メモ/標準化/実装後レビュー観点.md`
@@ -446,6 +457,7 @@
 - Modify: `docs/AI活用開発研究/作業記録/日報登録編集_指摘一覧.md`
 
 **Interfaces:**
+
 - Produces: 実装前・実装後に、テスト配置、本体とテストの責務分離、ユースケース別テストクラスを確認できる標準資料。
 - Produces: `DR-F-009` に今回の検出内容、対応ファイル、対応済み状態を記録する。
 
@@ -493,6 +505,7 @@
 ### Task 7: 全体検証と最終レビューを実行する
 
 **Files:**
+
 - Verify: `scripts/check-test-layout.ps1`
 - Verify: `frontend/package.json`
 - Verify: `backend/pom.xml`
