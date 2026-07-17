@@ -18,10 +18,14 @@ $backendArguments = @($backend.Arguments)
 $frontendNames = @($frontend | ForEach-Object Name)
 $backendNames = @($backend | ForEach-Object Name)
 
-Assert-Condition ($frontendArguments -contains 'coverage') 'Frontend coverage must invoke npm coverage.'
-Assert-Condition ($frontendNames -contains 'frontend-coverage-report') 'Frontend report check is missing.'
+Assert-Condition ($backend.Command -eq 'pwsh') 'Backend coverage must use the Oracle wrapper.'
+Assert-Condition ($backendArguments[0] -eq '-NoProfile') 'Backend coverage must start with -NoProfile.'
+Assert-Condition ($backendArguments[1] -eq '-File') 'Backend coverage must invoke the wrapper script with -File.'
+Assert-Condition ($backendArguments[2] -eq $oracleScript) 'Backend coverage must target backend/scripts/test-oracle.ps1.'
 Assert-Condition ($backendArguments -contains '-Pcoverage') 'Backend coverage profile is missing.'
 Assert-Condition ($backendArguments -contains 'verify') 'Backend coverage must run Maven verify.'
 Assert-Condition ($backendNames -contains 'backend-coverage-report') 'Backend report check is missing.'
+Assert-Condition ($frontendArguments -contains 'coverage') 'Frontend coverage must invoke npm coverage.'
+Assert-Condition ($frontendNames -contains 'frontend-coverage-report') 'Frontend report check is missing.'
 
 Write-Output 'Coverage gate contract tests passed.'
