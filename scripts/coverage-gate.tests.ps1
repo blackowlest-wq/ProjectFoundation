@@ -1,0 +1,27 @@
+$ErrorActionPreference = 'Stop'
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $repoRoot 'scripts/check.ps1')
+
+function Assert-Condition {
+    param([Parameter(Mandatory)][bool]$Condition, [Parameter(Mandatory)][string]$Message)
+    if (-not $Condition) { throw $Message }
+}
+
+$oracleScript = Join-Path $repoRoot 'backend/scripts/test-oracle.ps1'
+$frontend = @(Get-CiTaskDefinitions -CiTask FrontendCoverage -RepoRoot $repoRoot `
+        -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
+$backend = @(Get-CiTaskDefinitions -CiTask BackendCoverage -RepoRoot $repoRoot `
+        -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
+
+$frontendArguments = @($frontend.Arguments)
+$backendArguments = @($backend.Arguments)
+$frontendNames = @($frontend | ForEach-Object Name)
+$backendNames = @($backend | ForEach-Object Name)
+
+Assert-Condition ($frontendArguments -contains 'coverage') 'Frontend coverage must invoke npm coverage.'
+Assert-Condition ($frontendNames -contains 'frontend-coverage-report') 'Frontend report check is missing.'
+Assert-Condition ($backendArguments -contains '-Pcoverage') 'Backend coverage profile is missing.'
+Assert-Condition ($backendArguments -contains 'verify') 'Backend coverage must run Maven verify.'
+Assert-Condition ($backendNames -contains 'backend-coverage-report') 'Backend report check is missing.'
+
+Write-Output 'Coverage gate contract tests passed.'
