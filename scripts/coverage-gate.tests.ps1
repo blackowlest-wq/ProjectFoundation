@@ -26,6 +26,8 @@ $backendNames = @($backend | ForEach-Object Name)
 $packageJson = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'frontend/package.json')
 $bootstrapText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/bootstrap.ps1')
 $pomText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'backend/pom.xml')
+$qualityWorkflowText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot '.github/workflows/quality.yml')
+$oracleWorkflowText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot '.github/workflows/oracle.yml')
 $wrapperMode = @(git -C $repoRoot ls-files -s backend/mvnw)[0].Split()[0]
 $ratchetReference = [regex]::Match($pomText, '<ratchetFrom>(?<reference>[^<]+)</ratchetFrom>').Groups['reference'].Value
 
@@ -54,5 +56,19 @@ Assert-Condition ($bootstrapText -match '\[System\.IO\.Path\]::GetTempPath\(\)')
 Assert-Condition ($wrapperMode -eq '100755') 'Unix Maven wrapper must have the executable bit.'
 Assert-Condition ($ratchetReference -match '^[0-9a-f]{40}$') `
     'Spotless ratchetFrom must use a remote-resolvable commit SHA.'
+Assert-Condition ($pomText -match '<destFile>\$\{project\.build\.directory\}/jacoco\.exec</destFile>') `
+    'JaCoCo destFile must be isolated under the Maven build directory.'
+Assert-Condition ($pomText -match '<dataFile>\$\{project\.build\.directory\}/jacoco\.exec</dataFile>') `
+    'JaCoCo dataFile must be isolated under the Maven build directory.'
+Assert-Condition (([regex]::Matches($pomText, '<minimum>0\.85</minimum>')).Count -ge 4) `
+    'Backend JaCoCo must retain all four 85 percent counters.'
+Assert-Condition ($qualityWorkflowText -match 'write-coverage-summary\.ps1 -FrontendSummaryPath') `
+    'Quality workflow must publish the Frontend coverage summary.'
+Assert-Condition (([regex]::Matches($oracleWorkflowText, 'doctor-backend-oracle\.ps1')).Count -eq 3) `
+    'All Oracle jobs must run the backend preflight.'
+Assert-Condition (([regex]::Matches($oracleWorkflowText, 'timeout-minutes: 30')).Count -eq 3) `
+    'All Oracle jobs must have a 30-minute timeout.'
+Assert-Condition ($oracleWorkflowText -match 'write-coverage-summary\.ps1 -BackendXmlPath') `
+    'Oracle coverage workflow must publish the Backend coverage summary.'
 
 Write-Output 'Coverage gate contract tests passed.'

@@ -17,6 +17,7 @@ jobs:
   oracle-integration:
     name: Oracle / Integration
     runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
+    timeout-minutes: 30
     concurrency:
       group: projectfoundation-oracle-test-db
       cancel-in-progress: false
@@ -36,6 +37,9 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Preflight Oracle backend
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/doctor-backend-oracle.ps1
       - name: Diagnose isolated runner
         shell: pwsh
         run: pwsh -NoProfile -File scripts/doctor.ps1
@@ -46,6 +50,7 @@ jobs:
   oracle-coverage:
     name: Oracle / Backend Coverage
     runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
+    timeout-minutes: 30
     concurrency:
       group: projectfoundation-oracle-test-db
       cancel-in-progress: false
@@ -65,9 +70,24 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Preflight Oracle backend
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/doctor-backend-oracle.ps1
+      - name: Prepare Maven dependencies
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
       - name: Run Oracle coverage
         shell: pwsh
         run: pwsh -NoProfile -File scripts/check.ps1 -CiTask BackendCoverage
+      - name: Summarize backend coverage
+        if: always()
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/write-coverage-summary.ps1 -BackendXmlPath backend/target/site/jacoco/jacoco.xml -AllowMissing
       - name: Upload backend coverage
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -79,6 +99,7 @@ jobs:
   oracle-e2e:
     name: Oracle / Real Backend E2E
     runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
+    timeout-minutes: 30
     concurrency:
       group: projectfoundation-oracle-test-db
       cancel-in-progress: false
@@ -98,6 +119,9 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Preflight Oracle backend
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/doctor-backend-oracle.ps1
       - name: Diagnose isolated runner
         shell: pwsh
         run: pwsh -NoProfile -File scripts/doctor.ps1

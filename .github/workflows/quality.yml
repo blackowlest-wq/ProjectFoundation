@@ -100,6 +100,9 @@ jobs:
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
       - name: Run frontend coverage
         run: pwsh -NoProfile -File scripts/check.ps1 -CiTask FrontendCoverage
+      - name: Summarize frontend coverage
+        if: always()
+        run: pwsh -NoProfile -File scripts/write-coverage-summary.ps1 -FrontendSummaryPath frontend/coverage/coverage-summary.json -AllowMissing
       - name: Upload frontend coverage
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

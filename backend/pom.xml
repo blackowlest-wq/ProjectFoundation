@@ -139,8 +139,8 @@
                         <artifactId>jacoco-maven-plugin</artifactId>
                         <version>${jacoco-maven-plugin.version}</version>
                         <configuration>
-                            <destFile>${env.TEMP}/daily-report-jacoco.exec</destFile>
-                            <dataFile>${env.TEMP}/daily-report-jacoco.exec</dataFile>
+                            <destFile>${project.build.directory}/jacoco.exec</destFile>
+                            <dataFile>${project.build.directory}/jacoco.exec</dataFile>
                         </configuration>
                         <executions>
                             <execution>
