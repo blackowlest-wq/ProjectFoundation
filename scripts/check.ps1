@@ -82,6 +82,9 @@ function Get-FullCheckDefinitions {
         New-CheckDefinition -Name 'backend-spotless' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('spotless:check'))
         New-CheckDefinition -Name 'backend-checkstyle' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('checkstyle:check'))
         New-CheckDefinition -Name 'backend-spotbugs' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('test-compile', 'spotbugs:check'))
+        New-CheckDefinition -Name 'coverage-gate-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-gate.tests.ps1')
+        )
     )
 }
 
