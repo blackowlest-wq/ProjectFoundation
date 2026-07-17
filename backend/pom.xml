@@ -90,7 +90,7 @@
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>${spotless-maven-plugin.version}</version>
                 <configuration>
-                    <ratchetFrom>baseline/pre-quality-harness-2026-07-12</ratchetFrom>
+                            <ratchetFrom>b22ed10a1a8c8e4e5a5acc879711acdfcf58556f</ratchetFrom>
                     <formats>
                         <format>
                             <includes>

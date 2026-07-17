@@ -21,7 +21,9 @@ $frontendNames = @($frontend | ForEach-Object Name)
 $backendNames = @($backend | ForEach-Object Name)
 $packageJson = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'frontend/package.json')
 $bootstrapText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/bootstrap.ps1')
+$pomText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'backend/pom.xml')
 $wrapperMode = @(git -C $repoRoot ls-files -s backend/mvnw)[0].Split()[0]
+$ratchetReference = [regex]::Match($pomText, '<ratchetFrom>(?<reference>[^<]+)</ratchetFrom>').Groups['reference'].Value
 
 Assert-Condition ($frontend.Count -eq 2) 'Frontend coverage must return two direct definitions.'
 Assert-Condition ($backend.Count -eq 2) 'Backend coverage must return two direct definitions.'
@@ -41,5 +43,7 @@ Assert-Condition ($bootstrapText -match "'-f', 'backend/pom.xml'") `
 Assert-Condition ($bootstrapText -match '\[System\.IO\.Path\]::GetTempPath\(\)') `
     'Gitleaks temporary files must use an OS-independent temp path.'
 Assert-Condition ($wrapperMode -eq '100755') 'Unix Maven wrapper must have the executable bit.'
+Assert-Condition ($ratchetReference -match '^[0-9a-f]{40}$') `
+    'Spotless ratchetFrom must use a remote-resolvable commit SHA.'
 
 Write-Output 'Coverage gate contract tests passed.'
