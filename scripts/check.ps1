@@ -22,11 +22,40 @@ function New-CheckDefinition {
         [scriptblock]$Action
     )
 
-    [pscustomobject]@{
+    $definition = [ordered]@{
         Name = $Name
-        Command = $Command
-        Arguments = @($Arguments)
         Action = $Action
+    }
+    if ($PSBoundParameters.ContainsKey('Command')) {
+        $definition.Command = $Command
+        $definition.Arguments = @($Arguments)
+    }
+
+    [pscustomobject]$definition
+}
+
+function New-CoverageReportCheckDefinition {
+    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string[]]$Paths)
+
+    New-CheckDefinition -Name $Name -Action {
+        $missing = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
+        if ($missing.Count -gt 0) { throw "Coverage reports are missing: $($missing -join ', ')" }
+        Write-Host 'Coverage reports:'
+        $Paths | ForEach-Object { Write-Host " - $_" }
+    }.GetNewClosure()
+}
+
+function New-CheckDefinitionBundle {
+    param(
+        [Parameter(Mandatory)][object[]]$Definitions
+    )
+
+    $primaryDefinition = $Definitions[0]
+    [pscustomobject]@{
+        Name = @($Definitions | ForEach-Object Name)
+        Command = $primaryDefinition.Command
+        Arguments = @($primaryDefinition.Arguments)
+        Definitions = $Definitions
     }
 }
 
@@ -140,15 +169,31 @@ function Get-CiTaskDefinitions {
 
     switch ($CiTask) {
         'FrontendCoverage' {
-            New-CheckDefinition -Name 'frontend-coverage' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'coverage')
+            $definitions = @(
+                New-CheckDefinition -Name 'frontend-coverage' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'coverage')
+                New-CoverageReportCheckDefinition -Name 'frontend-coverage-report' -Paths @(
+                    (Join-Path $RepoRoot 'frontend/coverage/index.html')
+                    (Join-Path $RepoRoot 'frontend/coverage/coverage-summary.json')
+                    (Join-Path $RepoRoot 'frontend/coverage/lcov.info')
+                )
+            )
+            New-CheckDefinitionBundle -Definitions $definitions
         }
         'BackendCoverage' {
             $arguments = @('-NoProfile', '-File', $OracleScript)
             if (-not [string]::IsNullOrWhiteSpace($OracleConfigPath)) {
                 $arguments += @('-ConfigPath', $OracleConfigPath)
             }
-            $arguments += @('-Pcoverage', 'test')
-            New-CheckDefinition -Name 'backend-coverage' -Command 'pwsh' -Arguments $arguments
+            $arguments += @('-Pcoverage', 'verify')
+            $definitions = @(
+                New-CheckDefinition -Name 'backend-coverage' -Command 'pwsh' -Arguments $arguments
+                New-CoverageReportCheckDefinition -Name 'backend-coverage-report' -Paths @(
+                    (Join-Path $RepoRoot 'backend/target/site/jacoco/index.html')
+                    (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.xml')
+                    (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.csv')
+                )
+            )
+            New-CheckDefinitionBundle -Definitions $definitions
         }
         'E2E' {
             New-CheckDefinition -Name 'frontend-e2e' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'e2e')
@@ -217,7 +262,16 @@ function Invoke-QualityChecks {
         }
     )
 
-    foreach ($definition in $Definitions) {
+    $expandedDefinitions = foreach ($definition in $Definitions) {
+        if ($definition.PSObject.Properties.Name -contains 'Definitions') {
+            $definition.Definitions
+        }
+        else {
+            $definition
+        }
+    }
+
+    foreach ($definition in $expandedDefinitions) {
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         Write-Host "==> $($definition.Name)"
         try {

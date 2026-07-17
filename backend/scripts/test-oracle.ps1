@@ -20,7 +20,7 @@ Push-Location $backendDir
 try {
     $settingsPath = Join-Path $backendDir 'local-maven-settings.xml'
     $wrapperPath = Join-Path $backendDir 'mvnw.cmd'
-    $hasTestGoal = @($MavenArgs | Where-Object { $_ -eq 'test' }).Count -gt 0
+    $hasTestGoal = @($MavenArgs | Where-Object { $_ -in @('test', 'verify') }).Count -gt 0
     $hasTestSelector = @($MavenArgs | Where-Object { $_ -like '-Dtest=*' }).Count -gt 0
     if ($hasTestGoal -and -not $hasTestSelector) {
         $MavenArgs = @('-Dtest=**/*Test,**/*IT') + $MavenArgs
