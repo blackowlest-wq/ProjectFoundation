@@ -89,3 +89,54 @@
 
 - Backend JaCoCo generation could not be fully exercised end-to-end here because Oracle configuration is unavailable.
 - Frontend coverage thresholds are currently below `85%`; this task confirms continuation/report checks, but it does not remediate the existing coverage shortfall.
+
+## Fix wave: remove bundle helper and restore direct CI definition arrays
+
+### Summary
+
+- Removed the custom `New-CheckDefinitionBundle` helper from `scripts/check.ps1`.
+- Removed the `Definitions` expansion branch from `Invoke-QualityChecks`.
+- Restored `FrontendCoverage` and `BackendCoverage` so each switch arm directly returns the two definitions required by the Task 3 brief.
+- Updated `scripts/coverage-gate.tests.ps1` so the contract checks the restored direct-array shape by inspecting the first returned command definition while still asserting the report-presence definition names.
+
+### Commands and outputs
+
+- Focused red shape check before the fix
+  - Command: direct `Get-CiTaskDefinitions` inspection for `FrontendCoverage` and `BackendCoverage`
+  - Output:
+    - `FrontendCoverage should return 2 direct definitions, got 1.`
+    - `BackendCoverage should return 2 direct definitions, got 1.`
+    - `FrontendCoverage should not return bundle objects.`
+    - `BackendCoverage should not return bundle objects.`
+
+- Contract test after the fix
+  - Command: `pwsh -NoProfile -File scripts/coverage-gate.tests.ps1`
+  - Result: exit `0`
+  - Output: `Coverage gate contract tests passed.`
+
+- PowerShell syntax checks after the fix
+  - Command:
+    - `Parser::ParseFile('scripts/check.ps1', ...)`
+    - `Parser::ParseFile('backend/scripts/test-oracle.ps1', ...)`
+  - Result: exit `0`
+  - Output: `PowerShell syntax checks passed.`
+
+- Focused direct-definition shape check after the fix
+  - Command: direct `Get-CiTaskDefinitions` inspection for `FrontendCoverage` and `BackendCoverage`
+  - Result: exit `0`
+  - Output:
+    - `SHAPE FrontendCoverage count=2 names=frontend-coverage, frontend-coverage-report`
+    - `SHAPE BackendCoverage count=2 names=backend-coverage, backend-coverage-report`
+
+- Non-Oracle frontend continuation check after the fix
+  - Command: `pwsh -NoProfile -File scripts/check.ps1 -CiTask FrontendCoverage`
+  - Result: exit `1`
+  - Observed behavior:
+    - `frontend-coverage` failed on the existing `85%` coverage thresholds.
+    - `frontend-coverage-report` still ran afterward and passed.
+  - Output excerpt:
+    - `PASS frontend-coverage-report`
+    - `ERROR: Coverage for lines (51.75%) does not meet global threshold (85%)`
+    - `ERROR: Coverage for functions (39.09%) does not meet global threshold (85%)`
+    - `ERROR: Coverage for statements (50%) does not meet global threshold (85%)`
+    - `ERROR: Coverage for branches (47.95%) does not meet global threshold (85%)`

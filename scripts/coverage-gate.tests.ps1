@@ -13,12 +13,16 @@ $frontend = @(Get-CiTaskDefinitions -CiTask FrontendCoverage -RepoRoot $repoRoot
 $backend = @(Get-CiTaskDefinitions -CiTask BackendCoverage -RepoRoot $repoRoot `
         -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
 
-$frontendArguments = @($frontend.Arguments)
-$backendArguments = @($backend.Arguments)
+$frontendCommand = $frontend[0]
+$backendCommand = $backend[0]
+$frontendArguments = @($frontendCommand.Arguments)
+$backendArguments = @($backendCommand.Arguments)
 $frontendNames = @($frontend | ForEach-Object Name)
 $backendNames = @($backend | ForEach-Object Name)
 
-Assert-Condition ($backend.Command -eq 'pwsh') 'Backend coverage must use the Oracle wrapper.'
+Assert-Condition ($frontend.Count -eq 2) 'Frontend coverage must return two direct definitions.'
+Assert-Condition ($backend.Count -eq 2) 'Backend coverage must return two direct definitions.'
+Assert-Condition ($backendCommand.Command -eq 'pwsh') 'Backend coverage must use the Oracle wrapper.'
 Assert-Condition ($backendArguments[0] -eq '-NoProfile') 'Backend coverage must start with -NoProfile.'
 Assert-Condition ($backendArguments[1] -eq '-File') 'Backend coverage must invoke the wrapper script with -File.'
 Assert-Condition ($backendArguments[2] -eq $oracleScript) 'Backend coverage must target backend/scripts/test-oracle.ps1.'

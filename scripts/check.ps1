@@ -45,20 +45,6 @@ function New-CoverageReportCheckDefinition {
     }.GetNewClosure()
 }
 
-function New-CheckDefinitionBundle {
-    param(
-        [Parameter(Mandatory)][object[]]$Definitions
-    )
-
-    $primaryDefinition = $Definitions[0]
-    [pscustomobject]@{
-        Name = @($Definitions | ForEach-Object Name)
-        Command = $primaryDefinition.Command
-        Arguments = @($primaryDefinition.Arguments)
-        Definitions = $Definitions
-    }
-}
-
 function Get-MavenArguments {
     param(
         [switch]$Offline,
@@ -169,7 +155,7 @@ function Get-CiTaskDefinitions {
 
     switch ($CiTask) {
         'FrontendCoverage' {
-            $definitions = @(
+            @(
                 New-CheckDefinition -Name 'frontend-coverage' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'coverage')
                 New-CoverageReportCheckDefinition -Name 'frontend-coverage-report' -Paths @(
                     (Join-Path $RepoRoot 'frontend/coverage/index.html')
@@ -177,7 +163,6 @@ function Get-CiTaskDefinitions {
                     (Join-Path $RepoRoot 'frontend/coverage/lcov.info')
                 )
             )
-            New-CheckDefinitionBundle -Definitions $definitions
         }
         'BackendCoverage' {
             $arguments = @('-NoProfile', '-File', $OracleScript)
@@ -185,7 +170,7 @@ function Get-CiTaskDefinitions {
                 $arguments += @('-ConfigPath', $OracleConfigPath)
             }
             $arguments += @('-Pcoverage', 'verify')
-            $definitions = @(
+            @(
                 New-CheckDefinition -Name 'backend-coverage' -Command 'pwsh' -Arguments $arguments
                 New-CoverageReportCheckDefinition -Name 'backend-coverage-report' -Paths @(
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/index.html')
@@ -193,7 +178,6 @@ function Get-CiTaskDefinitions {
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.csv')
                 )
             )
-            New-CheckDefinitionBundle -Definitions $definitions
         }
         'E2E' {
             New-CheckDefinition -Name 'frontend-e2e' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'e2e')
@@ -262,16 +246,7 @@ function Invoke-QualityChecks {
         }
     )
 
-    $expandedDefinitions = foreach ($definition in $Definitions) {
-        if ($definition.PSObject.Properties.Name -contains 'Definitions') {
-            $definition.Definitions
-        }
-        else {
-            $definition
-        }
-    }
-
-    foreach ($definition in $expandedDefinitions) {
+    foreach ($definition in $Definitions) {
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
         Write-Host "==> $($definition.Name)"
         try {
