@@ -72,7 +72,7 @@ git commit -m "fix: normalize quality checks across operating systems"
 
 **Interfaces:**
 
-- Required check-run names are `Full / Windows`, `Full / Linux`, `Coverage / Frontend`, `Backend / Unit`, `E2E`, and `Gitleaks / Directory`.
+- Initial required check-run names are `Full / Windows`, `Full / Linux`, `Coverage / Frontend`, `E2E`, and `Gitleaks / Directory`; `Backend / Unit` is added to protection after Task 3.
 - Oracle jobs remain post-merge and are not required PR checks.
 
 - [ ] **Step 1: Add stale-run cancellation**
@@ -95,7 +95,7 @@ Run `gh run list --workflow quality.yml --branch codex/coverage-gate --limit 5` 
 
 - [ ] **Step 4: Configure branch protection after checks are green**
 
-Read `gh api repos/blackowlest-wq/ProjectFoundation --jq '.visibility'`, then apply `main` protection with pull request required, one Code Owner approval, stale approval dismissal, the six actual check-run names above, administrator enforcement, force-push prohibition, and deletion prohibition.
+Read `gh api repos/blackowlest-wq/ProjectFoundation --jq '.visibility'`, then apply `main` protection with pull request required, one Code Owner approval, stale approval dismissal, the five existing check-run names above, administrator enforcement, force-push prohibition, and deletion prohibition.
 
 - [ ] **Step 5: Read back and record protection**
 
@@ -133,7 +133,11 @@ Add `BackendUnit` to the validation sets and definitions. Use Maven `-f backend/
 
 Run the contract test and `pwsh -NoProfile -File scripts/check.ps1 -CiTask BackendUnit` with no `DAILY_REPORT_DB_*` variables. Both must pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Add `Backend / Unit` to branch protection**
+
+After the new job has produced a successful check-run, update `required_status_checks.contexts` to include `Backend / Unit` and read the protection back.
+
+- [ ] **Step 6: Commit**
 
 ```powershell
 git add scripts/check.ps1 scripts/coverage-gate.tests.ps1 .github/workflows/quality.yml docs/AI活用開発研究/構想メモ/標準化/品質ゲート運用.md docs/AI活用開発研究/構想メモ/標準化/テスト方針.md
