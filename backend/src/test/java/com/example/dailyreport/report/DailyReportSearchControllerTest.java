@@ -46,6 +46,24 @@ class DailyReportSearchControllerTest {
     }
 
     @Test
+    void searchRejectsMissingStartDate() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+
+        mockMvc.perform(get("/api/daily-reports").param("dateTo", "2026-06-30").session(session))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field", equalTo("dateFrom")));
+    }
+
+    @Test
+    void searchRejectsMissingEndDate() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+
+        mockMvc.perform(get("/api/daily-reports").param("dateFrom", "2026-06-01").session(session))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field", equalTo("dateTo")));
+    }
+
+    @Test
     void searchRequiresLogin() throws Exception {
         mockMvc.perform(get("/api/daily-reports")
                         .param("dateFrom", "2026-06-01")
