@@ -19,6 +19,9 @@ $frontendArguments = @($frontendCommand.Arguments)
 $backendArguments = @($backendCommand.Arguments)
 $frontendNames = @($frontend | ForEach-Object Name)
 $backendNames = @($backend | ForEach-Object Name)
+$packageJson = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'frontend/package.json')
+$bootstrapText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/bootstrap.ps1')
+$wrapperMode = @(git -C $repoRoot ls-files -s backend/mvnw)[0].Split()[0]
 
 Assert-Condition ($frontend.Count -eq 2) 'Frontend coverage must return two direct definitions.'
 Assert-Condition ($backend.Count -eq 2) 'Backend coverage must return two direct definitions.'
@@ -31,5 +34,12 @@ Assert-Condition ($backendArguments -contains 'verify') 'Backend coverage must r
 Assert-Condition ($backendNames -contains 'backend-coverage-report') 'Backend report check is missing.'
 Assert-Condition ($frontendArguments -contains 'coverage') 'Frontend coverage must invoke npm coverage.'
 Assert-Condition ($frontendNames -contains 'frontend-coverage-report') 'Frontend report check is missing.'
+Assert-Condition ($packageJson -match 'pwsh -NoProfile -ExecutionPolicy Bypass -File') `
+    'Frontend test-layout check must use pwsh.'
+Assert-Condition ($bootstrapText -match "'-f', 'backend/pom.xml'") `
+    'Maven bootstrap must target backend/pom.xml.'
+Assert-Condition ($bootstrapText -match '\[System\.IO\.Path\]::GetTempPath\(\)') `
+    'Gitleaks temporary files must use an OS-independent temp path.'
+Assert-Condition ($wrapperMode -eq '100755') 'Unix Maven wrapper must have the executable bit.'
 
 Write-Output 'Coverage gate contract tests passed.'

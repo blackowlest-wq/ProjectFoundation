@@ -5,7 +5,7 @@
     "npm": "11.16.0"
   },
   "scripts": {
-    "check:test-layout": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/check-test-layout.ps1",
+    "check:test-layout": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../scripts/check-test-layout.ps1",
     "pretest": "npm run check:test-layout",
     "precoverage": "npm run check:test-layout",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
