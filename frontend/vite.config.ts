@@ -23,5 +23,19 @@ export default defineConfig({
         url: 'http://localhost/',
       },
     },
+    coverage: {
+      provider: 'v8',
+      clean: true,
+      include: ['src/**/*.{ts,tsx}'],
+      reporter: ['text', 'text-summary', 'html', 'json-summary', 'lcov'],
+      reportsDirectory: 'coverage',
+      reportOnFailure: true,
+      thresholds: {
+        branches: 85,
+        functions: 85,
+        lines: 85,
+        statements: 85,
+      },
+    },
   },
 });
