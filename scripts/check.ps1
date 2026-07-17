@@ -3,7 +3,7 @@ param(
     [ValidateSet('Quick', 'Full', 'Oracle', 'All')]
     [string]$Mode = 'Quick',
     [switch]$Offline,
-    [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+    [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
     [string]$CiTask = 'None',
     [switch]$AllowDdl,
     [string]$DdlScript,
@@ -141,7 +141,7 @@ function Get-QuickCheckDefinitions {
 function Get-CiTaskDefinitions {
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('FrontendCoverage', 'BackendCoverage', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [ValidateSet('FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
         [string]$CiTask,
         [Parameter(Mandatory)]
         [string]$RepoRoot,
@@ -181,6 +181,12 @@ function Get-CiTaskDefinitions {
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.csv')
                 )
             )
+        }
+        'BackendUnit' {
+            New-CheckDefinition -Name 'backend-unit-test' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @(
+                '-Dtest=ApiExceptionHandlerTest,BusinessEventLoggingTest,MasterDataRepositoryTest,RequestIdFilterTest,RequestMetadataInterceptorTest,TimeRulesTest'
+                'test'
+            ))
         }
         'E2E' {
             New-CheckDefinition -Name 'frontend-e2e' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'e2e')
@@ -306,7 +312,7 @@ function Invoke-QualityRunner {
         [ValidateSet('Quick', 'Full', 'Oracle', 'All')]
         [string]$Mode = 'Quick',
         [switch]$Offline,
-        [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
         [string]$CiTask = 'None',
         [switch]$AllowDdl,
         [string]$DdlScript,

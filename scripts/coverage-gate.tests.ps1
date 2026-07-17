@@ -12,11 +12,15 @@ $frontend = @(Get-CiTaskDefinitions -CiTask FrontendCoverage -RepoRoot $repoRoot
         -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
 $backend = @(Get-CiTaskDefinitions -CiTask BackendCoverage -RepoRoot $repoRoot `
         -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
+$unit = @(Get-CiTaskDefinitions -CiTask BackendUnit -RepoRoot $repoRoot `
+        -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
 
 $frontendCommand = $frontend[0]
 $backendCommand = $backend[0]
+$unitCommand = $unit[0]
 $frontendArguments = @($frontendCommand.Arguments)
 $backendArguments = @($backendCommand.Arguments)
+$unitArguments = @($unitCommand.Arguments)
 $frontendNames = @($frontend | ForEach-Object Name)
 $backendNames = @($backend | ForEach-Object Name)
 $packageJson = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'frontend/package.json')
@@ -27,6 +31,7 @@ $ratchetReference = [regex]::Match($pomText, '<ratchetFrom>(?<reference>[^<]+)</
 
 Assert-Condition ($frontend.Count -eq 2) 'Frontend coverage must return two direct definitions.'
 Assert-Condition ($backend.Count -eq 2) 'Backend coverage must return two direct definitions.'
+Assert-Condition ($unit.Count -eq 1) 'BackendUnit must return one direct definition.'
 Assert-Condition ($backendCommand.Command -eq 'pwsh') 'Backend coverage must use the Oracle wrapper.'
 Assert-Condition ($backendArguments[0] -eq '-NoProfile') 'Backend coverage must start with -NoProfile.'
 Assert-Condition ($backendArguments[1] -eq '-File') 'Backend coverage must invoke the wrapper script with -File.'
@@ -34,6 +39,10 @@ Assert-Condition ($backendArguments[2] -eq $oracleScript) 'Backend coverage must
 Assert-Condition ($backendArguments -contains '-Pcoverage') 'Backend coverage profile is missing.'
 Assert-Condition ($backendArguments -contains 'verify') 'Backend coverage must run Maven verify.'
 Assert-Condition ($backendNames -contains 'backend-coverage-report') 'Backend report check is missing.'
+Assert-Condition ($unitCommand.Name -eq 'backend-unit-test') 'BackendUnit name is incorrect.'
+Assert-Condition ($unitArguments -contains 'test') 'BackendUnit must run Maven test.'
+Assert-Condition ($unitArguments -contains '-Dtest=ApiExceptionHandlerTest,BusinessEventLoggingTest,MasterDataRepositoryTest,RequestIdFilterTest,RequestMetadataInterceptorTest,TimeRulesTest') `
+    'BackendUnit must select only Oracle-independent test classes.'
 Assert-Condition ($frontendArguments -contains 'coverage') 'Frontend coverage must invoke npm coverage.'
 Assert-Condition ($frontendNames -contains 'frontend-coverage-report') 'Frontend report check is missing.'
 Assert-Condition ($packageJson -match 'pwsh -NoProfile -ExecutionPolicy Bypass -File') `
