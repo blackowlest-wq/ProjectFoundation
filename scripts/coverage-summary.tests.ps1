@@ -23,7 +23,7 @@ $frontendFixture = [ordered]@{
 $backendFixture = @'
 <report name="test">
   <counter type="INSTRUCTION" missed="10" covered="90" />
-  <counter type="BRANCH" missed="1" covered="9" />
+  <counter type="BRANCH" missed="3" covered="7" />
   <counter type="METHOD" missed="2" covered="18" />
   <counter type="LINE" missed="3" covered="27" />
 </report>
@@ -41,10 +41,18 @@ try {
     foreach ($metric in @('Statements', 'Branches', 'Functions', 'Lines', 'Instructions', 'Methods')) {
         Assert-Condition ($summary -match [regex]::Escape($metric)) "Coverage summary is missing the $metric metric."
     }
-    foreach ($percentage in @('91.11%', '88.88%', '92.00%', '90.00%')) {
-        Assert-Condition ($summary -match [regex]::Escape($percentage)) "Coverage summary is missing $percentage."
+    foreach ($row in @(
+            '| Frontend | Statements | 91.11% | PASS |'
+            '| Frontend | Branches | 88.88% | PASS |'
+            '| Frontend | Functions | 92.00% | PASS |'
+            '| Frontend | Lines | 90.00% | PASS |'
+            '| Backend | Instructions | 90.00% | PASS |'
+            '| Backend | Branches | 70.00% | BELOW 85% |'
+            '| Backend | Methods | 90.00% | PASS |'
+            '| Backend | Lines | 90.00% | PASS |'
+        )) {
+        Assert-Condition ($summary -match [regex]::Escape($row)) "Coverage summary is missing $row."
     }
-    Assert-Condition ($summary -match 'PASS') 'Coverage summary must show the gate result.'
 
     $missingPath = Join-Path $testRoot 'missing.json'
     & pwsh -NoProfile -File $summaryScript -FrontendSummaryPath $missingPath 2>&1 | Out-String | Out-Null

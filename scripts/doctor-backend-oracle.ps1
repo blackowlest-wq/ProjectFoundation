@@ -37,6 +37,30 @@ if (-not (Test-Path -LiteralPath $exampleConfig -PathType Leaf)) {
     Add-Failure 'Oracle test example configuration is missing.'
 }
 
+$toolVersionsPath = Join-Path $repoRoot 'scripts/tool-versions.psd1'
+$wrapperPropertiesPath = Join-Path $repoRoot 'backend/.mvn/wrapper/maven-wrapper.properties'
+if (-not (Test-Path -LiteralPath $toolVersionsPath -PathType Leaf) -or
+    -not (Test-Path -LiteralPath $wrapperPropertiesPath -PathType Leaf)) {
+    Add-Failure 'Maven Wrapper version metadata is missing.'
+}
+else {
+    $toolVersions = Import-PowerShellDataFile -LiteralPath $toolVersionsPath
+    $expectedWrapperVersion = [string]$toolVersions.MavenWrapper
+    $wrapperVersionLine = Get-Content -Encoding UTF8 $wrapperPropertiesPath |
+        Where-Object { $_ -match '^wrapperVersion=' } |
+        Select-Object -First 1
+    $configuredWrapperVersion = if ($wrapperVersionLine) {
+        ($wrapperVersionLine -split '=', 2)[1].Trim()
+    }
+    else {
+        ''
+    }
+    if ([string]::IsNullOrWhiteSpace($expectedWrapperVersion) -or
+        $configuredWrapperVersion -cne $expectedWrapperVersion) {
+        Add-Failure 'Maven Wrapper version does not match the pinned tool version.'
+    }
+}
+
 if ($failures.Count -eq 0) {
     try {
         $javaCommand = Get-Command java -ErrorAction Stop

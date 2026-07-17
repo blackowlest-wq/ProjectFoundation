@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $preflightScript = Join-Path $repoRoot 'scripts/doctor-backend-oracle.ps1'
+$preflightText = Get-Content -Raw -Encoding UTF8 $preflightScript
 
 function Assert-Condition {
     param([Parameter(Mandatory)][bool]$Condition, [Parameter(Mandatory)][string]$Message)
@@ -43,6 +44,17 @@ try {
         'Oracle preflight must validate environment variables before invoking Maven.'
     Assert-Condition ($output -notmatch 'oracle-test\.invalid|DAILY_REPORT_TEST') `
         'Oracle preflight output must not disclose configured connection values.'
+
+    $toolVersions = Import-PowerShellDataFile -LiteralPath (Join-Path $repoRoot 'scripts/tool-versions.psd1')
+    $wrapperProperties = Get-Content -Encoding UTF8 (Join-Path $repoRoot 'backend/.mvn/wrapper/maven-wrapper.properties')
+    $configuredWrapperVersion = (($wrapperProperties | Where-Object { $_ -match '^wrapperVersion=' } |
+        Select-Object -First 1) -split '=', 2)[1].Trim()
+    Assert-Condition ($configuredWrapperVersion -eq [string]$toolVersions.MavenWrapper) `
+        'Maven Wrapper metadata must match the pinned tool version.'
+    Assert-Condition ($preflightText -match 'Import-PowerShellDataFile') `
+        'Oracle preflight must load the pinned tool versions.'
+    Assert-Condition ($preflightText -match 'wrapperVersion') `
+        'Oracle preflight must verify the Maven Wrapper version metadata.'
 }
 finally {
     foreach ($name in $requiredVariables) {

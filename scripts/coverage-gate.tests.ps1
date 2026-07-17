@@ -8,6 +8,7 @@ function Assert-Condition {
 }
 
 $oracleScript = Join-Path $repoRoot 'backend/scripts/test-oracle.ps1'
+$full = @(Get-FullCheckDefinitions -RepoRoot $repoRoot -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd')
 $frontend = @(Get-CiTaskDefinitions -CiTask FrontendCoverage -RepoRoot $repoRoot `
         -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
 $backend = @(Get-CiTaskDefinitions -CiTask BackendCoverage -RepoRoot $repoRoot `
@@ -23,6 +24,7 @@ $backendArguments = @($backendCommand.Arguments)
 $unitArguments = @($unitCommand.Arguments)
 $frontendNames = @($frontend | ForEach-Object Name)
 $backendNames = @($backend | ForEach-Object Name)
+$fullNames = @($full | ForEach-Object Name)
 $packageJson = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'frontend/package.json')
 $bootstrapText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/bootstrap.ps1')
 $pomText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'backend/pom.xml')
@@ -34,6 +36,10 @@ $ratchetReference = [regex]::Match($pomText, '<ratchetFrom>(?<reference>[^<]+)</
 Assert-Condition ($frontend.Count -eq 2) 'Frontend coverage must return two direct definitions.'
 Assert-Condition ($backend.Count -eq 2) 'Backend coverage must return two direct definitions.'
 Assert-Condition ($unit.Count -eq 1) 'BackendUnit must return one direct definition.'
+Assert-Condition ($fullNames -contains 'oracle-preflight-contract-test') `
+    'Full must execute the Oracle preflight contract test.'
+Assert-Condition ($fullNames -contains 'coverage-summary-contract-test') `
+    'Full must execute the coverage summary contract test.'
 Assert-Condition ($backendCommand.Command -eq 'pwsh') 'Backend coverage must use the Oracle wrapper.'
 Assert-Condition ($backendArguments[0] -eq '-NoProfile') 'Backend coverage must start with -NoProfile.'
 Assert-Condition ($backendArguments[1] -eq '-File') 'Backend coverage must invoke the wrapper script with -File.'
