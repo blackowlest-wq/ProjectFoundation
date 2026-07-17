@@ -127,4 +127,24 @@ describe('apiClient diagnostics and request correlation', () => {
     await expect(getJson('http://[invalid')).rejects.toThrow('network unavailable');
     expect(consoleError).toHaveBeenCalledWith('event=api.network_failure', { path: '/unknown' });
   });
+
+  it('logs the URL pathname when a network request uses a URL object', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('network unavailable'));
+
+    await expect(getJson(new URL('http://localhost/api/url-object') as unknown as string))
+      .rejects.toThrow('network unavailable');
+
+    expect(consoleError).toHaveBeenCalledWith('event=api.network_failure', { path: '/api/url-object' });
+  });
+
+  it('logs the request pathname when a network request uses a Request object', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('network unavailable'));
+
+    await expect(getJson(new Request('http://localhost/api/request-object') as unknown as string))
+      .rejects.toThrow('network unavailable');
+
+    expect(consoleError).toHaveBeenCalledWith('event=api.network_failure', { path: '/api/request-object' });
+  });
 });
