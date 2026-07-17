@@ -1,8 +1,19 @@
+// @vitest-environment jsdom
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getJson, readError } from '../src/shared/apiClient';
+import {
+  csrfHeader,
+  getJson,
+  getJsonOrNullOnUnauthorized,
+  jsonCsrfHeaders,
+  readCookie,
+  readError,
+  readJson,
+} from '../src/shared/apiClient';
 
 describe('apiClient diagnostics and request correlation', () => {
   afterEach(() => {
+    document.cookie = 'XSRF-TOKEN=; Max-Age=0; path=/';
     vi.restoreAllMocks();
   });
 
@@ -59,5 +70,61 @@ describe('apiClient diagnostics and request correlation', () => {
     expect(consoleError).toHaveBeenCalledWith('event=api.network_failure', {
       path: '/api/daily-reports',
     });
+  });
+
+  it('uses fallback fields when an unauthorized JSON body omits common error fields', async () => {
+    const response = new Response(JSON.stringify({}), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', 'X-Request-Id': 'request-auth-001' },
+    });
+    await expect(readError(response)).resolves.toMatchObject({
+      code: 'UNAUTHORIZED', message: 'ログインが必要です。', details: [], requestId: 'request-auth-001',
+    });
+  });
+
+  it('uses fallback fields and logs when an error body is not JSON', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await expect(readError(new Response('not-json', { status: 503 }))).resolves.toMatchObject({
+      code: 'UNKNOWN_ERROR', message: 'リクエストに失敗しました。', details: [],
+    });
+    expect(consoleError).toHaveBeenCalledWith('event=api.http_failure', expect.objectContaining({
+      status: 503, code: 'UNKNOWN_ERROR',
+    }));
+  });
+
+  it('returns successful JSON and converts a 401 response to null', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 401 }));
+    await expect(readJson<{ value: string }>(new Response(JSON.stringify({ value: 'ok' }), { status: 200 })))
+      .resolves.toEqual({ value: 'ok' });
+    await expect(getJsonOrNullOnUnauthorized('/api/me')).resolves.toBeNull();
+  });
+
+  it('returns JSON when getJsonOrNullOnUnauthorized receives a non-401 response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ value: 'ok' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    await expect(getJsonOrNullOnUnauthorized<{ value: string }>('/api/me')).resolves.toEqual({ value: 'ok' });
+  });
+
+  it('reads and applies the encoded CSRF cookie', () => {
+    document.cookie = 'XSRF-TOKEN=token%2B1; path=/';
+    expect(readCookie('XSRF-TOKEN')).toBe('token+1');
+    expect(csrfHeader()).toEqual({ 'X-XSRF-TOKEN': 'token+1' });
+    expect(jsonCsrfHeaders()).toEqual({ 'Content-Type': 'application/json', 'X-XSRF-TOKEN': 'token+1' });
+  });
+
+  it('keeps JSON headers when the CSRF cookie is missing', () => {
+    expect(readCookie('XSRF-TOKEN')).toBeNull();
+    expect(csrfHeader()).toBeUndefined();
+    expect(jsonCsrfHeaders()).toEqual({ 'Content-Type': 'application/json' });
+  });
+
+  it('logs an unknown path when a network request has an invalid URL', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('network unavailable'));
+    await expect(getJson('http://[invalid')).rejects.toThrow('network unavailable');
+    expect(consoleError).toHaveBeenCalledWith('event=api.network_failure', { path: '/unknown' });
   });
 });

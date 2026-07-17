@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -16,7 +18,12 @@ vi.mock('../src/auth/authApi', async (importOriginal) => {
 });
 
 vi.mock('../src/dailyReport/DailyReportCalendarList', () => ({
-  DailyReportCalendarList: () => <div data-testid="daily-report-list">日報一覧</div>,
+  DailyReportCalendarList: ({ onUnauthorized }: { onUnauthorized: () => void }) => (
+    <div data-testid="daily-report-list">
+      日報一覧
+      <button data-testid="unauthorized" onClick={onUnauthorized}>セッション切れ</button>
+    </div>
+  ),
 }));
 
 vi.mock('../src/dailyReport/DailyReportForm', () => ({
@@ -148,6 +155,15 @@ describe('App authentication state', () => {
     expect(document.querySelector('h1')?.textContent).toBe('ログイン');
   });
 
+  it('shows a fallback dash when the authenticated user has no group name', async () => {
+    vi.mocked(fetchMe).mockResolvedValue({ ...currentUser, groupName: null });
+
+    await renderApp();
+
+    expect(document.body.textContent).toContain('所属');
+    expect(document.body.textContent).toContain('-');
+  });
+
   it('keeps the authenticated screen and shows an error when logout fails', async () => {
     vi.mocked(fetchMe).mockResolvedValue(currentUser);
     vi.mocked(logout).mockRejectedValue(new Error('logout failed'));
@@ -158,5 +174,17 @@ describe('App authentication state', () => {
     expect(document.querySelector('.topbar')).not.toBeNull();
     expect(document.querySelector('[role="alert"]')?.textContent)
       .toBe('ログアウトに失敗しました。時間をおいて再度お試しください。');
+  });
+
+  it('returns to the login screen when the report list reports unauthorized', async () => {
+    vi.mocked(fetchMe).mockResolvedValue(currentUser);
+    await renderApp();
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('[data-testid="unauthorized"]')?.click();
+      await Promise.resolve();
+    });
+    expect(window.location.pathname).toBe('/login');
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe('ログインが必要です。');
+    expect(document.querySelector('h1')?.textContent).toBe('ログイン');
   });
 });
