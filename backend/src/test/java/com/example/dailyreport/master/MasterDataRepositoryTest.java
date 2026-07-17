@@ -1,7 +1,6 @@
 package com.example.dailyreport.master;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -9,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.dailyreport.common.ApiException;
+import com.example.dailyreport.common.ApiExceptionHandler;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,9 +23,11 @@ class MasterDataRepositoryTest {
                 eq("UNKNOWN"))).thenReturn(List.of());
         MasterDataRepository repository = new MasterDataRepository(jdbcTemplate);
 
-        assertThatThrownBy(() -> repository.requireHolidayType("UNKNOWN"))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("入力内容が不正です。");
+        ApiException exception = captureApiException(() -> repository.requireHolidayType("UNKNOWN"));
+
+        assertThat(exception.code()).isEqualTo("VALIDATION_ERROR");
+        assertThat(exception.details()).containsExactly(
+                new ApiExceptionHandler.ErrorDetail("holidayType", "休日区分が存在しません。"));
     }
 
     @Test
@@ -36,9 +38,11 @@ class MasterDataRepositoryTest {
                 eq("BT404"))).thenReturn(List.of());
         MasterDataRepository repository = new MasterDataRepository(jdbcTemplate);
 
-        assertThatThrownBy(() -> repository.requireWorkSettings("BT404", "WT001"))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("入力内容が不正です。");
+        ApiException exception = captureApiException(() -> repository.requireWorkSettings("BT404", "WT001"));
+
+        assertThat(exception.code()).isEqualTo("VALIDATION_ERROR");
+        assertThat(exception.details()).containsExactly(
+                new ApiExceptionHandler.ErrorDetail("breakTypeId", "休憩区分が存在しません。"));
     }
 
     @Test
@@ -53,9 +57,11 @@ class MasterDataRepositoryTest {
                 eq("WT404"))).thenReturn(List.of());
         MasterDataRepository repository = new MasterDataRepository(jdbcTemplate);
 
-        assertThatThrownBy(() -> repository.requireWorkSettings("BT001", "WT404"))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("入力内容が不正です。");
+        ApiException exception = captureApiException(() -> repository.requireWorkSettings("BT001", "WT404"));
+
+        assertThat(exception.code()).isEqualTo("VALIDATION_ERROR");
+        assertThat(exception.details()).containsExactly(
+                new ApiExceptionHandler.ErrorDetail("workTimeTypeId", "勤務区分が存在しません。"));
     }
 
     @Test
@@ -99,5 +105,19 @@ class MasterDataRepositoryTest {
     @SuppressWarnings("unchecked")
     private <T> RowMapper<T> rowMapper() {
         return any(RowMapper.class);
+    }
+
+    private ApiException captureApiException(ThrowingOperation operation) {
+        try {
+            operation.run();
+        } catch (ApiException exception) {
+            return exception;
+        }
+        throw new AssertionError("Expected ApiException to be thrown.");
+    }
+
+    @FunctionalInterface
+    private interface ThrowingOperation {
+        void run();
     }
 }
