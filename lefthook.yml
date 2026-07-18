@@ -8,5 +8,6 @@ pre-commit:
 
 pre-push:
   jobs:
-    - name: full-check
-      run: pwsh -NoProfile -File scripts/check.ps1 -Mode Full
+    - name: pre-push-fast-check
+      use_stdin: true
+      run: pwsh -NoProfile -File scripts/check.ps1 -Mode PrePush
