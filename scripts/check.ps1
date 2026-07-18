@@ -1,7 +1,8 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [ValidateSet('Quick', 'Full', 'Oracle', 'All')]
+    [ValidateSet('Quick', 'PrePush', 'Full', 'Oracle', 'All')]
     [string]$Mode = 'Quick',
+    [string]$PushInput,
     [switch]$Offline,
     [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
     [string]$CiTask = 'None',
@@ -142,6 +143,213 @@ function Get-QuickCheckDefinitions {
         'git', '--pre-commit', '--staged', '--redact', '--verbose', '--config', (Join-Path $RepoRoot '.gitleaks.toml')
     )))
     $definitions
+}
+
+function Get-PushRefRecords {
+    param([Parameter(Mandatory)][string]$InputText)
+
+    $zeroSha = '0000000000000000000000000000000000000000'
+    $records = [System.Collections.Generic.List[object]]::new()
+    foreach ($line in ($InputText -split "`r?`n")) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        $columns = @($line.Trim() -split '\s+')
+        if ($columns.Count -ne 4) {
+            throw "Invalid pre-push input line: $line"
+        }
+
+        foreach ($sha in @($columns[1], $columns[3])) {
+            if ($sha -notmatch '(?i)^[0-9a-f]{40}$') {
+                throw "Invalid pre-push sha: $sha"
+            }
+        }
+
+        $records.Add([pscustomobject]@{
+                LocalRef  = $columns[0]
+                LocalSha  = $columns[1]
+                RemoteRef = $columns[2]
+                RemoteSha = $columns[3]
+            })
+    }
+
+    if ($records.Count -eq 0) {
+        throw 'Pre-push input did not contain any ref update.'
+    }
+
+    $records
+}
+
+function Get-PrePushUnsharedCommits {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$LocalSha
+    )
+
+    $commits = @(git -C $RepoRoot rev-list --reverse $LocalSha --not --remotes)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to enumerate unshared commits for $LocalSha."
+    }
+    if ($commits.Count -eq 0) {
+        return @($LocalSha)
+    }
+    $commits
+}
+
+function Get-PrePushChangedFiles {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][object[]]$PushRefs
+    )
+
+    $zeroSha = '0000000000000000000000000000000000000000'
+    $changedFiles = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($pushRef in $PushRefs) {
+        if ($pushRef.LocalSha -eq $zeroSha) {
+            continue
+        }
+
+        $null = git -C $RepoRoot cat-file -e "$($pushRef.LocalSha)^{commit}" 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Local pre-push commit is not available: $($pushRef.LocalSha)"
+        }
+
+        if ($pushRef.RemoteSha -ne $zeroSha) {
+            $null = git -C $RepoRoot cat-file -e "$($pushRef.RemoteSha)^{commit}" 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                throw "Remote pre-push commit is not available locally: $($pushRef.RemoteSha)"
+            }
+            $files = @(git -C $RepoRoot diff --name-only --diff-filter=ACMR $pushRef.RemoteSha $pushRef.LocalSha)
+            if ($LASTEXITCODE -ne 0) {
+                throw "Unable to resolve changed files between $($pushRef.RemoteSha) and $($pushRef.LocalSha)."
+            }
+        }
+        else {
+            $files = [System.Collections.Generic.List[string]]::new()
+            foreach ($commit in (Get-PrePushUnsharedCommits -RepoRoot $RepoRoot -LocalSha $pushRef.LocalSha)) {
+                $commitFiles = @(git -C $RepoRoot diff-tree --root --no-commit-id --name-only --diff-filter=ACMR -r $commit)
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Unable to resolve changed files for commit $commit."
+                }
+                $commitFiles | ForEach-Object { $files.Add($_) }
+            }
+        }
+
+        foreach ($file in $files) {
+            if (-not [string]::IsNullOrWhiteSpace($file)) {
+                $normalized = $file.Replace('\', '/')
+                $null = $changedFiles.Add($normalized)
+            }
+        }
+    }
+
+    @($changedFiles | Sort-Object)
+}
+
+function Invoke-PrePushDiffCheck {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][object[]]$PushRefs
+    )
+
+    $zeroSha = '0000000000000000000000000000000000000000'
+    foreach ($pushRef in $PushRefs) {
+        if ($pushRef.LocalSha -eq $zeroSha) {
+            continue
+        }
+
+        if ($pushRef.RemoteSha -ne $zeroSha) {
+            $output = @(git -C $RepoRoot diff --check $pushRef.RemoteSha $pushRef.LocalSha 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                throw "Whitespace errors found between $($pushRef.RemoteSha) and $($pushRef.LocalSha): $($output -join ' ')"
+            }
+            continue
+        }
+
+        foreach ($commit in (Get-PrePushUnsharedCommits -RepoRoot $RepoRoot -LocalSha $pushRef.LocalSha)) {
+            $output = @(git -C $RepoRoot diff-tree --check --root --no-commit-id -r $commit 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                throw "Whitespace errors found in commit ${commit}: $($output -join ' ')"
+            }
+        }
+    }
+}
+
+function Get-PrePushCheckDefinitions {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string[]]$ChangedFiles,
+        [object[]]$PushRefs = @(),
+        [Parameter(Mandatory)][string]$NpmCommand,
+        [Parameter(Mandatory)][string]$MavenCommand,
+        [Parameter(Mandatory)][string]$GitleaksCommand,
+        [switch]$Offline
+    )
+
+    $normalizedFiles = @($ChangedFiles | ForEach-Object { $_.Replace('\', '/') } | Sort-Object -Unique)
+    $frontendCodeFiles = @($normalizedFiles | Where-Object { $_ -match '^frontend/.+\.(ts|tsx)$' })
+    $frontendConfigChanged = @($normalizedFiles | Where-Object {
+            $_ -match '^frontend/(package(-lock)?\.json|vite\.config\..+|tsconfig.*\.json|eslint\.config\..+)$'
+        }).Count -gt 0
+    $markdownFiles = @($normalizedFiles | Where-Object { $_ -match '\.md$' })
+    $hasJavaChanges = @($normalizedFiles | Where-Object { $_ -match '^backend/.+\.java$' }).Count -gt 0
+    $forbiddenPattern = '(^|/)(node_modules|target|dist|coverage|playwright-report|test-results)(/|$)|(^|/)\.tools(/|$)|\.log$'
+
+    $definitions = [System.Collections.Generic.List[object]]::new()
+    $definitions.Add((New-CheckDefinition -Name 'pre-push-diff-check' -Action {
+                Invoke-PrePushDiffCheck -RepoRoot $RepoRoot -PushRefs $PushRefs
+            }.GetNewClosure()))
+    $definitions.Add((New-CheckDefinition -Name 'pre-push-artifact-check' -Action {
+                $forbidden = @($normalizedFiles | Where-Object { $_ -match $forbiddenPattern })
+                if ($forbidden.Count -gt 0) {
+                    throw "Generated or local-only files are part of the push: $($forbidden -join ', ')"
+                }
+            }.GetNewClosure()))
+    $definitions.Add((New-CheckDefinition -Name 'pre-push-secrets' -Command $GitleaksCommand -Arguments @(
+            'dir', '--redact', '--config', (Join-Path $RepoRoot '.gitleaks.toml'), '.'
+        )))
+
+    if ($frontendConfigChanged) {
+        $definitions.Add((New-CheckDefinition -Name 'frontend-pre-push-lint' -Command $NpmCommand -Arguments @(
+                '--prefix', 'frontend', 'run', 'lint'
+            )))
+    }
+    elseif ($frontendCodeFiles.Count -gt 0) {
+        $definitions.Add((New-CheckDefinition -Name 'frontend-pre-push-lint' -Command $NpmCommand -Arguments (@(
+                    '--prefix', 'frontend', 'exec', '--', 'eslint'
+                ) + $frontendCodeFiles + @('--max-warnings', '0'))))
+    }
+
+    if ($markdownFiles.Count -gt 0) {
+        $definitions.Add((New-CheckDefinition -Name 'markdown-pre-push-lint' -Command $NpmCommand -Arguments (@(
+                    'run', 'lint:markdown', '--', '--no-globs'
+                ) + $markdownFiles)))
+    }
+    if ($hasJavaChanges) {
+        $definitions.Add((New-CheckDefinition -Name 'backend-pre-push-spotless' -Command $MavenCommand -Arguments (
+                Get-MavenArguments -Offline:$Offline -Goals @('spotless:check')
+            )))
+    }
+
+    $definitions
+}
+
+function Get-PrePushInputText {
+    param([string]$ProvidedInput)
+
+    if (-not [string]::IsNullOrWhiteSpace($ProvidedInput)) {
+        return $ProvidedInput
+    }
+    if (-not [Console]::IsInputRedirected) {
+        throw 'PrePush requires ref input on stdin.'
+    }
+    $inputText = [Console]::In.ReadToEnd()
+    if ([string]::IsNullOrWhiteSpace($inputText)) {
+        throw 'PrePush stdin was empty.'
+    }
+    $inputText
 }
 
 function Get-CiTaskDefinitions {
@@ -315,8 +523,9 @@ function Invoke-QualityRunner {
     param(
         [Parameter(Mandatory)]
         [string]$RepoRoot,
-        [ValidateSet('Quick', 'Full', 'Oracle', 'All')]
+        [ValidateSet('Quick', 'PrePush', 'Full', 'Oracle', 'All')]
         [string]$Mode = 'Quick',
+        [string]$PushInput,
         [switch]$Offline,
         [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
         [string]$CiTask = 'None',
@@ -344,6 +553,20 @@ function Invoke-QualityRunner {
             Invoke-QualityChecks -Definitions $definitions -Failures $failures
         }
         else {
+            if ($Mode -eq 'PrePush') {
+                try {
+                    $pushRefs = @(Get-PushRefRecords -InputText (Get-PrePushInputText -ProvidedInput $PushInput))
+                    $changedFiles = @(Get-PrePushChangedFiles -RepoRoot $RepoRoot -PushRefs $pushRefs)
+                    $definitions = @(Get-PrePushCheckDefinitions -RepoRoot $RepoRoot -ChangedFiles $changedFiles `
+                        -PushRefs $pushRefs -NpmCommand $npmCommand -MavenCommand $mavenCommand `
+                        -GitleaksCommand $gitleaksCommand -Offline:$Offline)
+                    Invoke-QualityChecks -Definitions $definitions -Failures $failures
+                }
+                catch {
+                    $failures.Add('pre-push-definition')
+                    Write-Warning "FAIL pre-push-definition: $($_.Exception.Message)"
+                }
+            }
             if ($Mode -in @('Quick')) {
                 try {
                     $stagedFiles = @(Get-StagedFiles -RepoRoot $RepoRoot)
@@ -395,6 +618,6 @@ if ($MyInvocation.InvocationName -ne '.') {
     }
 
     $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-    exit (Invoke-QualityRunner -RepoRoot $repoRoot -Mode $Mode -Offline:$Offline -CiTask $CiTask `
-        -AllowDdl:$AllowDdl -DdlScript $DdlScript -OracleConfigPath $OracleConfigPath)
+    exit (Invoke-QualityRunner -RepoRoot $repoRoot -Mode $Mode -PushInput $PushInput -Offline:$Offline `
+        -CiTask $CiTask -AllowDdl:$AllowDdl -DdlScript $DdlScript -OracleConfigPath $OracleConfigPath)
 }
