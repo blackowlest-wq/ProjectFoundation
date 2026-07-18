@@ -112,11 +112,11 @@
 
 - No additional source files.
 
-- [ ] **Step 1: PrePushとQuickを実行する**
+- [x] **Step 1: PrePushとQuickを実行する**
 
   `pwsh -NoProfile -File scripts/pre-push.tests.ps1`、`pwsh -NoProfile -File scripts/check.ps1 -Mode Quick`を実行する。
 
-- [ ] **Step 2: Fullと既存契約テストを実行する**
+- [x] **Step 2: Fullと既存契約テストを実行する**
 
   `pwsh -NoProfile -File scripts/check.ps1 -Mode Full`、`pwsh -NoProfile -File scripts/oracle-preflight.tests.ps1`、`pwsh -NoProfile -File scripts/coverage-summary.tests.ps1`、`pwsh -NoProfile -File scripts/coverage-gate.tests.ps1`を実行する。
 
@@ -124,6 +124,6 @@
 
   対象Markdownへ`npm.cmd run lint:markdown -- --no-globs ...`を実行し、`git diff --check`を実行する。
 
-- [ ] **Step 4: 変更をcommitする**
+- [x] **Step 4: 変更をcommitする**
 
   pre-commit Quickが成功した後、`git add`と`git commit`を実行する。
