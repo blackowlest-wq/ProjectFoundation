@@ -3,7 +3,7 @@ param(
     [ValidateSet('Quick', 'Full', 'Oracle', 'All')]
     [string]$Mode = 'Quick',
     [switch]$Offline,
-    [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+    [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
     [string]$CiTask = 'None',
     [switch]$AllowDdl,
     [string]$DdlScript,
@@ -22,12 +22,27 @@ function New-CheckDefinition {
         [scriptblock]$Action
     )
 
-    [pscustomobject]@{
+    $definition = [ordered]@{
         Name = $Name
-        Command = $Command
-        Arguments = @($Arguments)
         Action = $Action
     }
+    if ($PSBoundParameters.ContainsKey('Command')) {
+        $definition.Command = $Command
+        $definition.Arguments = @($Arguments)
+    }
+
+    [pscustomobject]$definition
+}
+
+function New-CoverageReportCheckDefinition {
+    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string[]]$Paths)
+
+    New-CheckDefinition -Name $Name -Action {
+        $missing = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
+        if ($missing.Count -gt 0) { throw "Coverage reports are missing: $($missing -join ', ')" }
+        Write-Host 'Coverage reports:'
+        $Paths | ForEach-Object { Write-Host " - $_" }
+    }.GetNewClosure()
 }
 
 function Get-MavenArguments {
@@ -67,6 +82,15 @@ function Get-FullCheckDefinitions {
         New-CheckDefinition -Name 'backend-spotless' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('spotless:check'))
         New-CheckDefinition -Name 'backend-checkstyle' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('checkstyle:check'))
         New-CheckDefinition -Name 'backend-spotbugs' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('test-compile', 'spotbugs:check'))
+        New-CheckDefinition -Name 'oracle-preflight-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/oracle-preflight.tests.ps1')
+        )
+        New-CheckDefinition -Name 'coverage-summary-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-summary.tests.ps1')
+        )
+        New-CheckDefinition -Name 'coverage-gate-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-gate.tests.ps1')
+        )
     )
 }
 
@@ -123,7 +147,7 @@ function Get-QuickCheckDefinitions {
 function Get-CiTaskDefinitions {
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('FrontendCoverage', 'BackendCoverage', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [ValidateSet('FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
         [string]$CiTask,
         [Parameter(Mandatory)]
         [string]$RepoRoot,
@@ -140,15 +164,35 @@ function Get-CiTaskDefinitions {
 
     switch ($CiTask) {
         'FrontendCoverage' {
-            New-CheckDefinition -Name 'frontend-coverage' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'coverage')
+            @(
+                New-CheckDefinition -Name 'frontend-coverage' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'coverage')
+                New-CoverageReportCheckDefinition -Name 'frontend-coverage-report' -Paths @(
+                    (Join-Path $RepoRoot 'frontend/coverage/index.html')
+                    (Join-Path $RepoRoot 'frontend/coverage/coverage-summary.json')
+                    (Join-Path $RepoRoot 'frontend/coverage/lcov.info')
+                )
+            )
         }
         'BackendCoverage' {
             $arguments = @('-NoProfile', '-File', $OracleScript)
             if (-not [string]::IsNullOrWhiteSpace($OracleConfigPath)) {
                 $arguments += @('-ConfigPath', $OracleConfigPath)
             }
-            $arguments += @('-Pcoverage', 'test')
-            New-CheckDefinition -Name 'backend-coverage' -Command 'pwsh' -Arguments $arguments
+            $arguments += @('-Pcoverage', 'verify')
+            @(
+                New-CheckDefinition -Name 'backend-coverage' -Command 'pwsh' -Arguments $arguments
+                New-CoverageReportCheckDefinition -Name 'backend-coverage-report' -Paths @(
+                    (Join-Path $RepoRoot 'backend/target/site/jacoco/index.html')
+                    (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.xml')
+                    (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.csv')
+                )
+            )
+        }
+        'BackendUnit' {
+            New-CheckDefinition -Name 'backend-unit-test' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @(
+                '-Dtest=ApiExceptionHandlerTest,BusinessEventLoggingTest,MasterDataRepositoryTest,RequestIdFilterTest,RequestMetadataInterceptorTest,TimeRulesTest'
+                'test'
+            ))
         }
         'E2E' {
             New-CheckDefinition -Name 'frontend-e2e' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'e2e')
@@ -274,7 +318,7 @@ function Invoke-QualityRunner {
         [ValidateSet('Quick', 'Full', 'Oracle', 'All')]
         [string]$Mode = 'Quick',
         [switch]$Offline,
-        [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
         [string]$CiTask = 'None',
         [switch]$AllowDdl,
         [string]$DdlScript,

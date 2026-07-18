@@ -56,6 +56,58 @@ class TimeRulesTest {
     }
 
     @Test
+    void validateAndCalculateReturnsEmptyForPaidLeaveWithoutWorkInput() {
+        DailyReportRequest request = new DailyReportRequest(
+                LocalDate.of(2026, 7, 5), "PAID_LEAVE", null, null, null, List.of());
+
+        TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(
+                request, employee("BT001", "WT001"), masterData());
+
+        assertThat(calculated.hasWorkTime()).isFalse();
+        assertThat(calculated.workMinutes()).isNull();
+    }
+
+    @Test
+    void validateAndCalculateReturnsEmptyForHolidayWithoutWorkInput() {
+        DailyReportRequest request = new DailyReportRequest(
+                LocalDate.of(2026, 7, 6), "HOLIDAY", null, null, null, List.of());
+
+        TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(
+                request, employee("BT001", "WT001"), masterData());
+
+        assertThat(calculated.hasWorkTime()).isFalse();
+        assertThat(calculated.workMinutes()).isNull();
+    }
+
+    @Test
+    void validateAndCalculateRejectsWorkdayWithEndBeforeStart() {
+        DailyReportRequest request = workday(LocalDate.of(2026, 7, 7), "18:00", "09:00", 480);
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateAndCalculateSplitsRegularOvertimeAndNightAtBoundaries() {
+        DailyReportRequest request = workday(LocalDate.of(2026, 7, 8), "17:59", "22:01", 242);
+
+        TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(
+                request, employee("BT001", "WT001"), masterData());
+
+        assertThat(calculated.breakMinutes()).isZero();
+        assertThat(calculated.regularWorkMinutes()).isEqualTo(1);
+        assertThat(calculated.overtimeWorkMinutes()).isEqualTo(240);
+        assertThat(calculated.nightWorkMinutes()).isEqualTo(1);
+    }
+
+    @Test
+    void formatTimeAndDurationHandleMissingValues() {
+        assertThat(TimeRules.formatTime(null)).isNull();
+        assertThat(TimeRules.formatDuration(null)).isEqualTo("0:00");
+    }
+
+    @Test
     void validateStoredReportRejectsNullHolidayType() throws Exception {
         DailyReportEntity report = reportWithValidWorkday();
         set(report, "holidayType", null);

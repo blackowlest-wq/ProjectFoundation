@@ -103,7 +103,7 @@ function Install-Gitleaks {
         throw "Gitleaks $($versions.Gitleaks) is not installed and offline mode forbids download."
     }
 
-    $downloadRoot = Join-Path $env:TEMP "projectfoundation-gitleaks-$($versions.Gitleaks)"
+    $downloadRoot = Join-Path ([System.IO.Path]::GetTempPath()) "projectfoundation-gitleaks-$($versions.Gitleaks)"
     New-Item -ItemType Directory -Force -Path $downloadRoot | Out-Null
     $archivePath = Join-Path $downloadRoot $asset.Name
     $checksumName = "gitleaks_$($versions.Gitleaks)_checksums.txt"
@@ -151,7 +151,7 @@ try {
     }
     if ($Component -in @('All', 'Maven')) {
         Assert-JavaToolchain
-        Invoke-RequiredCommand -Command $mavenCommand -Arguments @('-s', 'backend/local-maven-settings.xml', '-B', 'dependency:go-offline') -Description 'Maven dependency cache'
+        Invoke-RequiredCommand -Command $mavenCommand -Arguments @('-f', 'backend/pom.xml', '-s', 'backend/local-maven-settings.xml', '-B', 'dependency:go-offline') -Description 'Maven dependency cache'
     }
     if ($Component -in @('All', 'Playwright')) {
         Invoke-RequiredCommand -Command $npmCommand -Arguments @('--prefix', 'frontend', 'run', 'e2e:install') -Description 'Playwright Chromium installation'

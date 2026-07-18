@@ -5,6 +5,7 @@ import { mockStaticFrontend } from './support/staticFrontend';
 
 test('employee can search daily reports by synchronized target month range', async ({ page }) => {
   const requestedUrls: string[] = [];
+  await mockDailyReportApis(page);
   await page.route('**/api/daily-reports?**', async (route) => {
     if (route.request().method() === 'GET') {
       requestedUrls.push(route.request().url());
@@ -44,7 +45,6 @@ test('employee can search daily reports by synchronized target month range', asy
     }
     await route.fallback();
   });
-  await mockDailyReportApis(page);
   await mockStaticFrontend(page);
   await loginAsEmployee(page);
 
@@ -59,6 +59,7 @@ test('employee can search daily reports by synchronized target month range', asy
 
 test('employee sees list columns empty state and status colored calendar cell', async ({ page }) => {
   let searchCount = 0;
+  await mockDailyReportApis(page);
   await page.route('**/api/daily-reports?**', async (route) => {
     searchCount += 1;
     if (searchCount === 1) {
@@ -98,7 +99,6 @@ test('employee sees list columns empty state and status colored calendar cell', 
     }
     await route.fulfill({ json: [] });
   });
-  await mockDailyReportApis(page);
   await mockStaticFrontend(page);
   await loginAsEmployee(page);
 
@@ -113,10 +113,10 @@ test('employee sees list columns empty state and status colored calendar cell', 
 });
 
 test('manager sees group filter on daily report list', async ({ page }) => {
+  await mockDailyReportApis(page, { user: manager });
   await page.route('**/api/daily-reports?**', async (route) => {
     await route.fulfill({ json: [] });
   });
-  await mockDailyReportApis(page, { user: manager });
   await mockStaticFrontend(page);
   await loginAsManager(page);
 
@@ -124,13 +124,13 @@ test('manager sees group filter on daily report list', async ({ page }) => {
 });
 
 test('logout failure keeps authenticated screen and shows error', async ({ page }) => {
+  await mockDailyReportApis(page);
   await page.route('**/api/daily-reports?**', async (route) => {
     await route.fulfill({ json: [] });
   });
   await page.route('**/api/auth/logout', async (route) => {
     await route.fulfill({ status: 500, body: '' });
   });
-  await mockDailyReportApis(page);
   await mockStaticFrontend(page);
   await loginAsEmployee(page);
 
@@ -143,6 +143,7 @@ test('logout failure keeps authenticated screen and shows error', async ({ page 
 
 test('employee is returned to login when search receives unauthorized', async ({ page }) => {
   let searchCount = 0;
+  await mockDailyReportApis(page);
   await page.route('**/api/daily-reports?**', async (route) => {
     searchCount += 1;
     if (searchCount === 1) {
@@ -182,7 +183,6 @@ test('employee is returned to login when search receives unauthorized', async ({
     }
     await route.fulfill({ status: 401, body: '' });
   });
-  await mockDailyReportApis(page);
   await mockStaticFrontend(page);
   await loginAsEmployee(page);
 

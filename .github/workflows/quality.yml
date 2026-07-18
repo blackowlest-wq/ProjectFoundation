@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   full-windows:
     name: Full / Windows
@@ -62,6 +66,24 @@ jobs:
       - name: Run Full
         run: pwsh -NoProfile -File scripts/check.ps1 -Mode Full
 
+  backend-unit:
+    name: Backend / Unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Prepare Maven dependencies
+        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
+      - name: Run Backend unit tests
+        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask BackendUnit
+
   coverage-frontend:
     name: Coverage / Frontend
     runs-on: ubuntu-latest
@@ -78,6 +100,9 @@ jobs:
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
       - name: Run frontend coverage
         run: pwsh -NoProfile -File scripts/check.ps1 -CiTask FrontendCoverage
+      - name: Summarize frontend coverage
+        if: always()
+        run: pwsh -NoProfile -File scripts/write-coverage-summary.ps1 -FrontendSummaryPath frontend/coverage/coverage-summary.json -AllowMissing
       - name: Upload frontend coverage
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

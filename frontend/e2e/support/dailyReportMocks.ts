@@ -56,6 +56,13 @@ export async function mockDailyReportApis(page: Page, options: Parameters<typeof
       ],
     });
   });
+  await page.route('**/api/daily-reports?*', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: [] });
+      return;
+    }
+    await route.fallback();
+  });
   await page.route('**/api/daily-reports', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.fallback();
