@@ -128,6 +128,10 @@ export function buildReportDetail(reportId: string, overrides: Partial<DailyRepo
     totalWorkItemMinutes: 480,
     approvalStatus: 'DRAFT',
     submittedAt: null,
+    approverId: null,
+    approverName: null,
+    approvedAt: null,
+    rejectorId: null,
     rejectorName: null,
     rejectedAt: null,
     rejectComment: null,
@@ -147,6 +151,7 @@ export function buildListItem(reportId: string, overrides: Partial<DailyReportLi
   const detail = buildReportDetail(reportId);
   return {
     ...detail,
+    approverId: null,
     approverName: null,
     approvedAt: null,
     rejected: false,

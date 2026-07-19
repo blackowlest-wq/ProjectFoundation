@@ -12,7 +12,7 @@ import {
   submitDailyReport,
   updateDailyReport,
 } from '../src/dailyReport/dailyReportApi';
-import type { DailyReportRequest } from '../src/dailyReport/types';
+import type { DailyReportListItem, DailyReportRequest, DailyReportResponse } from '../src/dailyReport/types';
 import type { PendingApprovalCriteria } from '../src/dailyReport/dailyReportApproval';
 
 const request: DailyReportRequest = {
@@ -24,10 +24,41 @@ const request: DailyReportRequest = {
   workItems: [{ projectId: 'P001', workCategoryId: 'WC001', workMinutes: 480 }],
 };
 
+const nullAuditDetailFields: Pick<DailyReportResponse, 'submittedAt' | 'approverId' | 'approverName' | 'approvedAt' | 'rejectorId' | 'rejectorName' | 'rejectedAt' | 'rejectComment'> = {
+  submittedAt: null,
+  approverId: null,
+  approverName: null,
+  approvedAt: null,
+  rejectorId: null,
+  rejectorName: null,
+  rejectedAt: null,
+  rejectComment: null,
+};
+
+const nullAuditListFields: Pick<DailyReportListItem, 'approverId' | 'approverName' | 'approvedAt'> = {
+  approverId: null,
+  approverName: null,
+  approvedAt: null,
+};
+
 describe('dailyReportApi', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     document.cookie = 'XSRF-TOKEN=; Max-Age=0';
+  });
+
+  it('accepts null-valued audit fields in detail and list response fixtures', () => {
+    expect(nullAuditDetailFields).toMatchObject({
+      submittedAt: null,
+      approverId: null,
+      approverName: null,
+      approvedAt: null,
+      rejectorId: null,
+      rejectorName: null,
+      rejectedAt: null,
+      rejectComment: null,
+    });
+    expect(nullAuditListFields).toEqual({ approverId: null, approverName: null, approvedAt: null });
   });
 
   it('creates daily reports with csrf header and credentials', async () => {
@@ -128,6 +159,61 @@ describe('dailyReportApi', () => {
       '/api/daily-reports/pending-approvals?dateFrom=2026-07-01&dateTo=2026-07-31&groupId=G%2F001&employeeId=E+001',
       { credentials: 'include' },
     );
+  });
+
+  it('propagates approve invalid-status ApiError without transforming it', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      code: 'INVALID_STATUS',
+      message: '承認待ちの日報だけを承認できます。',
+      details: [],
+      requestId: 'req-approve-409',
+    }), { status: 409 }));
+
+    await expect(approveDailyReport('R001')).rejects.toEqual({
+      code: 'INVALID_STATUS',
+      message: '承認待ちの日報だけを承認できます。',
+      details: [],
+      requestId: 'req-approve-409',
+    });
+  });
+
+  it('propagates reject validation ApiError without transforming it', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      code: 'VALIDATION_ERROR',
+      message: '差し戻しコメントを入力してください。',
+      details: [{ field: 'rejectComment', message: 'must not be blank' }],
+      requestId: 'req-reject-400',
+    }), { status: 400 }));
+
+    await expect(rejectDailyReport('R001', '   ')).rejects.toEqual({
+      code: 'VALIDATION_ERROR',
+      message: '差し戻しコメントを入力してください。',
+      details: [{ field: 'rejectComment', message: 'must not be blank' }],
+      requestId: 'req-reject-400',
+    });
+  });
+
+  it('propagates pending-approval forbidden ApiError without transforming it', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      code: 'FORBIDDEN',
+      message: '未承認一覧を参照する権限がありません。',
+      details: [],
+      requestId: 'req-pending-403',
+    }), { status: 403 }));
+    const criteria: PendingApprovalCriteria = {
+      targetMonth: '2026-07',
+      dateFrom: '2026-07-01',
+      dateTo: '2026-07-31',
+      groupId: '',
+      employeeId: '',
+    };
+
+    await expect(fetchPendingApprovals(criteria)).rejects.toEqual({
+      code: 'FORBIDDEN',
+      message: '未承認一覧を参照する権限がありません。',
+      details: [],
+      requestId: 'req-pending-403',
+    });
   });
 
   it('fetches master data with credentials', async () => {
