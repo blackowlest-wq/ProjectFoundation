@@ -59,6 +59,10 @@ export type DailyReportResponse = DailyReportRequest & {
   totalWorkItemMinutes: number;
   approvalStatus: ApprovalStatus;
   submittedAt: string | null;
+  approverId?: string | null;
+  approverName?: string | null;
+  approvedAt?: string | null;
+  rejectorId?: string | null;
   rejectComment: string | null;
   rejectorName: string | null;
   rejectedAt: string | null;
@@ -74,8 +78,23 @@ export type DailyReportSummary = {
   approvalStatus: ApprovalStatus;
 };
 
-export type DailyReportListItem = Omit<DailyReportResponse, 'remarks' | 'rejectComment' | 'rejectorName' | 'rejectedAt' | 'workItems'> & {
-  approverName: string | null;
-  approvedAt: string | null;
+export type ApproveResponse = {
+  reportId: string;
+  approvalStatus: 'APPROVED';
+  approverId: string;
+  approverName: string;
+  approvedAt: string;
+};
+
+export type RejectResponse = {
+  reportId: string;
+  approvalStatus: 'REJECTED';
+  rejectorId: string;
+  rejectorName: string;
+  rejectedAt: string;
+  rejectComment: string;
+};
+
+export type DailyReportListItem = Omit<DailyReportResponse, 'remarks' | 'rejectorId' | 'rejectComment' | 'rejectorName' | 'rejectedAt' | 'workItems'> & {
   rejected: boolean;
 };
