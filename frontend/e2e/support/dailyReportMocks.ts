@@ -28,6 +28,8 @@ export const baseDailyReport = {
   totalWorkItemMinutes: 480,
   approvalStatus: 'DRAFT',
   submittedAt: null,
+  rejectorName: null,
+  rejectedAt: null,
   rejectComment: null,
   workItems: [{
     workItemId: 'WI001',
@@ -41,6 +43,7 @@ export const baseDailyReport = {
 
 export async function mockDailyReportApis(page: Page, options: Parameters<typeof mockAuthApis>[1] = {}) {
   await mockAuthApis(page, options);
+  let draftApprovalStatus: 'DRAFT' | 'PENDING' = 'DRAFT';
   await page.route('**/api/master/projects', async (route) => {
     await route.fulfill({ json: [{ projectId: 'P001', projectName: 'プロジェクトA' }] });
   });
@@ -75,7 +78,7 @@ export async function mockDailyReportApis(page: Page, options: Parameters<typeof
   });
   await page.route('**/api/daily-reports/R-DRAFT-001', async (route) => {
     if (route.request().method() === 'GET') {
-      await route.fulfill({ json: baseDailyReport });
+      await route.fulfill({ json: { ...baseDailyReport, approvalStatus: draftApprovalStatus } });
       return;
     }
     if (route.request().method() === 'PUT') {
@@ -92,6 +95,8 @@ export async function mockDailyReportApis(page: Page, options: Parameters<typeof
           reportId: 'R-REJECTED-001',
           approvalStatus: 'REJECTED',
           remarks: '差戻しされた下書き',
+          rejectorName: '佐藤 上長',
+          rejectedAt: '2026-06-27T17:30:00+09:00',
           rejectComment: '詳細を追記してください。',
         },
       });
@@ -103,10 +108,46 @@ export async function mockDailyReportApis(page: Page, options: Parameters<typeof
     }
     await route.fallback();
   });
+  await page.route('**/api/daily-reports/R-PENDING-001', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        json: {
+          ...baseDailyReport,
+          reportId: 'R-PENDING-001',
+          approvalStatus: 'PENDING',
+        },
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.route('**/api/daily-reports/R-APPROVED-001', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        json: {
+          ...baseDailyReport,
+          reportId: 'R-APPROVED-001',
+          approvalStatus: 'APPROVED',
+        },
+      });
+      return;
+    }
+    await route.fallback();
+  });
   await page.route('**/api/daily-reports/R-E2E-001/submit', async (route) => {
     await route.fulfill({
       json: {
         reportId: 'R-E2E-001',
+        approvalStatus: 'PENDING',
+        submittedAt: '2026-06-28T10:00:00+09:00',
+      },
+    });
+  });
+  await page.route('**/api/daily-reports/R-DRAFT-001/submit', async (route) => {
+    draftApprovalStatus = 'PENDING';
+    await route.fulfill({
+      json: {
+        reportId: 'R-DRAFT-001',
         approvalStatus: 'PENDING',
         submittedAt: '2026-06-28T10:00:00+09:00',
       },

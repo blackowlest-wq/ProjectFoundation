@@ -1,16 +1,13 @@
+[CmdletBinding(PositionalBinding = $false)]
+param(
+    [string]$ConfigPath
+)
+
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$requiredVariables = @(
-    'DAILY_REPORT_DB_URL',
-    'DAILY_REPORT_DB_USER',
-    'DAILY_REPORT_DB_PASSWORD',
-    'DAILY_REPORT_DB_ENV',
-    'DAILY_REPORT_DB_EXPECTED_HOST',
-    'DAILY_REPORT_DB_EXPECTED_SERVICE',
-    'DAILY_REPORT_DB_EXPECTED_NAME',
-    'DAILY_REPORT_DB_EXPECTED_USER'
-)
+$backendDir = Join-Path $repoRoot 'backend'
+$oracleHelper = Join-Path $backendDir 'scripts/oracle-test-helpers.ps1'
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Add-Failure {
@@ -18,23 +15,26 @@ function Add-Failure {
     [void]$script:failures.Add($Message)
 }
 
-$missingVariables = @(
-    $requiredVariables | Where-Object {
-        [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_, 'Process'))
-    }
-)
-if ($missingVariables.Count -gt 0) {
-    Add-Failure ("Missing protected environment variables: {0}" -f ($missingVariables -join ', '))
-}
-
-$databaseEnvironment = [Environment]::GetEnvironmentVariable('DAILY_REPORT_DB_ENV', 'Process')
-if ($databaseEnvironment -and $databaseEnvironment -cne 'TEST') {
-    Add-Failure 'DAILY_REPORT_DB_ENV must be TEST.'
-}
-
 $exampleConfig = Join-Path $repoRoot 'backend/config/oracle-test.example.properties'
 if (-not (Test-Path -LiteralPath $exampleConfig -PathType Leaf)) {
     Add-Failure 'Oracle test example configuration is missing.'
+}
+
+if (-not (Test-Path -LiteralPath $oracleHelper -PathType Leaf)) {
+    Add-Failure 'Oracle test helper is missing.'
+}
+else {
+    . $oracleHelper
+    try {
+        $oracleConfigArguments = @{ BackendDir = $backendDir }
+        if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) {
+            $oracleConfigArguments.ConfigPath = $ConfigPath
+        }
+        $null = Get-OracleTestEnvironment @oracleConfigArguments
+    }
+    catch {
+        Add-Failure ("Oracle configuration is invalid: {0}" -f $_.Exception.Message)
+    }
 }
 
 $toolVersionsPath = Join-Path $repoRoot 'scripts/tool-versions.psd1'
@@ -102,4 +102,4 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Output 'Oracle backend preflight passed: protected TEST configuration, Java 21, and Maven 3.9.16 are available.'
+Write-Output 'Oracle backend preflight passed: TEST configuration, Java 21, and Maven 3.9.16 are available.'
