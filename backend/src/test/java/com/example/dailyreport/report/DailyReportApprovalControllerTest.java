@@ -489,8 +489,10 @@ class DailyReportApprovalControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code", equalTo("FORBIDDEN")))
                 .andExpect(jsonPath("$.approverId").doesNotExist())
+                .andExpect(jsonPath("$.approverName").doesNotExist())
                 .andExpect(jsonPath("$.approvedAt").doesNotExist())
                 .andExpect(jsonPath("$.rejectorId").doesNotExist())
+                .andExpect(jsonPath("$.rejectorName").doesNotExist())
                 .andExpect(jsonPath("$.rejectedAt").doesNotExist())
                 .andExpect(jsonPath("$.rejectComment").doesNotExist());
     }
