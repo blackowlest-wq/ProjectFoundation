@@ -94,6 +94,15 @@ public class DailyReportEntity {
     @Column(name = "submitted_at")
     private OffsetDateTime submittedAt;
 
+    @Column(name = "approver_user_id", length = 20)
+    private String approverUserId;
+
+    @Column(name = "approver_name", length = 120)
+    private String approverName;
+
+    @Column(name = "approved_at")
+    private OffsetDateTime approvedAt;
+
     @Column(name = "rejector_user_id", length = 20)
     private String rejectorUserId;
 
@@ -138,6 +147,9 @@ public class DailyReportEntity {
     public String getRemarks() { return remarks; }
     public ApprovalStatus getApprovalStatus() { return approvalStatus; }
     public OffsetDateTime getSubmittedAt() { return submittedAt; }
+    public String getApproverUserId() { return approverUserId; }
+    public String getApproverName() { return approverName; }
+    public OffsetDateTime getApprovedAt() { return approvedAt; }
     public String getRejectorUserId() { return rejectorUserId; }
     public String getRejectorName() { return rejectorName; }
     public OffsetDateTime getRejectedAt() { return rejectedAt; }
@@ -192,5 +204,29 @@ public class DailyReportEntity {
         // Why not: 再提出だけ別の承認待ち状態を持つと承認側の状態判定が増えるため、提出・再提出とも承認待ちへ遷移させる。
         this.approvalStatus = ApprovalStatus.PENDING;
         this.submittedAt = now;
+    }
+
+    /**
+     * 承認待ちの日報を承認済みに遷移させ、操作時点の承認者を記録する。
+     */
+    public void approve(String approverUserId, String approverName, OffsetDateTime now) {
+        this.approvalStatus = ApprovalStatus.APPROVED;
+        this.approverUserId = approverUserId;
+        this.approverName = approverName;
+        this.approvedAt = now;
+    }
+
+    /**
+     * 承認待ちの日報を差戻しに遷移させ、最新の差戻し情報を記録する。
+     */
+    public void reject(String rejectorUserId, String rejectorName, OffsetDateTime now, String comment) {
+        this.approvalStatus = ApprovalStatus.REJECTED;
+        this.approverUserId = null;
+        this.approverName = null;
+        this.approvedAt = null;
+        this.rejectorUserId = rejectorUserId;
+        this.rejectorName = rejectorName;
+        this.rejectedAt = now;
+        this.rejectComment = comment;
     }
 }

@@ -68,10 +68,13 @@ public final class DailyReportTestSupport {
                     report_id, employee_user_id, employee_id, employee_name, group_id, group_name,
                     report_date, holiday_type, break_type_id, break_type_name, work_time_type_id, work_time_type_name,
                     start_time_minutes, end_time_minutes, break_minutes, work_minutes, regular_work_minutes,
-                    overtime_work_minutes, night_work_minutes, remarks, approval_status
+                    overtime_work_minutes, night_work_minutes, remarks, approval_status,
+                    approver_user_id, approver_name, approved_at,
+                    rejector_user_id, rejector_name, rejected_at, reject_comment
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'WORKDAY', 'BT001', '標準休憩', 'WT001', '通常勤務',
-                    540, 1080, 60, 480, 480, 0, 0, '検索テスト', ?)
+                    540, 1080, 60, 480, 480, 0, 0, '検索テスト', ?,
+                    NULL, NULL, NULL, NULL, NULL, NULL, NULL)
                 """, reportId, employeeUserId, employeeId, employeeName, groupId, groupName, reportDate, approvalStatus);
     }
 

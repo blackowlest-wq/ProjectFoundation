@@ -36,6 +36,7 @@ public record DailyReportListItemResponse(
         Integer totalWorkItemMinutes,
         ApprovalStatus approvalStatus,
         OffsetDateTime submittedAt,
+        String approverId,
         String approverName,
         OffsetDateTime approvedAt,
         boolean rejected
@@ -70,8 +71,9 @@ public record DailyReportListItemResponse(
                 report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkMinutes).sum(),
                 report.getApprovalStatus(),
                 report.getSubmittedAt(),
-                null,
-                null,
+                report.getApproverUserId(),
+                report.getApproverName(),
+                report.getApprovedAt(),
                 report.getRejectComment() != null);
     }
 }
