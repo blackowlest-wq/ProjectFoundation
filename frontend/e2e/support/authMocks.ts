@@ -24,6 +24,15 @@ export const manager = {
   role: 'MANAGER',
 };
 
+export const admin = {
+  ...employee,
+  userId: 'U020',
+  employeeId: 'E020',
+  loginId: 'admin001',
+  userName: '鈴木 管理者',
+  role: 'ADMIN',
+};
+
 export async function mockAuthApis(page: Page, options: { authenticated?: boolean; user?: typeof employee } = {}) {
   const currentUser = options.user ?? employee;
   await page.route('**/api/auth/me', async (route) => {
@@ -60,6 +69,10 @@ export async function loginAsEmployee(page: Page) {
 
 export async function loginAsManager(page: Page) {
   await loginAs(page, 'manager001', '日報カレンダー・一覧');
+}
+
+export async function loginAsAdmin(page: Page) {
+  await loginAs(page, 'admin001', '日報カレンダー・一覧');
 }
 
 async function loginAs(page: Page, loginId: string, heading: string) {
