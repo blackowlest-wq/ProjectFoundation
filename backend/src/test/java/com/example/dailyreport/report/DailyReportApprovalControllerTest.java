@@ -114,9 +114,13 @@ class DailyReportApprovalControllerTest {
 
     @Test
     // RT-APR-BE-006 / TC-APR-008
-    void pendingApprovalsReturnOnlyPermittedPendingReports() throws Exception {
+    void rtAprBe006PendingApprovalsFilterPermittedGroupAndEmployeeOrderOnlyPendingReports() throws Exception {
         seedUser(jdbcTemplate, "U099", "E099", "other001", "他部署 社員", "EMPLOYEE", "G099", "他部署グループ");
-        seedReport(jdbcTemplate, "R-PENDING-IN", "U001", "E001", "山田 太郎",
+        seedReport(jdbcTemplate, "R-PENDING-FIRST-DAY", "U002", "M001", "佐藤 花子",
+                "G001", "第1開発グループ", LocalDate.of(2026, 6, 7), "PENDING");
+        seedReport(jdbcTemplate, "R-PENDING-SECOND-DAY-E001", "U001", "E001", "山田 太郎",
+                "G001", "第1開発グループ", LocalDate.of(2026, 6, 8), "PENDING");
+        seedReport(jdbcTemplate, "R-PENDING-SECOND-DAY-M001", "U002", "M001", "佐藤 花子",
                 "G001", "第1開発グループ", LocalDate.of(2026, 6, 8), "PENDING");
         seedReport(jdbcTemplate, "R-PENDING-OUT", "U099", "E099", "他部署 社員",
                 "G099", "他部署グループ", LocalDate.of(2026, 6, 8), "PENDING");
@@ -129,16 +133,46 @@ class DailyReportApprovalControllerTest {
                         .param("dateTo", "2026-06-30")
                         .session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].reportId", equalTo("R-PENDING-IN")))
-                .andExpect(jsonPath("$.length()", equalTo(1)));
+                .andExpect(jsonPath("$.length()", equalTo(3)))
+                .andExpect(jsonPath("$[0].reportId", equalTo("R-PENDING-FIRST-DAY")))
+                .andExpect(jsonPath("$[1].reportId", equalTo("R-PENDING-SECOND-DAY-E001")))
+                .andExpect(jsonPath("$[2].reportId", equalTo("R-PENDING-SECOND-DAY-M001")))
+                .andExpect(jsonPath("$[0].approvalStatus", equalTo("PENDING")))
+                .andExpect(jsonPath("$[1].approvalStatus", equalTo("PENDING")))
+                .andExpect(jsonPath("$[2].approvalStatus", equalTo("PENDING")));
+
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-01")
+                        .param("dateTo", "2026-06-30")
+                        .param("groupId", "G001")
+                        .param("employeeId", "E001")
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", equalTo(1)))
+                .andExpect(jsonPath("$[0].reportId", equalTo("R-PENDING-SECOND-DAY-E001")))
+                .andExpect(jsonPath("$[0].groupId", equalTo("G001")))
+                .andExpect(jsonPath("$[0].employeeId", equalTo("E001")));
+
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-01")
+                        .param("dateTo", "2026-06-30")
+                        .param("groupId", "G099")
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", equalTo(0)));
     }
 
     @Test
     // RT-APR-BE-007 / TC-APR-009
-    void employeeAndAdminCannotUsePendingApprovals() throws Exception {
+    void rtAprBe007PendingApprovalsAuthenticateBeforeDateValidationAndRejectNonManagers() throws Exception {
+        mockMvc.perform(get("/api/daily-reports/pending-approvals"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code", equalTo("UNAUTHORIZED")));
+
         MockHttpSession employeeSession = loginAs(mockMvc, objectMapper, "employee001");
         mockMvc.perform(get("/api/daily-reports/pending-approvals").session(employeeSession))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", equalTo("FORBIDDEN")));
         mockMvc.perform(get("/api/daily-reports/pending-approvals")
                         .param("dateFrom", "2026-06-01")
                         .param("dateTo", "2026-06-30")
@@ -146,11 +180,107 @@ class DailyReportApprovalControllerTest {
                 .andExpect(status().isForbidden());
 
         MockHttpSession adminSession = loginAs(mockMvc, objectMapper, "admin001");
+        mockMvc.perform(get("/api/daily-reports/pending-approvals").session(adminSession))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", equalTo("FORBIDDEN")));
         mockMvc.perform(get("/api/daily-reports/pending-approvals")
                         .param("dateFrom", "2026-06-01")
                         .param("dateTo", "2026-06-30")
                         .session(adminSession))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", equalTo("FORBIDDEN")));
+    }
+
+    @Test
+    // RT-APR-BE-006 / TC-APR-008
+    void rtAprBe006PendingApprovalsReturnEmptyArrayForManagerWithoutPermittedGroups() throws Exception {
+        seedOutsideManager();
+        seedReport(jdbcTemplate, "R-PENDING-PERMITTED", "U001", "E001", "山田 太郎",
+                "G001", "第1開発グループ", LocalDate.of(2026, 6, 8), "PENDING");
+        MockHttpSession outsideManagerSession = loginAs(mockMvc, objectMapper, "manager099");
+
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-01")
+                        .param("dateTo", "2026-06-30")
+                        .session(outsideManagerSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", equalTo(0)));
+    }
+
+    @Test
+    // RT-APR-BE-006 / TC-APR-008
+    void rtAprBe006PendingApprovalsRejectMissingReverseAndOver366DayManagerRanges() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "manager001");
+
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateTo", "2026-06-30")
+                        .session(session))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", equalTo("VALIDATION_ERROR")));
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-01")
+                        .session(session))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", equalTo("VALIDATION_ERROR")));
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-30")
+                        .param("dateTo", "2026-06-01")
+                        .session(session))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", equalTo("VALIDATION_ERROR")));
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2025-01-01")
+                        .param("dateTo", "2026-01-03")
+                        .session(session))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", equalTo("VALIDATION_ERROR")));
+    }
+
+    @Test
+    // RT-APR-BE-008 / TC-APR-010
+    void rtAprBe008ApprovedDetailAllowsOwnerAssignedManagerAndAdminWithoutLeakingToOutsideManager() throws Exception {
+        seedReport(jdbcTemplate, "R-DETAIL-APPROVED", "U001", "E001", "山田 太郎",
+                "G001", "第1開発グループ", LocalDate.of(2026, 6, 10), "PENDING");
+        MockHttpSession managerSession = loginAs(mockMvc, objectMapper, "manager001");
+        mockMvc.perform(post("/api/daily-reports/R-DETAIL-APPROVED/approve").with(csrf()).session(managerSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvalStatus", equalTo("APPROVED")))
+                .andExpect(jsonPath("$.approverId", equalTo("U002")))
+                .andExpect(jsonPath("$.approvedAt", notNullValue()));
+
+        assertApprovedAuditVisible(loginAs(mockMvc, objectMapper, "employee001"));
+        assertApprovedAuditVisible(managerSession);
+        assertApprovedAuditVisible(loginAs(mockMvc, objectMapper, "admin001"));
+
+        seedOutsideManager();
+        assertAuditIsNotLeakedToOutsideManager("R-DETAIL-APPROVED", loginAs(mockMvc, objectMapper, "manager099"));
+        mockMvc.perform(get("/api/daily-reports/not-found-approved").session(managerSession))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", equalTo("NOT_FOUND")));
+    }
+
+    @Test
+    // RT-APR-BE-008 / TC-APR-010
+    void rtAprBe008RejectedDetailAllowsOwnerAssignedManagerAndAdminWithoutLeakingToOutsideManager() throws Exception {
+        seedReport(jdbcTemplate, "R-DETAIL-REJECTED", "U001", "E001", "山田 太郎",
+                "G001", "第1開発グループ", LocalDate.of(2026, 6, 11), "PENDING");
+        MockHttpSession managerSession = loginAs(mockMvc, objectMapper, "manager001");
+        mockMvc.perform(post("/api/daily-reports/R-DETAIL-REJECTED/reject")
+                        .with(csrf()).session(managerSession)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rejectJson("監査情報を確認してください。")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvalStatus", equalTo("REJECTED")))
+                .andExpect(jsonPath("$.rejectorId", equalTo("U002")))
+                .andExpect(jsonPath("$.rejectedAt", notNullValue()))
+                .andExpect(jsonPath("$.rejectComment", equalTo("監査情報を確認してください。")));
+
+        assertRejectedAuditVisible(loginAs(mockMvc, objectMapper, "employee001"));
+        assertRejectedAuditVisible(managerSession);
+        assertRejectedAuditVisible(loginAs(mockMvc, objectMapper, "admin001"));
+
+        seedOutsideManager();
+        assertAuditIsNotLeakedToOutsideManager("R-DETAIL-REJECTED", loginAs(mockMvc, objectMapper, "manager099"));
     }
 
     @Test
@@ -324,6 +454,45 @@ class DailyReportApprovalControllerTest {
 
     private void seedOutsideEmployee() {
         seedUser(jdbcTemplate, "U099", "E099", "employee099", "他部署 社員", "EMPLOYEE", "G099", "他部署グループ");
+    }
+
+    private void seedOutsideManager() {
+        seedUser(jdbcTemplate, "U099", "M099", "manager099", "担当外 上長", "MANAGER", "G099", "他部署グループ");
+        jdbcTemplate.update("""
+                UPDATE users
+                SET password_hash = (SELECT password_hash FROM users WHERE user_id = 'U002')
+                WHERE user_id = 'U099'
+                """);
+    }
+
+    private void assertApprovedAuditVisible(MockHttpSession session) throws Exception {
+        mockMvc.perform(get("/api/daily-reports/R-DETAIL-APPROVED").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvalStatus", equalTo("APPROVED")))
+                .andExpect(jsonPath("$.approverId", equalTo("U002")))
+                .andExpect(jsonPath("$.approverName", equalTo("佐藤 花子")))
+                .andExpect(jsonPath("$.approvedAt", notNullValue()));
+    }
+
+    private void assertRejectedAuditVisible(MockHttpSession session) throws Exception {
+        mockMvc.perform(get("/api/daily-reports/R-DETAIL-REJECTED").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvalStatus", equalTo("REJECTED")))
+                .andExpect(jsonPath("$.rejectorId", equalTo("U002")))
+                .andExpect(jsonPath("$.rejectorName", equalTo("佐藤 花子")))
+                .andExpect(jsonPath("$.rejectedAt", notNullValue()))
+                .andExpect(jsonPath("$.rejectComment", equalTo("監査情報を確認してください。")));
+    }
+
+    private void assertAuditIsNotLeakedToOutsideManager(String reportId, MockHttpSession session) throws Exception {
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code", equalTo("FORBIDDEN")))
+                .andExpect(jsonPath("$.approverId").doesNotExist())
+                .andExpect(jsonPath("$.approvedAt").doesNotExist())
+                .andExpect(jsonPath("$.rejectorId").doesNotExist())
+                .andExpect(jsonPath("$.rejectedAt").doesNotExist())
+                .andExpect(jsonPath("$.rejectComment").doesNotExist());
     }
 
     private String rejectJson(String comment) throws Exception {
