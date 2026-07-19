@@ -6,6 +6,7 @@ import { fetchMe, login, logout } from '../src/auth/authApi';
 import {
   adminUser,
   buttonByText,
+  buildReportDetail,
   cleanupUi,
   click,
   currentUser,
@@ -14,6 +15,7 @@ import {
   managerUser,
   rejectWith,
   renderUi,
+  respondJson,
   submitLogin,
 } from './support/dailyReportTestSupport';
 
@@ -121,5 +123,28 @@ describe('App authentication state', () => {
     expect(window.location.pathname).toBe('/login');
     expect(document.querySelector('[role="alert"]')?.textContent).toBe('ログインが必要です。');
     expect(document.querySelector('h1')?.textContent).toBe('ログイン');
+  });
+
+  it('RT-APR-UI-004 routes an encoded detail ID and preserves the employee edit route', async () => {
+    const detailId = 'R /?';
+    installFrontendFetch({
+      reportDetails: {
+        [detailId]: respondJson(buildReportDetail(detailId, { approvalStatus: 'DRAFT' })),
+        'R-EDIT': respondJson(buildReportDetail('R-EDIT', { approvalStatus: 'DRAFT' })),
+      },
+    });
+    vi.mocked(fetchMe).mockResolvedValue(currentUser);
+    window.history.replaceState(null, '', '/daily-reports/R%20%2F%3F');
+
+    await renderUi(<App />);
+
+    expect(document.body.textContent).toContain('日報詳細');
+    expect(Array.from(document.querySelectorAll('a')).find((link) => link.textContent === '編集する')?.getAttribute('href'))
+      .toBe('/daily-reports/R%20%2F%3F/edit');
+
+    cleanupUi();
+    window.history.replaceState(null, '', '/daily-reports/R-EDIT/edit');
+    await renderUi(<App />);
+    expect(document.body.textContent).toContain('日報編集');
   });
 });

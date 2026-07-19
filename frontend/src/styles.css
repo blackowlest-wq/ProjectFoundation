@@ -194,6 +194,24 @@ h2 {
   gap: 12px;
 }
 
+.button-link {
+  align-items: center;
+  background: #2563eb;
+  border-radius: 6px;
+  color: #fff;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  text-decoration: none;
+}
+
+.secondary-link {
+  background: #334155;
+  color: #fff;
+}
+
 .calendar-grid {
   display: grid;
   gap: 6px;

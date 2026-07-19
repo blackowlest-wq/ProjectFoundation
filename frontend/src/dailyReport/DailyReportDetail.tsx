@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CurrentUser } from '../auth/types';
 import type { ApiError } from '../shared/apiClient';
 import { approveDailyReport, fetchDailyReport, rejectDailyReport } from './dailyReportApi';
@@ -40,6 +40,10 @@ export function DailyReportDetail({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [dialogError, setDialogError] = useState('');
+  const rejectTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const rejectTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const restoreTriggerFocusRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -73,6 +77,50 @@ export function DailyReportDetail({
       active = false;
     };
   }, [onUnauthorized, reportId]);
+
+  useEffect(() => {
+    if (dialogOpen) {
+      rejectTextareaRef.current?.focus();
+      return;
+    }
+    if (restoreTriggerFocusRef.current) {
+      rejectTriggerRef.current?.focus();
+      restoreTriggerFocusRef.current = false;
+    }
+  }, [dialogOpen]);
+
+  /** 差し戻しダイアログを閉じ、起動元の操作へキーボードフォーカスを戻す。 */
+  function closeRejectDialog() {
+    restoreTriggerFocusRef.current = true;
+    setDialogError('');
+    setDialogOpen(false);
+  }
+
+  /** モーダル内のフォーカスを循環させ、Escapeでは安全にキャンセルする。 */
+  function handleDialogKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape' && !operating) {
+      event.preventDefault();
+      closeRejectDialog();
+      return;
+    }
+    if (event.key !== 'Tab') {
+      return;
+    }
+    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('textarea:not(:disabled), button:not(:disabled)') ?? []);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable.at(-1)!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   /** 状態変更後または競合時に、サーバーの最新詳細を再取得する。 */
   async function refreshReport() {
@@ -131,12 +179,12 @@ export function DailyReportDetail({
     setError('');
     try {
       await rejectDailyReport(reportId, rejectComment);
-      setDialogOpen(false);
+      closeRejectDialog();
       setRejectComment('');
       await refreshReport();
     } catch (rejectError) {
       setActionsAvailable(false);
-      setDialogOpen(false);
+      closeRejectDialog();
       setError(readErrorMessage(rejectError));
       if ((rejectError as Partial<ApiError>).code === 'UNAUTHORIZED') {
         onUnauthorized?.();
@@ -152,6 +200,9 @@ export function DailyReportDetail({
   const canChangeStatus = user.role === 'MANAGER'
     && report?.approvalStatus === 'PENDING'
     && actionsAvailable;
+  const canEdit = user.role === 'EMPLOYEE'
+    && (report?.approvalStatus === 'DRAFT' || report?.approvalStatus === 'REJECTED');
+  const returnPath = user.role === 'MANAGER' ? '/pending-approvals' : '/daily-reports';
 
   return (
     <section className="report-panel" aria-labelledby="daily-report-detail-heading">
@@ -161,7 +212,7 @@ export function DailyReportDetail({
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {!loading && report && (
-        <>
+        <div aria-hidden={dialogOpen || undefined} inert={dialogOpen}>
           <div className="detail-heading">
             <div>
               <p className="eyebrow">{report.reportId}</p>
@@ -198,24 +249,37 @@ export function DailyReportDetail({
           </section>
           {canChangeStatus && (
             <div className="actions" aria-label="承認操作">
-              <button type="button" onClick={() => void approve()} disabled={operating}>承認する</button>
-              <button type="button" className="secondary" onClick={() => { setDialogError(''); setDialogOpen(true); }} disabled={operating}>差し戻しする</button>
+              <button type="button" onClick={() => void approve()} disabled={operating || dialogOpen}>承認する</button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={(event) => {
+                  rejectTriggerRef.current = event.currentTarget;
+                  setDialogError('');
+                  setDialogOpen(true);
+                }}
+                disabled={operating || dialogOpen}
+              >差し戻しする</button>
             </div>
           )}
-        </>
+          <div className="actions" aria-label="詳細画面の遷移">
+            {canEdit && <a className="button-link" href={`/daily-reports/${encodeURIComponent(report.reportId)}/edit`}>編集する</a>}
+            <a className="button-link secondary-link" href={returnPath}>一覧へ戻る</a>
+          </div>
+        </div>
       )}
       {dialogOpen && (
         <div className="dialog-backdrop">
-          <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="reject-dialog-heading">
+          <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby="reject-dialog-heading" onKeyDown={handleDialogKeyDown}>
             <h3 id="reject-dialog-heading">日報を差し戻す</h3>
             <label>
               差し戻しコメント
-              <textarea value={rejectComment} onChange={(event) => setRejectComment(event.target.value)} disabled={operating} />
+              <textarea ref={rejectTextareaRef} value={rejectComment} onChange={(event) => setRejectComment(event.target.value)} disabled={operating} required />
             </label>
             {dialogError && <p className="error" role="alert">{dialogError}</p>}
             <div className="actions">
               <button type="button" onClick={() => void reject()} disabled={operating}>差し戻しを確定</button>
-              <button type="button" className="secondary" onClick={() => setDialogOpen(false)} disabled={operating}>キャンセル</button>
+              <button type="button" className="secondary" onClick={closeRejectDialog} disabled={operating}>キャンセル</button>
             </div>
           </section>
         </div>

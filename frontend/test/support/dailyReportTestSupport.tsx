@@ -338,6 +338,15 @@ export async function click(element: Element | null) {
   await flushEffects();
 }
 
+/** キーボード操作を発火し、Reactの状態更新が反映されるまで待機する。 */
+export async function keyDown(element: Element, key: string, options: KeyboardEventInit = {}) {
+  await act(async () => {
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key, ...options }));
+    await Promise.resolve();
+  });
+  await flushEffects();
+}
+
 export async function submitLogin(loginIdValue: string, passwordValue: string) {
   setControlValue(inputByLabel('ログインID'), loginIdValue);
   setControlValue(inputByLabel('パスワード'), passwordValue);

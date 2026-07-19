@@ -29,10 +29,10 @@ describe('DailyReportCalendarList behavior from task-owned tests', () => {
     cleanupUi();
   });
 
-  it('renders calendar results, master holiday labels, and fallback dashes for missing approval fields', async () => {
+  it('keeps calendar-list regression behavior and provides an encoded detail route', async () => {
     installFrontendFetch({
       search: respondJson([
-        buildListItem('R001', {
+        buildListItem('R /?', {
           holidayType: 'WORKDAY',
           approvalStatus: 'PENDING',
           reportDate: '2026-07-15',
@@ -52,6 +52,8 @@ describe('DailyReportCalendarList behavior from task-owned tests', () => {
     expect(document.body.textContent).toContain('通常勤務');
     expect(document.body.textContent).toContain('8:00');
     expect(document.body.textContent).toContain('-');
+    expect(Array.from(document.querySelectorAll('a')).find((link) => link.textContent === '詳細')?.getAttribute('href'))
+      .toBe('/daily-reports/R%20%2F%3F');
   });
 
   it('shows the manager group filter, rejects invalid search input, and clears conditions back to the current month', async () => {
