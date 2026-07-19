@@ -277,6 +277,74 @@ input:disabled {
   opacity: 0.55;
 }
 
+a {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.detail-heading {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.detail-grid {
+  background: #f8fafc;
+  border: 1px solid #d9e0ec;
+  border-radius: 6px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  padding: 16px;
+}
+
+.detail-grid dd {
+  font-size: 15px;
+}
+
+.work-item-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.dialog-backdrop {
+  align-items: center;
+  background: rgb(15 23 42 / 52%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 10;
+}
+
+.dialog {
+  background: #fff;
+  border: 1px solid #d9e0ec;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 24%);
+  display: grid;
+  gap: 18px;
+  max-width: 520px;
+  padding: 24px;
+  width: min(100%, 520px);
+}
+
 @media (max-width: 720px) {
   .topbar,
   .section-heading {

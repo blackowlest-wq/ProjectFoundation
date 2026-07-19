@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react';
 import { fetchMe, initialPathFor, logout } from '../auth/authApi';
 import { LoginForm } from '../auth/LoginForm';
 import { DailyReportCalendarList } from '../dailyReport/DailyReportCalendarList';
+import { DailyReportDetail } from '../dailyReport/DailyReportDetail';
 import { DailyReportForm } from '../dailyReport/DailyReportForm';
+import { DailyReportPendingApprovalList } from '../dailyReport/DailyReportPendingApprovalList';
 import type { CurrentUser, Role } from '../auth/types';
 import '../styles.css';
 
@@ -22,6 +24,19 @@ const roleLabelByRole: Record<Role, string> = {
   ADMIN: '管理者',
 };
 
+/** 詳細画面URLから日報IDを安全に取り出し、不正なエンコードは詳細画面として扱わない。 */
+function detailReportIdFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/daily-reports\/([^/]+)$/);
+  if (!match) {
+    return null;
+  }
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 認証済み利用者向けの共通画面を表示し、ロールに応じて日報機能を切り替える。
  */
@@ -36,6 +51,7 @@ function AuthenticatedHome({
   onUnauthorized: () => void;
   logoutError: string;
 }) {
+  const detailReportId = detailReportIdFromPath();
   return (
     <main className="shell">
       <header className="topbar">
@@ -64,8 +80,15 @@ function AuthenticatedHome({
         </dl>
       </section>
       {logoutError && <p className="error" role="alert">{logoutError}</p>}
-      <DailyReportCalendarList user={user} onUnauthorized={onUnauthorized} />
-      {user.role === 'EMPLOYEE' && <DailyReportForm user={user} />}
+      {detailReportId ? (
+        <DailyReportDetail user={user} reportId={detailReportId} onUnauthorized={onUnauthorized} />
+      ) : (
+        <>
+          {user.role === 'MANAGER' && <DailyReportPendingApprovalList user={user} onUnauthorized={onUnauthorized} />}
+          <DailyReportCalendarList user={user} onUnauthorized={onUnauthorized} />
+          {user.role === 'EMPLOYEE' && <DailyReportForm user={user} />}
+        </>
+      )}
     </main>
   );
 }

@@ -37,7 +37,7 @@ export type DailyReportRequest = {
   workItems: DailyReportWorkItemInput[];
 };
 
-export type DailyReportResponse = DailyReportRequest & {
+export type DailyReportResponse = Omit<DailyReportRequest, 'workItems'> & {
   reportId: string;
   employeeId: string;
   employeeName: string;

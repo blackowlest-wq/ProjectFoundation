@@ -72,11 +72,14 @@ export type FetchScenario = {
   projects?: StubResult;
   categories?: StubResult;
   search?: StubResult | ((url: URL, callCount: number) => StubResult);
-  reportDetails?: Record<string, StubResult>;
+  pendingApprovals?: StubResult;
+  reportDetails?: Record<string, StubResult | ((callCount: number) => StubResult)>;
   create?: StubResult;
   update?: StubResult;
   submit?: StubResult;
   resubmit?: StubResult;
+  approve?: StubResult;
+  reject?: StubResult;
 };
 
 let root: Root | null = null;
@@ -175,6 +178,7 @@ function toPromise(result: StubResult): Promise<Response> {
 export function installFrontendFetch(scenario: FetchScenario = {}) {
   const calls: Array<{ method: string; url: URL; body?: string }> = [];
   let searchCallCount = 0;
+  const reportDetailCallCounts = new Map<string, number>();
 
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
@@ -198,9 +202,17 @@ export function installFrontendFetch(scenario: FetchScenario = {}) {
         : scenario.search ?? respondJson([]);
       return toPromise(searchResult);
     }
+    if (method === 'GET' && url.pathname === '/api/daily-reports/pending-approvals') {
+      return toPromise(scenario.pendingApprovals ?? respondJson([]));
+    }
     if (method === 'GET' && /^\/api\/daily-reports\/[^/]+$/.test(url.pathname)) {
       const reportId = decodeURIComponent(url.pathname.slice('/api/daily-reports/'.length));
-      return toPromise(scenario.reportDetails?.[reportId] ?? respondJson(buildReportDetail(reportId)));
+      const callCount = (reportDetailCallCounts.get(reportId) ?? 0) + 1;
+      reportDetailCallCounts.set(reportId, callCount);
+      const configuredResult = scenario.reportDetails?.[reportId];
+      return toPromise(typeof configuredResult === 'function'
+        ? configuredResult(callCount)
+        : configuredResult ?? respondJson(buildReportDetail(reportId)));
     }
     if (method === 'POST' && url.pathname === '/api/daily-reports') {
       return toPromise(scenario.create ?? respondJson({ reportId: 'RNEW', approvalStatus: 'DRAFT' }, { status: 201 }));
@@ -213,6 +225,25 @@ export function installFrontendFetch(scenario: FetchScenario = {}) {
     }
     if (method === 'POST' && /^\/api\/daily-reports\/[^/]+\/resubmit$/.test(url.pathname)) {
       return toPromise(scenario.resubmit ?? respondJson({ reportId: 'R001', approvalStatus: 'PENDING' }));
+    }
+    if (method === 'POST' && /^\/api\/daily-reports\/[^/]+\/approve$/.test(url.pathname)) {
+      return toPromise(scenario.approve ?? respondJson({
+        reportId: 'R001',
+        approvalStatus: 'APPROVED',
+        approverId: 'M001',
+        approverName: '佐藤 上長',
+        approvedAt: '2026-07-17T09:00:00+09:00',
+      }));
+    }
+    if (method === 'POST' && /^\/api\/daily-reports\/[^/]+\/reject$/.test(url.pathname)) {
+      return toPromise(scenario.reject ?? respondJson({
+        reportId: 'R001',
+        approvalStatus: 'REJECTED',
+        rejectorId: 'M001',
+        rejectorName: '佐藤 上長',
+        rejectedAt: '2026-07-17T09:00:00+09:00',
+        rejectComment: '確認してください。',
+      }));
     }
 
     return Promise.reject(new Error(`Unhandled fetch: ${method} ${url.pathname}${url.search}`));
