@@ -34,6 +34,17 @@ public class DailyReportAccessPolicy {
     }
 
     /**
+     * 承認系の操作を実行できる上長であることを確認し、業務処理用の利用者を返す。
+     */
+    public AppUser requireManager(AuthenticatedUser principal) {
+        // Why not: 管理者を含む他ロールを許可すると、承認対象グループの責務が曖昧になるため上長だけに限定する。
+        if (principal.user().getRole() != Role.MANAGER) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only managers can use this operation.");
+        }
+        return principal.user();
+    }
+
+    /**
      * 利用者ロールに応じて、指定日報の参照可否を判定する。
      * 社員は本人、上長は許可グループ、管理者は全件を参照できる。
      */

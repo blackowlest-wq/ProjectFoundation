@@ -57,6 +57,9 @@ public final class RequestContext {
         if ("GET".equals(method) && path.equals("/api/daily-reports")) {
             return "SEARCH";
         }
+        if ("GET".equals(method) && path.equals("/api/daily-reports/pending-approvals")) {
+            return "PENDING_APPROVALS";
+        }
         if ("PUT".equals(method) && path.matches("/api/daily-reports/[^/]+")) {
             return "UPDATE";
         }

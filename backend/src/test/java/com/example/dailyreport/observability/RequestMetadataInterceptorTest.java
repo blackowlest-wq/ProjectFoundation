@@ -6,8 +6,10 @@ import com.example.dailyreport.auth.AuthenticatedUser;
 import com.example.dailyreport.auth.AuthController;
 import com.example.dailyreport.master.MasterController;
 import com.example.dailyreport.report.DailyReportApprovalService;
+import com.example.dailyreport.report.DailyReportPendingApprovalService;
 import com.example.dailyreport.report.controller.DailyReportApprovalController;
 import com.example.dailyreport.report.controller.DailyReportCommandController;
+import com.example.dailyreport.report.controller.DailyReportPendingApprovalController;
 import com.example.dailyreport.report.dto.DailyReportRequest;
 import com.example.dailyreport.report.dto.RejectRequest;
 import java.lang.reflect.Method;
@@ -57,6 +59,24 @@ class RequestMetadataInterceptorTest {
                 .isEqualTo("DAILY_REPORT");
         assertThat(RequestContext.useCaseForPath("POST", "/api/daily-reports/R-APR-001/reject"))
                 .isEqualTo("REJECT");
+    }
+
+    @Test
+    void resolvesPendingApprovalsMetadataForMvcAndSecurityPaths() throws Exception {
+        RequestMetadataInterceptor interceptor = new RequestMetadataInterceptor();
+        DailyReportPendingApprovalController controller = new DailyReportPendingApprovalController(
+                (DailyReportPendingApprovalService) null);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/daily-reports/pending-approvals");
+
+        interceptor.preHandle(request, new MockHttpServletResponse(), new HandlerMethod(controller,
+                DailyReportPendingApprovalController.class.getMethod("pendingApprovals", java.time.LocalDate.class,
+                        java.time.LocalDate.class, String.class, String.class, AuthenticatedUser.class)));
+
+        assertThat(request.getAttribute(RequestContext.FEATURE_ATTRIBUTE)).isEqualTo("DAILY_REPORT");
+        assertThat(request.getAttribute(RequestContext.USE_CASE_ATTRIBUTE)).isEqualTo("PENDING_APPROVALS");
+        assertThat(RequestContext.featureForPath("/api/daily-reports/pending-approvals")).isEqualTo("DAILY_REPORT");
+        assertThat(RequestContext.useCaseForPath("GET", "/api/daily-reports/pending-approvals"))
+                .isEqualTo("PENDING_APPROVALS");
     }
 
     @Test

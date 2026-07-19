@@ -113,6 +113,47 @@ class DailyReportApprovalControllerTest {
     }
 
     @Test
+    // RT-APR-BE-006 / TC-APR-008
+    void pendingApprovalsReturnOnlyPermittedPendingReports() throws Exception {
+        seedUser(jdbcTemplate, "U099", "E099", "other001", "他部署 社員", "EMPLOYEE", "G099", "他部署グループ");
+        seedReport(jdbcTemplate, "R-PENDING-IN", "U001", "E001", "山田 太郎",
+                "G001", "第1開発グループ", LocalDate.of(2026, 6, 8), "PENDING");
+        seedReport(jdbcTemplate, "R-PENDING-OUT", "U099", "E099", "他部署 社員",
+                "G099", "他部署グループ", LocalDate.of(2026, 6, 8), "PENDING");
+        seedReport(jdbcTemplate, "R-DRAFT-IN", "U001", "E001", "山田 太郎",
+                "G001", "第1開発グループ", LocalDate.of(2026, 6, 9), "DRAFT");
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "manager001");
+
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-01")
+                        .param("dateTo", "2026-06-30")
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].reportId", equalTo("R-PENDING-IN")))
+                .andExpect(jsonPath("$.length()", equalTo(1)));
+    }
+
+    @Test
+    // RT-APR-BE-007 / TC-APR-009
+    void employeeAndAdminCannotUsePendingApprovals() throws Exception {
+        MockHttpSession employeeSession = loginAs(mockMvc, objectMapper, "employee001");
+        mockMvc.perform(get("/api/daily-reports/pending-approvals").session(employeeSession))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-01")
+                        .param("dateTo", "2026-06-30")
+                        .session(employeeSession))
+                .andExpect(status().isForbidden());
+
+        MockHttpSession adminSession = loginAs(mockMvc, objectMapper, "admin001");
+        mockMvc.perform(get("/api/daily-reports/pending-approvals")
+                        .param("dateFrom", "2026-06-01")
+                        .param("dateTo", "2026-06-30")
+                        .session(adminSession))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void rtAprBe002ApproveRejectsAllNonPendingAndOutsideReportsWithoutChanges() throws Exception {
         seedOutsideEmployee();
         seedReport(jdbcTemplate, "R-APPROVE-OUTSIDE", "U099", "E099", "他部署 社員",
