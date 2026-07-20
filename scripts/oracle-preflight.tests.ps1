@@ -77,15 +77,23 @@ DAILY_REPORT_ALLOW_DDL=false
 
     $wrapperPath = Join-Path $repoRoot 'backend/scripts/test-oracle.cmd'
     $exampleConfig = Join-Path $repoRoot 'backend/config/oracle-test.example.properties'
-    $wrapperCommand = '"{0}" -ConfigPath "{1}" -DskipTests compile' -f $wrapperPath, $exampleConfig
-    $wrapperOutput = (& cmd.exe /d /c $wrapperCommand 2>&1 | Out-String)
+    if ($IsWindows) {
+        $wrapperCommand = '"{0}" -ConfigPath "{1}" -DskipTests compile' -f $wrapperPath, $exampleConfig
+        $wrapperOutput = (& cmd.exe /d /c $wrapperCommand 2>&1 | Out-String)
+    } else {
+        # Linux CI cannot execute the Windows .cmd shim; invoke its PowerShell implementation directly.
+        $wrapperScript = Join-Path $repoRoot 'backend/scripts/test-oracle.ps1'
+        $wrapperOutput = (& pwsh -NoProfile -File $wrapperScript -ConfigPath $exampleConfig '-DskipTests' 'compile' 2>&1 | Out-String)
+    }
     $wrapperExitCode = $LASTEXITCODE
     Assert-Condition ($wrapperExitCode -ne 0) `
         'Oracle wrapper contract must fail before Maven when the example password is empty.'
     Assert-Condition ($wrapperOutput -match 'Oracle test config key is required: DAILY_REPORT_DB_PASSWORD') `
         'Oracle wrapper must reach PowerShell configuration validation.'
-    Assert-Condition ($wrapperOutput -notmatch 'is was unexpected') `
-        'Oracle wrapper must not fail with a CMD parenthesis parsing error.'
+    if ($IsWindows) {
+        Assert-Condition ($wrapperOutput -notmatch 'is was unexpected') `
+            'Oracle wrapper must not fail with a CMD parenthesis parsing error.'
+    }
 
     $temporaryConfig = [IO.Path]::GetTempFileName()
     try {
