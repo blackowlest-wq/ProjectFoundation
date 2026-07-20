@@ -120,7 +120,8 @@ test('manager sees group filter on daily report list', async ({ page }) => {
   await mockStaticFrontend(page);
   await loginAsManager(page);
 
-  await expect(page.getByLabel('グループID')).toBeVisible();
+  const searchPanel = page.locator('section.report-panel').filter({ has: page.getByRole('heading', { name: '日報検索' }) });
+  await expect(searchPanel.getByLabel('グループID')).toBeVisible();
 });
 
 test('logout failure keeps authenticated screen and shows error', async ({ page }) => {

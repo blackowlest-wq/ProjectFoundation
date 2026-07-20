@@ -1,7 +1,9 @@
 import { expect, type Page } from '@playwright/test';
 import { LOGIN_FORM_TEXT } from '../../src/auth/LoginForm';
+import type { CurrentUser } from '../../src/auth/types';
 
-export const employee = {
+/** DataInitializerと同じログイン利用者契約。employeeIdはCurrentUser APIに含まれない。 */
+export const employee: CurrentUser = {
   userId: 'U001',
   employeeId: 'E001',
   loginId: 'employee001',
@@ -15,25 +17,33 @@ export const employee = {
   workTimeTypeName: '通常勤務',
 };
 
-export const manager = {
-  ...employee,
-  userId: 'U010',
-  employeeId: 'E010',
+export const manager: CurrentUser = {
+  userId: 'U002',
   loginId: 'manager001',
   userName: '佐藤 花子',
   role: 'MANAGER',
+  groupId: 'G900',
+  groupName: '管理グループ',
+  breakTypeId: null,
+  breakTypeName: null,
+  workTimeTypeId: null,
+  workTimeTypeName: null,
 };
 
-export const admin = {
-  ...employee,
-  userId: 'U020',
-  employeeId: 'E020',
+export const admin: CurrentUser = {
+  userId: 'U003',
   loginId: 'admin001',
-  userName: '鈴木 管理者',
+  userName: '鈴木 一郎',
   role: 'ADMIN',
+  groupId: null,
+  groupName: null,
+  breakTypeId: null,
+  breakTypeName: null,
+  workTimeTypeId: null,
+  workTimeTypeName: null,
 };
 
-export async function mockAuthApis(page: Page, options: { authenticated?: boolean; user?: typeof employee } = {}) {
+export async function mockAuthApis(page: Page, options: { authenticated?: boolean; user?: CurrentUser } = {}) {
   const currentUser = options.user ?? employee;
   await page.route('**/api/auth/me', async (route) => {
     if (options.authenticated) {
