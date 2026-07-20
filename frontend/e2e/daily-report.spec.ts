@@ -120,7 +120,8 @@ test('manager sees group filter on daily report list', async ({ page }) => {
   await mockStaticFrontend(page);
   await loginAsManager(page);
 
-  await expect(page.getByLabel('グループID')).toBeVisible();
+  const searchPanel = page.locator('section.report-panel').filter({ has: page.getByRole('heading', { name: '日報検索' }) });
+  await expect(searchPanel.getByLabel('グループID')).toBeVisible();
 });
 
 test('logout failure keeps authenticated screen and shows error', async ({ page }) => {
@@ -252,16 +253,104 @@ test('employee can edit an existing draft report', async ({ page }) => {
   await expect(page.locator('.status-pill')).toHaveText('下書き');
 });
 
+test('employee can update and submit an existing draft report', async ({ page }) => {
+  const mutationRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' || request.method() === 'PUT') {
+      mutationRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
+  await mockDailyReportApis(page, { authenticated: true });
+  await mockStaticFrontend(page);
+
+  await gotoWithRetry(page, '/daily-reports/R-DRAFT-001/edit');
+
+  await page.getByLabel('備考').fill('E2Eで更新して提出');
+  await page.getByRole('button', { name: '保存して提出' }).click();
+
+  await expect(page.getByText('保存して提出しました。')).toBeVisible();
+  await expect(page.locator('.status-pill')).toHaveText('承認待ち');
+  await page.reload();
+  await expect(page.locator('.status-pill')).toHaveText('承認待ち');
+  const reportForm = page.locator('.report-panel').filter({ has: page.getByRole('heading', { name: '日報編集' }) });
+  await expect(reportForm.getByText('この状態の日報は編集できません。')).toBeVisible();
+  const controls = reportForm.locator('input, select, textarea, button');
+  expect(await controls.count()).toBeGreaterThan(0);
+  expect(await controls.evaluateAll((elements) => elements.every((control) => (control as HTMLInputElement).disabled))).toBe(true);
+  expect(mutationRequests).toEqual([
+    'PUT /api/daily-reports/R-DRAFT-001',
+    'POST /api/daily-reports/R-DRAFT-001/submit',
+  ]);
+});
+
 test('employee can resubmit a rejected report from the edit screen', async ({ page }) => {
+  const mutationRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' || request.method() === 'PUT') {
+      mutationRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
   await mockDailyReportApis(page, { authenticated: true });
   await mockStaticFrontend(page);
 
   await gotoWithRetry(page, '/daily-reports/R-REJECTED-001/edit');
 
   await expect(page.locator('.status-pill')).toHaveText('差戻し');
+  await expect(page.getByText('差戻しコメント')).toBeVisible();
+  await expect(page.getByText('詳細を追記してください。')).toBeVisible();
+  await expect(page.getByText('佐藤 上長')).toBeVisible();
+  await expect(page.getByText('2026-06-27T17:30:00+09:00')).toBeVisible();
   await page.getByLabel('備考').fill('E2Eで再提出');
   await page.getByRole('button', { name: '保存して提出' }).click();
 
   await expect(page.getByText('保存して提出しました。')).toBeVisible();
   await expect(page.locator('.status-pill')).toHaveText('承認待ち');
+  expect(mutationRequests).toEqual([
+    'PUT /api/daily-reports/R-REJECTED-001',
+    'POST /api/daily-reports/R-REJECTED-001/resubmit',
+  ]);
+});
+
+test('pending report edit screen disables every mutation control', async ({ page }) => {
+  const mutationRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' || request.method() === 'PUT') {
+      mutationRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
+  await mockDailyReportApis(page, { authenticated: true });
+  await mockStaticFrontend(page);
+
+  await gotoWithRetry(page, '/daily-reports/R-PENDING-001/edit');
+
+  await expect(page.locator('.status-pill')).toHaveText('承認待ち');
+  const reportForm = page.locator('.report-panel').filter({ has: page.getByRole('heading', { name: '日報編集' }) });
+  await expect(reportForm.getByText('この状態の日報は編集できません。')).toBeVisible();
+  const controls = reportForm.locator('input, select, textarea, button');
+  expect(await controls.count()).toBeGreaterThan(0);
+  const allDisabled = await controls.evaluateAll((elements) => elements.every((control) => (control as HTMLInputElement).disabled));
+  expect(allDisabled).toBe(true);
+  expect(mutationRequests.filter((request) => request.includes('/api/daily-reports/'))).toHaveLength(0);
+});
+
+test('approved report edit screen disables every mutation control', async ({ page }) => {
+  const mutationRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' || request.method() === 'PUT') {
+      mutationRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
+    }
+  });
+  await mockDailyReportApis(page, { authenticated: true });
+  await mockStaticFrontend(page);
+
+  await gotoWithRetry(page, '/daily-reports/R-APPROVED-001/edit');
+
+  await expect(page.locator('.status-pill')).toHaveText('承認済み');
+  const reportForm = page.locator('.report-panel').filter({ has: page.getByRole('heading', { name: '日報編集' }) });
+  await expect(reportForm.getByText('この状態の日報は編集できません。')).toBeVisible();
+  const controls = reportForm.locator('input, select, textarea, button');
+  expect(await controls.count()).toBeGreaterThan(0);
+  const allDisabled = await controls.evaluateAll((elements) => elements.every((control) => (control as HTMLInputElement).disabled));
+  expect(allDisabled).toBe(true);
+  expect(mutationRequests.filter((request) => request.includes('/api/daily-reports/'))).toHaveLength(0);
 });

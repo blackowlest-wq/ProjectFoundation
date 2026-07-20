@@ -127,7 +127,8 @@ jobs:
         run: |
           pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
           pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Playwright
-      - name: Run E2E
+      - name: Run E2E (including E2E TypeScript gate)
+        # check.ps1 -CiTask E2E runs the blocking E2E TypeScript gate before Playwright.
         run: pwsh -NoProfile -File scripts/check.ps1 -CiTask E2E
       - name: Upload Playwright report
         if: always()

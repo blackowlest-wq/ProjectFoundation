@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,16 +64,26 @@ public final class DailyReportTestSupport {
 
     public static void seedReport(JdbcTemplate jdbcTemplate, String reportId, String employeeUserId, String employeeId,
             String employeeName, String groupId, String groupName, LocalDate reportDate, String approvalStatus) {
+        boolean isApproved = "APPROVED".equals(approvalStatus);
+        boolean isRejected = "REJECTED".equals(approvalStatus);
+        OffsetDateTime approvedAt = isApproved ? OffsetDateTime.parse("2026-06-01T09:30:00+09:00") : null;
+        OffsetDateTime rejectedAt = isRejected ? OffsetDateTime.parse("2026-06-01T10:30:00+09:00") : null;
         jdbcTemplate.update("""
                 INSERT INTO daily_reports (
                     report_id, employee_user_id, employee_id, employee_name, group_id, group_name,
                     report_date, holiday_type, break_type_id, break_type_name, work_time_type_id, work_time_type_name,
                     start_time_minutes, end_time_minutes, break_minutes, work_minutes, regular_work_minutes,
-                    overtime_work_minutes, night_work_minutes, remarks, approval_status
+                    overtime_work_minutes, night_work_minutes, remarks, approval_status,
+                    approver_user_id, approver_name, approved_at,
+                    rejector_user_id, rejector_name, rejected_at, reject_comment
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'WORKDAY', 'BT001', '標準休憩', 'WT001', '通常勤務',
-                    540, 1080, 60, 480, 480, 0, 0, '検索テスト', ?)
-                """, reportId, employeeUserId, employeeId, employeeName, groupId, groupName, reportDate, approvalStatus);
+                    540, 1080, 60, 480, 480, 0, 0, '検索テスト', ?,
+                    ?, ?, ?, ?, ?, ?, ?)
+                """, reportId, employeeUserId, employeeId, employeeName, groupId, groupName, reportDate, approvalStatus,
+                isApproved ? "U002" : null, isApproved ? "佐藤 花子" : null, approvedAt,
+                isRejected ? "U002" : null, isRejected ? "佐藤 花子" : null, rejectedAt,
+                isRejected ? "事前に差し戻したコメントです。" : null);
     }
 
     public static String reportJson(ObjectMapper objectMapper, LocalDate reportDate, String holidayType,

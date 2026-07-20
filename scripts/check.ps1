@@ -403,7 +403,10 @@ function Get-CiTaskDefinitions {
             ))
         }
         'E2E' {
-            New-CheckDefinition -Name 'frontend-e2e' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'e2e')
+            @(
+                New-CheckDefinition -Name 'frontend-e2e-typecheck' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'typecheck:e2e')
+                New-CheckDefinition -Name 'frontend-e2e' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'e2e:run')
+            )
         }
         'E2EOracle' {
             $arguments = @('-NoProfile', '-File', (Join-Path $RepoRoot 'backend/scripts/test-e2e-oracle.ps1'))

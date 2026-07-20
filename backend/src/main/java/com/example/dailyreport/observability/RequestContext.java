@@ -57,6 +57,9 @@ public final class RequestContext {
         if ("GET".equals(method) && path.equals("/api/daily-reports")) {
             return "SEARCH";
         }
+        if ("GET".equals(method) && path.equals("/api/daily-reports/pending-approvals")) {
+            return "PENDING_APPROVALS";
+        }
         if ("PUT".equals(method) && path.matches("/api/daily-reports/[^/]+")) {
             return "UPDATE";
         }
@@ -68,6 +71,12 @@ public final class RequestContext {
         }
         if ("POST".equals(method) && path.matches("/api/daily-reports/[^/]+/resubmit")) {
             return "RESUBMIT";
+        }
+        if ("POST".equals(method) && path.matches("/api/daily-reports/[^/]+/approve")) {
+            return "APPROVE";
+        }
+        if ("POST".equals(method) && path.matches("/api/daily-reports/[^/]+/reject")) {
+            return "REJECT";
         }
         if ("GET".equals(method) && path.equals("/api/master/projects")) {
             return "PROJECTS";

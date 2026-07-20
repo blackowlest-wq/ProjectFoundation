@@ -224,6 +224,7 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
               <th>提出日時</th>
               <th>承認者</th>
               <th>承認日時</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -239,11 +240,12 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
                 <td>{report.submittedAt ?? '-'}</td>
                 <td>{report.approverName ?? '-'}</td>
                 <td>{report.approvedAt ?? '-'}</td>
+                <td><a href={`/daily-reports/${encodeURIComponent(report.reportId)}`}>詳細</a></td>
               </tr>
             ))}
             {reports.length === 0 && (
               <tr>
-                <td colSpan={10}>該当する日報はありません。</td>
+                <td colSpan={11}>該当する日報はありません。</td>
               </tr>
             )}
           </tbody>

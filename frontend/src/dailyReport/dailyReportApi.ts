@@ -8,11 +8,14 @@ import type {
   DailyReportRequest,
   DailyReportResponse,
   DailyReportSummary,
+  ApproveResponse,
   HolidayTypeOption,
   ProjectOption,
+  RejectResponse,
   WorkCategoryOption,
 } from './types';
 import { buildDailyReportSearchUrl, type DailyReportSearchCriteria } from './dailyReportSearch';
+import { buildPendingApprovalUrl, type PendingApprovalCriteria } from './dailyReportApproval';
 
 /** 有効な案件マスタを取得する。 */
 export async function fetchProjects(): Promise<ProjectOption[]> {
@@ -57,4 +60,19 @@ export async function submitDailyReport(reportId: string): Promise<DailyReportSu
 /** 差戻し日報を再提出し、承認待ち状態へ遷移させる。 */
 export async function resubmitDailyReport(reportId: string): Promise<DailyReportSummary> {
   return postNoBodyWithCsrf<DailyReportSummary>(`/api/daily-reports/${encodeURIComponent(reportId)}/resubmit`);
+}
+
+/** PENDINGの日報を承認し、承認監査情報を返す。 */
+export async function approveDailyReport(reportId: string): Promise<ApproveResponse> {
+  return postNoBodyWithCsrf<ApproveResponse>(`/api/daily-reports/${encodeURIComponent(reportId)}/approve`);
+}
+
+/** 差し戻しコメントをJSON本文で送信し、差し戻し監査情報を返す。 */
+export async function rejectDailyReport(reportId: string, rejectComment: string): Promise<RejectResponse> {
+  return postJsonWithCsrf<RejectResponse>(`/api/daily-reports/${encodeURIComponent(reportId)}/reject`, { rejectComment });
+}
+
+/** 当月などの検索条件を使い、上長向け未承認日報一覧を取得する。 */
+export async function fetchPendingApprovals(criteria: PendingApprovalCriteria): Promise<DailyReportListItem[]> {
+  return getJson<DailyReportListItem[]>(buildPendingApprovalUrl(criteria));
 }

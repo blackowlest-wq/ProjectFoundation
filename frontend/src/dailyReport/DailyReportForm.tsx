@@ -19,6 +19,7 @@ import type { ApiError } from '../shared/apiClient';
 import type {
   ApprovalStatus,
   DailyReportRequest,
+  DailyReportResponse,
   DailyReportWorkItemInput,
   HolidayType,
   HolidayTypeOption,
@@ -32,6 +33,9 @@ const statusLabelByStatus: Record<ApprovalStatus, string> = {
   REJECTED: '差戻し',
   APPROVED: '承認済み',
 };
+
+type DetailLoadState = 'idle' | 'loading' | 'loaded' | 'failed';
+type RejectionDetails = Pick<DailyReportResponse, 'rejectComment' | 'rejectorName' | 'rejectedAt'>;
 
 /** 実行環境の今日を日報入力用のYYYY-MM-DD形式で返す。 */
 function today(): string {
@@ -81,6 +85,8 @@ function toEditableReport(report: Awaited<ReturnType<typeof fetchDailyReport>>):
 function useDailyReportEditor() {
   const [reportId, setReportId] = useState<string | null>(() => reportIdFromPath());
   const [status, setStatus] = useState<ApprovalStatus>('DRAFT');
+  const [detailLoadState, setDetailLoadState] = useState<DetailLoadState>(() => reportIdFromPath() ? 'loading' : 'idle');
+  const [rejectionDetails, setRejectionDetails] = useState<RejectionDetails | null>(null);
   const [form, setForm] = useState<DailyReportRequest>(() => emptyReport());
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [categories, setCategories] = useState<WorkCategoryOption[]>([]);
@@ -104,15 +110,29 @@ function useDailyReportEditor() {
     // How: 編集URLのreportIdがある場合だけ既存日報を取得して入力DTOへ変換し、新規URLは初期値を維持する。
     // How: 新規URLでは既存日報を取得せず、初期入力を維持したまま副作用を終了する。
     if (!reportId) {
+      setDetailLoadState('idle');
       return;
     }
+    setDetailLoadState('loading');
     fetchDailyReport(reportId)
       .then((report) => {
         setStatus(report.approvalStatus);
+        setRejectionDetails({
+          rejectComment: report.rejectComment,
+          rejectorName: report.rejectorName,
+          rejectedAt: report.rejectedAt,
+        });
         setForm(toEditableReport(report));
+        setDetailLoadState('loaded');
       })
-      .catch((e) => setError((e as ApiError).message ?? '日報の読み込みに失敗しました。'));
+      .catch((e) => {
+        setDetailLoadState('failed');
+        setError((e as ApiError).message ?? '日報の読み込みに失敗しました。');
+      });
   }, [reportId]);
+
+  const mutationDisabled = Boolean(reportId)
+    && (detailLoadState === 'loading' || detailLoadState === 'failed' || status === 'PENDING' || status === 'APPROVED');
 
   /** 入力フォームの指定フィールドだけを更新する。 */
   function setField<K extends keyof DailyReportRequest>(key: K, value: DailyReportRequest[K]) {
@@ -142,6 +162,11 @@ function useDailyReportEditor() {
 
   /** 入力検証後に登録・更新を選択し、必要なら提出まで実行する共通保存処理。 */
   async function save(thenSubmit: boolean) {
+    // How: 既存詳細の未確定・取得失敗・編集不可状態では検証とAPI呼び出しの前に終了し、画面操作以外からの変更も防ぐ。
+    // Why not: disabled属性だけに依存すると、イベント経由の呼び出しで状態不整合な更新要求を送れるため、保存処理でも同じ条件を確認する。
+    if (mutationDisabled) {
+      return;
+    }
     // How: 画面入力を検証し、reportIdの有無で登録/更新を選び、提出時は差戻しだけ再提出APIへ分岐する。
     setError('');
     setMessage('');
@@ -152,13 +177,14 @@ function useDailyReportEditor() {
       return;
     }
     try {
+      const resubmit = status === 'REJECTED';
       const saved = reportId ? await updateDailyReport(reportId, form) : await createDailyReport(form);
       setReportId(saved.reportId);
       setStatus(saved.approvalStatus);
-      // How: 提出指定時だけ保存後の状態を確認し、差戻しは再提出、それ以外は初回提出へ分岐する。
+      // How: 提出指定時だけ、保存開始前に判定した状態に応じて差戻しは再提出、それ以外は初回提出へ分岐する。
       if (thenSubmit) {
         // Why not: 差戻し日報を通常提出APIへ送ると状態遷移の入口を分けられないため、再提出APIへ限定する。
-        const submitted = saved.approvalStatus === 'REJECTED'
+        const submitted = resubmit
           ? await resubmitDailyReport(saved.reportId)
           : await submitDailyReport(saved.reportId);
         setStatus(submitted.approvalStatus);
@@ -219,11 +245,13 @@ function useDailyReportEditor() {
     holidayTypes,
     message,
     projects,
+    rejectionDetails,
     reportId,
     saveAndSubmit,
     saveDraft,
     setField,
     status,
+    mutationDisabled,
     updateItem,
   };
 }
@@ -254,19 +282,20 @@ function WorkItemsEditor({
       </div>
       {items.map((item, index) => (
         <div className="work-row" key={index}>
-          <select value={item.projectId} onChange={(event) => onUpdate(index, { ...item, projectId: event.target.value })}>
+          <select disabled={disabled} value={item.projectId} onChange={(event) => onUpdate(index, { ...item, projectId: event.target.value })}>
             {projects.map((project) => <option key={project.projectId} value={project.projectId}>{project.projectName}</option>)}
           </select>
-          <select value={item.workCategoryId} onChange={(event) => onUpdate(index, { ...item, workCategoryId: event.target.value })}>
+          <select disabled={disabled} value={item.workCategoryId} onChange={(event) => onUpdate(index, { ...item, workCategoryId: event.target.value })}>
             {categories.map((category) => <option key={category.workCategoryId} value={category.workCategoryId}>{category.workCategoryName}</option>)}
           </select>
           <input
             type="number"
             min="1"
+            disabled={disabled}
             value={item.workMinutes}
             onChange={(event) => onUpdate(index, { ...item, workMinutes: Number(event.target.value) })}
           />
-          <button type="button" className="secondary" onClick={() => onDelete(index)}>削除</button>
+          <button type="button" className="secondary" disabled={disabled} onClick={() => onDelete(index)}>削除</button>
         </div>
       ))}
       <p className="hint">合計: {totalMinutes(items)} 分</p>
@@ -277,7 +306,7 @@ function WorkItemsEditor({
 /** 日報の登録・編集フォームを表示し、社員の入力・保存・提出を受け付ける。 */
 export function DailyReportForm({ user }: { user: CurrentUser }) {
   const editor = useDailyReportEditor();
-  const workDisabled = editor.form.holidayType === 'PAID_LEAVE'
+  const workDisabled = editor.mutationDisabled || editor.form.holidayType === 'PAID_LEAVE'
     || (editor.form.holidayType === 'HOLIDAY' && editor.form.workItems.length === 0);
   // Why not: 画面で勤務時刻を入力可能にするとバックエンド検証まで業務ルール違反を保持できるため、対象区分では入力を無効にする。
 
@@ -298,14 +327,17 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
           <div><dt>勤務区分</dt><dd>{user.workTimeTypeName ?? '-'}</dd></div>
         </dl>
       </div>
+      {(editor.status === 'PENDING' || editor.status === 'APPROVED') && (
+        <p className="hint">この状態の日報は編集できません。</p>
+      )}
       <div className="form-grid">
         <label>
           日付
-          <input type="date" value={editor.form.reportDate} onChange={(event) => editor.setField('reportDate', event.target.value)} />
+          <input type="date" disabled={editor.mutationDisabled} value={editor.form.reportDate} onChange={(event) => editor.setField('reportDate', event.target.value)} />
         </label>
         <label>
           休日区分
-          <select value={editor.form.holidayType} onChange={(event) => editor.changeHolidayType(event.target.value as HolidayType)}>
+          <select disabled={editor.mutationDisabled} value={editor.form.holidayType} onChange={(event) => editor.changeHolidayType(event.target.value as HolidayType)}>
             {editor.holidayTypes.map((option) => (
               <option key={option.holidayType} value={option.holidayType}>{option.holidayTypeName}</option>
             ))}
@@ -322,7 +354,7 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
       </div>
       <WorkItemsEditor
         categories={editor.categories}
-        disabled={editor.form.holidayType === 'PAID_LEAVE'}
+        disabled={editor.mutationDisabled || editor.form.holidayType === 'PAID_LEAVE'}
         items={editor.form.workItems}
         onAdd={editor.addItem}
         onDelete={editor.deleteItem}
@@ -331,13 +363,22 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
       />
       <label>
         備考
-        <textarea value={editor.form.remarks ?? ''} onChange={(event) => editor.setField('remarks', event.target.value)} />
+        <textarea disabled={editor.mutationDisabled} value={editor.form.remarks ?? ''} onChange={(event) => editor.setField('remarks', event.target.value)} />
       </label>
+      {editor.status === 'REJECTED' && (
+        <div className="rejection-details">
+          <dl>
+            <div><dt>差戻しコメント</dt><dd>{editor.rejectionDetails?.rejectComment ?? '-'}</dd></div>
+            <div><dt>差戻し者</dt><dd>{editor.rejectionDetails?.rejectorName ?? '-'}</dd></div>
+            <div><dt>差戻し日時</dt><dd>{editor.rejectionDetails?.rejectedAt ?? '-'}</dd></div>
+          </dl>
+        </div>
+      )}
       {editor.error && <p className="error" role="alert">{editor.error}</p>}
       {editor.message && <p className="success" role="status">{editor.message}</p>}
       <div className="actions">
-        <button type="button" onClick={editor.saveDraft}>下書き保存</button>
-        <button type="button" onClick={editor.saveAndSubmit}>保存して提出</button>
+        <button type="button" disabled={editor.mutationDisabled} onClick={editor.saveDraft}>下書き保存</button>
+        <button type="button" disabled={editor.mutationDisabled} onClick={editor.saveAndSubmit}>保存して提出</button>
       </div>
     </section>
   );
