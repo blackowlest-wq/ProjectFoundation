@@ -2,7 +2,6 @@ package com.example.dailyreport.report;
 
 import com.example.dailyreport.auth.AppUser;
 import com.example.dailyreport.auth.AuthenticatedUser;
-import com.example.dailyreport.auth.Role;
 import com.example.dailyreport.common.ApiException;
 import com.example.dailyreport.report.dto.ApproveResponse;
 import com.example.dailyreport.report.dto.RejectRequest;
@@ -30,7 +29,7 @@ public class DailyReportApprovalService {
 
     @Transactional
     public ApproveResponse approve(String reportId, AuthenticatedUser principal) {
-        AppUser user = requireManager(principal);
+        AppUser user = accessPolicy.requireManager(principal);
         DailyReportEntity report = reportForApproval(reportId, user);
         report.approve(user.getUserId(), user.getUserName(), OffsetDateTime.now());
         return new ApproveResponse(report.getReportId(), report.getApprovalStatus(), report.getApproverUserId(),
@@ -39,20 +38,12 @@ public class DailyReportApprovalService {
 
     @Transactional
     public RejectResponse reject(String reportId, RejectRequest request, AuthenticatedUser principal) {
-        AppUser user = requireManager(principal);
+        AppUser user = accessPolicy.requireManager(principal);
         DailyReportEntity report = reportForApproval(reportId, user);
         String comment = request.rejectComment().trim();
         report.reject(user.getUserId(), user.getUserName(), OffsetDateTime.now(), comment);
         return new RejectResponse(report.getReportId(), report.getApprovalStatus(), report.getRejectorUserId(),
                 report.getRejectorName(), report.getRejectedAt(), report.getRejectComment());
-    }
-
-    private AppUser requireManager(AuthenticatedUser principal) {
-        AppUser user = principal.user();
-        if (user.getRole() != Role.MANAGER) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only managers can use this operation.");
-        }
-        return user;
     }
 
     private DailyReportEntity reportForApproval(String reportId, AppUser user) {

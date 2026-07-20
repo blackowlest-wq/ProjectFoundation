@@ -37,13 +37,18 @@ export function DailyReportDetail({
   const [operating, setOperating] = useState(false);
   const [actionsAvailable, setActionsAvailable] = useState(true);
   const [error, setError] = useState('');
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [dialogError, setDialogError] = useState('');
+  const approveTriggerRef = useRef<HTMLButtonElement | null>(null);
   const rejectTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const approveConfirmButtonRef = useRef<HTMLButtonElement | null>(null);
   const rejectTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
-  const restoreTriggerFocusRef = useRef(false);
+  const approvalRequestInFlightRef = useRef(false);
+  const restoreApprovalTriggerFocusRef = useRef(false);
+  const restoreRejectTriggerFocusRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -79,28 +84,42 @@ export function DailyReportDetail({
   }, [onUnauthorized, reportId]);
 
   useEffect(() => {
+    if (approvalDialogOpen) {
+      approveConfirmButtonRef.current?.focus();
+      return;
+    }
     if (dialogOpen) {
       rejectTextareaRef.current?.focus();
       return;
     }
-    if (restoreTriggerFocusRef.current) {
-      rejectTriggerRef.current?.focus();
-      restoreTriggerFocusRef.current = false;
+    if (restoreApprovalTriggerFocusRef.current) {
+      approveTriggerRef.current?.focus();
+      restoreApprovalTriggerFocusRef.current = false;
     }
-  }, [dialogOpen]);
+    if (restoreRejectTriggerFocusRef.current) {
+      rejectTriggerRef.current?.focus();
+      restoreRejectTriggerFocusRef.current = false;
+    }
+  }, [approvalDialogOpen, dialogOpen]);
+
+  /** 承認確認ダイアログを閉じ、起動元の操作へキーボードフォーカスを戻す。 */
+  function closeApprovalDialog() {
+    restoreApprovalTriggerFocusRef.current = true;
+    setApprovalDialogOpen(false);
+  }
 
   /** 差し戻しダイアログを閉じ、起動元の操作へキーボードフォーカスを戻す。 */
   function closeRejectDialog() {
-    restoreTriggerFocusRef.current = true;
+    restoreRejectTriggerFocusRef.current = true;
     setDialogError('');
     setDialogOpen(false);
   }
 
   /** モーダル内のフォーカスを循環させ、Escapeでは安全にキャンセルする。 */
-  function handleDialogKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+  function handleDialogKeyDown(event: React.KeyboardEvent<HTMLElement>, closeDialog: () => void) {
     if (event.key === 'Escape' && !operating) {
       event.preventDefault();
-      closeRejectDialog();
+      closeDialog();
       return;
     }
     if (event.key !== 'Tab') {
@@ -166,6 +185,20 @@ export function DailyReportDetail({
     }
   }
 
+  /** 承認確認後にだけ承認APIを呼び、完了時は確認ダイアログを閉じる。 */
+  async function confirmApprove() {
+    if (approvalRequestInFlightRef.current) {
+      return;
+    }
+    approvalRequestInFlightRef.current = true;
+    try {
+      await approve();
+    } finally {
+      approvalRequestInFlightRef.current = false;
+      closeApprovalDialog();
+    }
+  }
+
   /** 差し戻しコメントを検証してからAPIを呼び、成功時は最新詳細を再取得する。 */
   async function reject() {
     const validationError = validateRejectComment(rejectComment);
@@ -200,6 +233,7 @@ export function DailyReportDetail({
   const canChangeStatus = user.role === 'MANAGER'
     && report?.approvalStatus === 'PENDING'
     && actionsAvailable;
+  const modalOpen = approvalDialogOpen || dialogOpen;
   const canEdit = user.role === 'EMPLOYEE'
     && (report?.approvalStatus === 'DRAFT' || report?.approvalStatus === 'REJECTED');
   const returnPath = user.role === 'MANAGER' ? '/pending-approvals' : '/daily-reports';
@@ -212,7 +246,7 @@ export function DailyReportDetail({
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {!loading && report && (
-        <div aria-hidden={dialogOpen || undefined} inert={dialogOpen}>
+        <div aria-hidden={modalOpen || undefined} inert={modalOpen}>
           <div className="detail-heading">
             <div>
               <p className="eyebrow">{report.reportId}</p>
@@ -249,7 +283,14 @@ export function DailyReportDetail({
           </section>
           {canChangeStatus && (
             <div className="actions" aria-label="承認操作">
-              <button type="button" onClick={() => void approve()} disabled={operating || dialogOpen}>承認する</button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  approveTriggerRef.current = event.currentTarget;
+                  setApprovalDialogOpen(true);
+                }}
+                disabled={operating || modalOpen}
+              >承認する</button>
               <button
                 type="button"
                 className="secondary"
@@ -258,7 +299,7 @@ export function DailyReportDetail({
                   setDialogError('');
                   setDialogOpen(true);
                 }}
-                disabled={operating || dialogOpen}
+                disabled={operating || modalOpen}
               >差し戻しする</button>
             </div>
           )}
@@ -268,9 +309,21 @@ export function DailyReportDetail({
           </div>
         </div>
       )}
+      {approvalDialogOpen && (
+        <div className="dialog-backdrop">
+          <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby="approve-dialog-heading" onKeyDown={(event) => handleDialogKeyDown(event, closeApprovalDialog)}>
+            <h3 id="approve-dialog-heading">日報を承認しますか</h3>
+            <p>承認すると、この日報は承認済みになり未承認一覧から外れます。</p>
+            <div className="actions">
+              <button ref={approveConfirmButtonRef} type="button" onClick={() => void confirmApprove()} disabled={operating}>承認を確定</button>
+              <button type="button" className="secondary" onClick={closeApprovalDialog} disabled={operating}>キャンセル</button>
+            </div>
+          </section>
+        </div>
+      )}
       {dialogOpen && (
         <div className="dialog-backdrop">
-          <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby="reject-dialog-heading" onKeyDown={handleDialogKeyDown}>
+          <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby="reject-dialog-heading" onKeyDown={(event) => handleDialogKeyDown(event, closeRejectDialog)}>
             <h3 id="reject-dialog-heading">日報を差し戻す</h3>
             <label>
               差し戻しコメント

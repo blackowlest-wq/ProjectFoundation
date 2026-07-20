@@ -25,12 +25,31 @@ test('TC-APR-003 RT-APR-E2E-001 manager approves a pending report from the detai
   await expect(page.getByText('上長', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: '詳細', exact: true }).click();
   await expect(page.getByRole('heading', { name: '日報詳細' })).toBeVisible();
+  let approveRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.endsWith('/approve')) {
+      approveRequests += 1;
+    }
+  });
+  const approveTrigger = page.locator('button').filter({ hasText: /^承認する$/ });
+  await approveTrigger.click();
+  const approvalDialog = page.getByRole('dialog', { name: '日報を承認しますか' });
+  await expect(approvalDialog).toBeVisible();
+  await expect(approveTrigger).toBeDisabled();
+  expect(approveRequests).toBe(0);
+  await approvalDialog.getByRole('button', { name: 'キャンセル' }).click();
+  await expect(approvalDialog).not.toBeVisible();
+  await expect(approveTrigger).toBeFocused();
+  expect(approveRequests).toBe(0);
+
   const approveResponse = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith('/approve'));
-  await page.getByRole('button', { name: '承認する' }).click();
+  await approveTrigger.click();
+  await page.getByRole('dialog', { name: '日報を承認しますか' }).getByRole('button', { name: '承認を確定' }).click();
   await expect(await (await approveResponse).json()).toMatchObject({
     approverId: 'U002',
     approverName: '佐藤 花子',
   });
+  expect(approveRequests).toBe(1);
 
   await expect(page.locator('.status-pill')).toHaveText('承認済み');
   await expect(page.locator('.detail-grid').getByText('佐藤 花子', { exact: true })).toBeVisible();

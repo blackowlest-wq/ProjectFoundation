@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DailyReportDetail } from '../src/dailyReport/DailyReportDetail';
 import { DailyReportPendingApprovalList } from '../src/dailyReport/DailyReportPendingApprovalList';
@@ -32,7 +33,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     cleanupUi();
   });
 
-  it('RT-APR-UI-001 sends current-month and selected pending filters, then clears them back to the current month', async () => {
+  it('TC-APR-008 RT-APR-UI-001 sends current-month and selected pending filters, then clears them back to the current month', async () => {
     const { calls } = installFrontendFetch({
       pendingApprovals: respondJson([buildListItem('R-PENDING-001', { approvalStatus: 'PENDING' })]),
     });
@@ -68,7 +69,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(calls.at(-1)?.url.search).toBe('?dateFrom=2026-07-01&dateTo=2026-07-31');
   });
 
-  it('RT-APR-UI-001 validates dates and separates empty and API-error pending-list states', async () => {
+  it('TC-APR-008 RT-APR-UI-001 validates dates and separates empty and API-error pending-list states', async () => {
     const { calls } = installFrontendFetch({ pendingApprovals: respondJson([]) });
 
     await renderUi(<DailyReportPendingApprovalList user={managerUser} />);
@@ -85,7 +86,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(document.querySelector('[role="alert"]')?.textContent).toBe('未承認一覧の取得に失敗しました。');
   });
 
-  it.each([currentUser, adminUser])('RT-APR-UI-003 hides pending approvals and makes no pending-list request for non-managers', async (user) => {
+  it.each([currentUser, adminUser])('TC-APR-009 RT-APR-UI-003 hides pending approvals and makes no pending-list request for non-managers', async (user) => {
     const { calls } = installFrontendFetch();
 
     await renderUi(<DailyReportPendingApprovalList user={user} />);
@@ -94,7 +95,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(countRequests(calls, 'GET', '/api/daily-reports/pending-approvals')).toBe(0);
   });
 
-  it('RT-APR-UI-002 requires a comment before sending rejection', async () => {
+  it('TC-APR-006 RT-APR-UI-002 requires a comment before sending rejection', async () => {
     const { calls } = installFrontendFetch({
       reportDetails: {
         'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })),
@@ -109,7 +110,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/reject')).toBe(0);
   });
 
-  it('RT-APR-UI-004 shows approval audit values after approving a pending report', async () => {
+  it('TC-APR-010 RT-APR-UI-004 shows approval audit values after approving a pending report', async () => {
     installFrontendFetch({
       reportDetails: {
         'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })),
@@ -118,12 +119,45 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
 
     await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
     await click(buttonByText('承認する'));
+    await click(buttonByText('承認を確定'));
 
     expect(document.body.textContent).toContain('承認済み');
     expect(document.body.textContent).toContain('佐藤 上長');
   });
 
-  it('RT-APR-UI-004 does not show state controls when detail loading fails', async () => {
+  it('TC-APR-003 TC-APR-010 RT-APR-UI-004 opens an approval confirmation before sending the request and safely cancels it', async () => {
+    const { calls } = installFrontendFetch({
+      reportDetails: {
+        'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })),
+      },
+    });
+
+    await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
+    const approveTrigger = buttonByText('承認する');
+    await click(approveTrigger);
+
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain('日報を承認しますか');
+    expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/approve')).toBe(0);
+    expect(buttonByText('差し戻しする').disabled).toBe(true);
+
+    await keyDown(dialog, 'Escape');
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(approveTrigger);
+    expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/approve')).toBe(0);
+
+    await click(approveTrigger);
+    await click(buttonByText('キャンセル'));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(approveTrigger);
+    expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/approve')).toBe(0);
+
+    await click(approveTrigger);
+    await click(buttonByText('承認を確定'));
+    expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/approve')).toBe(1);
+  });
+
+  it('TC-APR-010 RT-APR-UI-004 does not show state controls when detail loading fails', async () => {
     installFrontendFetch({ reportDetails: { 'R-OUTSIDE': rejectWith({ code: 'FORBIDDEN', message: '参照できません。' }) } });
 
     await renderUi(<DailyReportDetail user={managerUser} reportId="R-OUTSIDE" />);
@@ -133,7 +167,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(document.body.textContent).not.toContain('差し戻しする');
   });
 
-  it('RT-APR-UI-004 notifies the parent and keeps controls hidden after an unauthorized detail request', async () => {
+  it('TC-APR-010 RT-APR-UI-004 notifies the parent and keeps controls hidden after an unauthorized detail request', async () => {
     const onUnauthorized = vi.fn();
     installFrontendFetch({ reportDetails: { 'R-UNAUTHORIZED': rejectWith({ code: 'UNAUTHORIZED', message: 'ログインが必要です。' }) } });
 
@@ -143,7 +177,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(document.body.textContent).not.toContain('承認する');
   });
 
-  it('RT-APR-UI-004 refreshes stale detail and hides controls after a status conflict', async () => {
+  it('TC-APR-010 RT-APR-UI-004 refreshes stale detail and hides controls after a status conflict', async () => {
     installFrontendFetch({
       approve: rejectWith({ code: 'INVALID_STATUS', message: '日報はすでに処理されています。' }),
       reportDetails: {
@@ -157,13 +191,14 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
 
     await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
     await click(buttonByText('承認する'));
+    await click(buttonByText('承認を確定'));
 
     expect(document.querySelector('[role="alert"]')?.textContent).toBe('日報はすでに処理されています。');
     expect(document.body.textContent).toContain('承認済み');
     expect(document.body.textContent).not.toContain('差し戻しする');
   });
 
-  it('RT-APR-UI-004 submits a nonblank rejection comment and refreshes the detail', async () => {
+  it('TC-APR-010 RT-APR-UI-004 submits a nonblank rejection comment and refreshes the detail', async () => {
     const { calls } = installFrontendFetch({
       reportDetails: {
         'R-PENDING-001': (callCount) => respondJson(buildReportDetail('R-PENDING-001', callCount === 1
@@ -182,7 +217,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(document.body.textContent).toContain('作業時間を確認してください。');
   });
 
-  it.each(['DRAFT', 'REJECTED'] as const)('RT-APR-UI-004 provides an encoded employee edit link and list return for %s reports only', async (approvalStatus) => {
+  it.each(['DRAFT', 'REJECTED'] as const)('TC-APR-010 RT-APR-UI-004 provides an encoded employee edit link and list return for %s reports only', async (approvalStatus) => {
     const reportId = 'R /?';
     installFrontendFetch({
       reportDetails: { [reportId]: respondJson(buildReportDetail(reportId, { approvalStatus })) },
@@ -195,7 +230,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(Array.from(document.querySelectorAll('a')).find((link) => link.textContent === '一覧へ戻る')?.getAttribute('href')).toBe('/daily-reports');
   });
 
-  it.each(['PENDING', 'APPROVED'] as const)('RT-APR-UI-004 does not expose employee edit navigation for %s reports', async (approvalStatus) => {
+  it.each(['PENDING', 'APPROVED'] as const)('TC-APR-010 RT-APR-UI-004 does not expose employee edit navigation for %s reports', async (approvalStatus) => {
     installFrontendFetch({
       reportDetails: { [`R-${approvalStatus}`]: respondJson(buildReportDetail(`R-${approvalStatus}`, { approvalStatus })) },
     });
@@ -205,7 +240,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(Array.from(document.querySelectorAll('a')).some((link) => link.textContent === '編集する')).toBe(false);
   });
 
-  it.each([managerUser, adminUser])('RT-APR-UI-004 keeps edit navigation hidden for manager and admin detail views', async (user) => {
+  it.each([managerUser, adminUser])('TC-APR-010 RT-APR-UI-004 keeps edit navigation hidden for manager and admin detail views', async (user) => {
     installFrontendFetch({
       reportDetails: { 'R-DRAFT': respondJson(buildReportDetail('R-DRAFT', { approvalStatus: 'DRAFT' })) },
     });
@@ -224,7 +259,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     ['reject', 'FORBIDDEN', '操作できません。'],
     ['approve', 'SERVER_ERROR', '処理に失敗しました。'],
     ['reject', 'SERVER_ERROR', '処理に失敗しました。'],
-  ] as const)('RT-APR-UI-004 displays safe %s error behavior for %s responses', async (operation, code, message) => {
+  ] as const)('TC-APR-010 RT-APR-UI-004 displays safe %s error behavior for %s responses', async (operation, code, message) => {
     const onUnauthorized = vi.fn();
     const { calls } = installFrontendFetch({
       reportDetails: { 'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })) },
@@ -234,6 +269,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" onUnauthorized={onUnauthorized} />);
     if (operation === 'approve') {
       await click(buttonByText('承認する'));
+      await click(buttonByText('承認を確定'));
     } else {
       await click(buttonByText('差し戻しする'));
       setControlValue(document.querySelector('textarea')!, '確認してください。');
@@ -246,7 +282,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(onUnauthorized).toHaveBeenCalledTimes(code === 'UNAUTHORIZED' ? 1 : 0);
   });
 
-  it('RT-APR-UI-004 refreshes stale detail after a rejection status conflict', async () => {
+  it('TC-APR-010 RT-APR-UI-004 refreshes stale detail after a rejection status conflict', async () => {
     installFrontendFetch({
       reject: rejectWith({ code: 'INVALID_STATUS', message: '日報はすでに処理されています。' }),
       reportDetails: {
@@ -266,21 +302,29 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(document.body.textContent).not.toContain('差し戻しする');
   });
 
-  it('RT-APR-UI-004 disables approval actions while the mutation is loading', async () => {
+  it('TC-APR-003 TC-APR-010 RT-APR-UI-004 disables approval actions while the mutation is loading', async () => {
     let resolveApproval!: (response: Response) => void;
     const approval = new Promise<Response>((resolve) => {
       resolveApproval = resolve;
     });
-    installFrontendFetch({
+    const { calls } = installFrontendFetch({
       approve: approval,
       reportDetails: { 'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })) },
     });
 
     await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
     await click(buttonByText('承認する'));
+    const confirm = buttonByText('承認を確定');
+    await act(async () => {
+      confirm.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      confirm.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+    await flushEffects();
 
     expect(buttonByText('承認する').disabled).toBe(true);
     expect(buttonByText('差し戻しする').disabled).toBe(true);
+    expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/approve')).toBe(1);
     resolveApproval(new Response(JSON.stringify({
       reportId: 'R-PENDING-001',
       approvalStatus: 'APPROVED',
@@ -291,7 +335,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     await flushEffects();
   });
 
-  it('RT-APR-UI-004 disables background actions while a rejection dialog is open and traps keyboard focus', async () => {
+  it('TC-APR-010 RT-APR-UI-004 disables background actions while a rejection dialog is open and traps keyboard focus', async () => {
     installFrontendFetch({
       reportDetails: { 'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })) },
     });

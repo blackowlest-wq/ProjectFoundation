@@ -50,6 +50,7 @@ class DailyReportApprovalControllerTest {
     JdbcTemplate jdbcTemplate;
 
     @Test
+    // RT-APR-BE-001 / TC-APR-001
     void rtAprBe001ManagerApprovesPendingReportAndDetailReturnsApprovalAudit() throws Exception {
         seedReport(jdbcTemplate, "R-APPROVE-001", "U001", "E001", "山田 太郎",
                 "G001", "第1開発グループ", LocalDate.of(2026, 6, 2), "PENDING");
@@ -79,6 +80,7 @@ class DailyReportApprovalControllerTest {
     }
 
     @Test
+    // RT-APR-BE-003 / TC-APR-004
     void rtAprBe003ManagerRejectsPendingReportAndDetailReturnsRejectionAudit() throws Exception {
         seedReport(jdbcTemplate, "R-REJECT-001", "U001", "E001", "山田 太郎",
                 "G001", "第1開発グループ", LocalDate.of(2026, 6, 3), "PENDING");
@@ -284,6 +286,7 @@ class DailyReportApprovalControllerTest {
     }
 
     @Test
+    // RT-APR-BE-002 / TC-APR-002
     void rtAprBe002ApproveRejectsAllNonPendingAndOutsideReportsWithoutChanges() throws Exception {
         seedOutsideEmployee();
         seedReport(jdbcTemplate, "R-APPROVE-OUTSIDE", "U099", "E099", "他部署 社員",
@@ -292,6 +295,12 @@ class DailyReportApprovalControllerTest {
         seedReport(jdbcTemplate, "R-APPROVE-REJECTED", "U001", "E001", "山田 太郎", "G001", "第1開発グループ", LocalDate.of(2026, 6, 6), "REJECTED");
         seedReport(jdbcTemplate, "R-APPROVE-APPROVED", "U001", "E001", "山田 太郎", "G001", "第1開発グループ", LocalDate.of(2026, 6, 7), "APPROVED");
         MockHttpSession session = loginAs(mockMvc, objectMapper, "manager001");
+        Map<String, Object> outsideBefore = reportRow("R-APPROVE-OUTSIDE");
+        Map<String, Object> draftBefore = reportRow("R-APPROVE-DRAFT");
+        Map<String, Object> rejectedBefore = reportRow("R-APPROVE-REJECTED");
+        Map<String, Object> approvedBefore = reportRow("R-APPROVE-APPROVED");
+        assertSeededRejectedAudit(rejectedBefore);
+        assertSeededApprovedAudit(approvedBefore);
 
         mockMvc.perform(post("/api/daily-reports/R-APPROVE-OUTSIDE/approve").with(csrf()).session(session))
                 .andExpect(status().isForbidden())
@@ -306,13 +315,24 @@ class DailyReportApprovalControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code", equalTo("INVALID_STATUS")));
 
-        assertUnchanged(reportRow("R-APPROVE-OUTSIDE"), "PENDING");
-        assertUnchanged(reportRow("R-APPROVE-DRAFT"), "DRAFT");
-        assertUnchanged(reportRow("R-APPROVE-REJECTED"), "REJECTED");
-        assertUnchanged(reportRow("R-APPROVE-APPROVED"), "APPROVED");
+        assertUnchanged(reportRow("R-APPROVE-OUTSIDE"), outsideBefore);
+        assertUnchanged(reportRow("R-APPROVE-DRAFT"), draftBefore);
+        assertUnchanged(reportRow("R-APPROVE-REJECTED"), rejectedBefore);
+        assertUnchanged(reportRow("R-APPROVE-APPROVED"), approvedBefore);
     }
 
     @Test
+    // RT-APR-BE-002 / TC-APR-002
+    void rtAprBe002ApproveNotFoundReturnsNotFound() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "manager001");
+
+        mockMvc.perform(post("/api/daily-reports/R-APPROVE-NOT-FOUND/approve").with(csrf()).session(session))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", equalTo("NOT_FOUND")));
+    }
+
+    @Test
+    // RT-APR-BE-004 / TC-APR-005
     void rtAprBe004RejectRejectsAllNonPendingAndOutsideReportsWithoutChanges() throws Exception {
         seedOutsideEmployee();
         seedReport(jdbcTemplate, "R-REJECT-OUTSIDE", "U099", "E099", "他部署 社員",
@@ -321,6 +341,12 @@ class DailyReportApprovalControllerTest {
         seedReport(jdbcTemplate, "R-REJECT-REJECTED", "U001", "E001", "山田 太郎", "G001", "第1開発グループ", LocalDate.of(2026, 6, 8), "REJECTED");
         seedReport(jdbcTemplate, "R-REJECT-APPROVED", "U001", "E001", "山田 太郎", "G001", "第1開発グループ", LocalDate.of(2026, 6, 9), "APPROVED");
         MockHttpSession session = loginAs(mockMvc, objectMapper, "manager001");
+        Map<String, Object> outsideBefore = reportRow("R-REJECT-OUTSIDE");
+        Map<String, Object> draftBefore = reportRow("R-REJECT-DRAFT");
+        Map<String, Object> rejectedBefore = reportRow("R-REJECT-REJECTED");
+        Map<String, Object> approvedBefore = reportRow("R-REJECT-APPROVED");
+        assertSeededRejectedAudit(rejectedBefore);
+        assertSeededApprovedAudit(approvedBefore);
 
         mockMvc.perform(post("/api/daily-reports/R-REJECT-OUTSIDE/reject")
                         .with(csrf()).session(session)
@@ -347,13 +373,27 @@ class DailyReportApprovalControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code", equalTo("INVALID_STATUS")));
 
-        assertUnchanged(reportRow("R-REJECT-OUTSIDE"), "PENDING");
-        assertUnchanged(reportRow("R-REJECT-DRAFT"), "DRAFT");
-        assertUnchanged(reportRow("R-REJECT-REJECTED"), "REJECTED");
-        assertUnchanged(reportRow("R-REJECT-APPROVED"), "APPROVED");
+        assertUnchanged(reportRow("R-REJECT-OUTSIDE"), outsideBefore);
+        assertUnchanged(reportRow("R-REJECT-DRAFT"), draftBefore);
+        assertUnchanged(reportRow("R-REJECT-REJECTED"), rejectedBefore);
+        assertUnchanged(reportRow("R-REJECT-APPROVED"), approvedBefore);
     }
 
     @Test
+    // RT-APR-BE-004 / TC-APR-005
+    void rtAprBe004RejectNotFoundReturnsNotFound() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "manager001");
+
+        mockMvc.perform(post("/api/daily-reports/R-REJECT-NOT-FOUND/reject")
+                        .with(csrf()).session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rejectJson("確認してください。")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", equalTo("NOT_FOUND")));
+    }
+
+    @Test
+    // RT-APR-BE-005 / TC-APR-006, TC-APR-007
     void rtAprBe005RejectCommentBoundaryValidationLeavesInvalidRowsUnchangedAndStoresTrimmedMaximum() throws Exception {
         seedReport(jdbcTemplate, "R-REJECT-VALIDATION", "U001", "E001", "山田 太郎",
                 "G001", "第1開発グループ", LocalDate.of(2026, 6, 8), "PENDING");
@@ -390,6 +430,7 @@ class DailyReportApprovalControllerTest {
     }
 
     @Test
+    // RT-APR-BE-009 / TC-APR-003
     void rtAprBe009ApproveRequiresAuthenticationMissingAndInvalidCsrfAndRolesWithoutChanges() throws Exception {
         seedReport(jdbcTemplate, "R-APPROVE-SECURITY", "U001", "E001", "山田 太郎",
                 "G001", "第1開発グループ", LocalDate.of(2026, 6, 9), "PENDING");
@@ -420,6 +461,7 @@ class DailyReportApprovalControllerTest {
     }
 
     @Test
+    // RT-APR-BE-010 / TC-APR-003
     void rtAprBe010RejectRequiresAuthenticationMissingAndInvalidCsrfAndRolesWithoutChanges() throws Exception {
         seedReport(jdbcTemplate, "R-REJECT-SECURITY", "U001", "E001", "山田 太郎",
                 "G001", "第1開発グループ", LocalDate.of(2026, 6, 10), "PENDING");
@@ -507,6 +549,23 @@ class DailyReportApprovalControllerTest {
                        rejector_user_id, rejector_name, rejected_at, reject_comment
                 FROM daily_reports WHERE report_id = ?
                 """, reportId);
+    }
+
+    private void assertSeededApprovedAudit(Map<String, Object> row) {
+        assertThat(row.get("APPROVER_USER_ID")).isEqualTo("U002");
+        assertThat(row.get("APPROVER_NAME")).isEqualTo("佐藤 花子");
+        assertThat(row.get("APPROVED_AT")).isNotNull();
+    }
+
+    private void assertSeededRejectedAudit(Map<String, Object> row) {
+        assertThat(row.get("REJECTOR_USER_ID")).isEqualTo("U002");
+        assertThat(row.get("REJECTOR_NAME")).isEqualTo("佐藤 花子");
+        assertThat(row.get("REJECTED_AT")).isNotNull();
+        assertThat(row.get("REJECT_COMMENT")).isEqualTo("事前に差し戻したコメントです。");
+    }
+
+    private void assertUnchanged(Map<String, Object> row, Map<String, Object> before) {
+        assertThat(row).isEqualTo(before);
     }
 
     private void assertUnchanged(Map<String, Object> row, String status) {
