@@ -5,7 +5,6 @@ import type { CurrentUser } from '../../src/auth/types';
 /** DataInitializerと同じログイン利用者契約。employeeIdはCurrentUser APIに含まれない。 */
 export const employee: CurrentUser = {
   userId: 'U001',
-  employeeId: 'E001',
   loginId: 'employee001',
   userName: '山田 太郎',
   role: 'EMPLOYEE',
@@ -16,6 +15,12 @@ export const employee: CurrentUser = {
   workTimeTypeId: 'WT001',
   workTimeTypeName: '通常勤務',
 };
+
+/** DataInitializerの社員識別子。CurrentUser APIのレスポンスには含めない。 */
+export const employeeReportIdentity = {
+  employeeId: 'E001',
+  employeeName: '山田 太郎',
+} as const;
 
 export const manager: CurrentUser = {
   userId: 'U002',

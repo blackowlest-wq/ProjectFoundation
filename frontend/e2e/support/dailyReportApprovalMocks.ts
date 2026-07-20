@@ -1,11 +1,12 @@
 import type { Page } from '@playwright/test';
 import type { CurrentUser } from '../../src/auth/types';
-import { employee } from './authMocks';
+import type { DailyReportResponse } from '../../src/dailyReport/types';
+import { employee, employeeReportIdentity } from './authMocks';
 
-const pendingReport = {
+const pendingReport: DailyReportResponse = {
   reportId: 'R-PENDING-001',
-  employeeId: employee.employeeId,
-  employeeName: employee.userName,
+  employeeId: employeeReportIdentity.employeeId,
+  employeeName: employeeReportIdentity.employeeName,
   groupId: 'G001',
   groupName: '第1開発グループ',
   breakTypeId: 'BT001',
@@ -52,7 +53,7 @@ type ApprovalMockOptions = {
 };
 
 export type ApprovalMockState = {
-  report: typeof pendingReport;
+  report: DailyReportResponse;
 };
 
 /** 別Browser Contextの利用者間でも、同じ日報の状態遷移だけを共有する。認証状態は共有しない。 */

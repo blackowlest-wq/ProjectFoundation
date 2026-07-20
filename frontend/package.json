@@ -20,6 +20,7 @@
     "e2e:oracle": "playwright test --config=playwright.oracle.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit",
     "build": "tsc --noEmit && vite build",
     "dev": "vite --host 127.0.0.1"
   },
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.58.0",
+    "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "10.6.0",
     "eslint-plugin-react-hooks": "7.1.1",
