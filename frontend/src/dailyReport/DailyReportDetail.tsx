@@ -249,7 +249,6 @@ export function DailyReportDetail({
         <div aria-hidden={modalOpen || undefined} inert={modalOpen}>
           <div className="detail-heading">
             <div>
-              <p className="eyebrow">{report.reportId}</p>
               <h3>{report.employeeName}の日報</h3>
             </div>
             <span className={`status-pill status-${report.approvalStatus.toLowerCase()}`}>{statusLabelByStatus[report.approvalStatus]}</span>
@@ -281,31 +280,33 @@ export function DailyReportDetail({
               </table>
             </div>
           </section>
-          {canChangeStatus && (
-            <div className="actions" aria-label="承認操作">
-              <button
-                type="button"
-                onClick={(event) => {
-                  approveTriggerRef.current = event.currentTarget;
-                  setApprovalDialogOpen(true);
-                }}
-                disabled={operating || modalOpen}
-              >承認する</button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={(event) => {
-                  rejectTriggerRef.current = event.currentTarget;
-                  setDialogError('');
-                  setDialogOpen(true);
-                }}
-                disabled={operating || modalOpen}
-              >差し戻しする</button>
+          <div className="detail-action-groups">
+            {canChangeStatus && (
+              <div className="actions detail-actions" aria-label="承認操作">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    approveTriggerRef.current = event.currentTarget;
+                    setApprovalDialogOpen(true);
+                  }}
+                  disabled={operating || modalOpen}
+                >承認する</button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={(event) => {
+                    rejectTriggerRef.current = event.currentTarget;
+                    setDialogError('');
+                    setDialogOpen(true);
+                  }}
+                  disabled={operating || modalOpen}
+                >差し戻しする</button>
+              </div>
+            )}
+            <div className="actions detail-actions" aria-label="詳細画面の遷移">
+              {canEdit && <a className="button-link" href={`/daily-reports/${encodeURIComponent(report.reportId)}/edit`}>編集する</a>}
+              <a className="button-link secondary-link" href={returnPath}>一覧へ戻る</a>
             </div>
-          )}
-          <div className="actions" aria-label="詳細画面の遷移">
-            {canEdit && <a className="button-link" href={`/daily-reports/${encodeURIComponent(report.reportId)}/edit`}>編集する</a>}
-            <a className="button-link secondary-link" href={returnPath}>一覧へ戻る</a>
           </div>
         </div>
       )}

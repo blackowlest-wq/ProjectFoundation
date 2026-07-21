@@ -33,7 +33,7 @@
 
 ## テスト方針
 
-- `frontend/test/DailyReportApprovalPanel.test.tsx` に、日報ID非表示と操作要素の維持を確認するUIテストを追加する。
+- `frontend/test/DailyReportApprovalPanel.test.tsx` に、日報ID非表示、操作領域、状態クラス、操作要素の維持を確認するUIテストを追加する。CSSの適用結果はブラウザE2Eで確認する。
 - 既存の承認・差戻し・フォーカス制御テストを回帰実行する。
 - `npm.cmd run typecheck`、`npm.cmd test`、`npm.cmd run build` を実行する。
 - ステータスピルの色は、実装クラスを確認するテストとブラウザでの目視確認を組み合わせる。
@@ -44,8 +44,8 @@
 | --- | --- | --- | --- |
 | AC-DUI-001 | TC-DUI-001 | Frontend UI | RT-DUI-001 / `DailyReportApprovalPanel.test.tsx` |
 | AC-DUI-002 | TC-DUI-002 | Frontend UI | RT-DUI-002 / `DailyReportApprovalPanel.test.tsx` |
-| AC-DUI-003 | TC-DUI-003 | Frontend UI・目視 | RT-DUI-003 / `npm.cmd run build`・ブラウザ確認 |
-| AC-DUI-004 | TC-DUI-004 | Frontend UI回帰 | RT-DUI-004 / `npm.cmd test` |
+| AC-DUI-003 | TC-DUI-003 | Frontend UI・ブラウザE2E | RT-DUI-003 / `approval-rejection.spec.ts`・`npm.cmd run build` |
+| AC-DUI-004 | TC-DUI-004 | Frontend UI回帰 | RT-DUI-004 / `DailyReportApprovalPanel.test.tsx`、既存 `RT-APR-UI-004` 回帰・`npm.cmd test` |
 
 ## 設計自己レビュー
 

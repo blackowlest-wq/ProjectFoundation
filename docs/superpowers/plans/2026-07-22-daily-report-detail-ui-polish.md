@@ -13,7 +13,7 @@
 - 承認・差戻しAPI、状態遷移、認可、エラー処理は変更しない。
 - 日報詳細の項目、作業明細、既存ボタン文言は変更しない。
 - カレンダーセルの状態色と左ボーダー表現は維持する。
-- UIテストは `frontend/test` に置き、既存の `DailyReportApprovalPanel.test.tsx` の責務境界を維持する。
+- UI Unitテストは `frontend/test` に置き、既存の `DailyReportApprovalPanel.test.tsx` の責務境界を維持する。CSS適用結果は承認詳細E2Eで確認する。
 
 ---
 
@@ -27,9 +27,9 @@
 **Interfaces:**
 
 - Consumes: `DailyReportDetail`, `managerUser`、`buildReportDetail`、`installFrontendFetch`、`renderUi` from the existing test support.
-- Produces: `TC-DUI-001`、`TC-DUI-002`、`TC-DUI-004` のUI回帰テスト。
+- Produces: `TC-DUI-001`～`TC-DUI-004` のUI回帰テスト。
 
-- [ ] **Step 1: 日報ID非表示テストを書く**
+- [x] **Step 1: 日報ID非表示テストを書く**
 
 `describe('DailyReport approval panel behavior from task-owned tests', () => { ... })` 内に、次のテストを追加する。
 
@@ -48,7 +48,7 @@ it('TC-DUI-001 RT-DUI-001 does not render the report ID below the detail heading
 });
 ```
 
-- [ ] **Step 2: 操作領域クラスの失敗テストを書く**
+- [x] **Step 2: 操作領域クラスの失敗テストを書く**
 
 同じテストファイルへ次のテストを追加する。
 
@@ -69,7 +69,7 @@ it('TC-DUI-002 RT-DUI-002 keeps approval and navigation actions in separated det
 });
 ```
 
-- [ ] **Step 3: 既存の状態クラスと操作回帰を確認するテストを書く**
+- [x] **Step 3: 既存の状態クラスと操作回帰を確認するテストを書く**
 
 次のテストで、PENDING状態ピルと既存操作の存在を確認する。
 
@@ -90,7 +90,11 @@ it('TC-DUI-004 RT-DUI-004 retains the pending status class and approval actions'
 });
 ```
 
-- [ ] **Step 4: 追加テストが正しく失敗することを確認する**
+- [x] **Step 4: CSS契約のテストを書く**
+
+`DailyReportApprovalPanel.test.tsx` ではDOMクラスを確認し、`frontend/e2e/approval-rejection.spec.ts` に `TC-DUI-003 RT-DUI-003` のブラウザ確認を追加する。E2Eでcomputed styleの操作間隔、`PENDING` の背景色、全周ボーダーを観測する。
+
+- [x] **Step 5: 追加テストが正しく失敗することを確認する**
 
 Run: `npm.cmd test -- DailyReportApprovalPanel.test.tsx`
 
@@ -108,7 +112,7 @@ Expected: 追加した `TC-DUI-001` は日報IDがまだ表示されるため失
 - Consumes: Task 1のDOM契約 `.detail-action-groups`、`.detail-actions`。
 - Produces: 日報IDを含まず、操作行を分離した詳細画面DOMと、状態ピル全周色のCSS。
 
-- [ ] **Step 1: 日報IDの表示要素を削除する**
+- [x] **Step 1: 日報IDの表示要素を削除する**
 
 `DailyReportDetail.tsx` の詳細見出し内から次の要素を削除する。
 
@@ -118,7 +122,7 @@ Expected: 追加した `TC-DUI-001` は日報IDがまだ表示されるため失
 
 `<h3>{report.employeeName}の日報</h3>` はそのまま残す。
 
-- [ ] **Step 2: 操作領域を専用ラッパーで囲む**
+- [x] **Step 2: 操作領域を専用ラッパーで囲む**
 
 承認操作と詳細画面遷移の2つの `.actions` を、次の構造になるように変更する。ボタン・リンクの処理、文言、ARIAラベルは変更しない。
 
@@ -153,7 +157,7 @@ Expected: 追加した `TC-DUI-001` は日報IDがまだ表示されるため失
 </div>
 ```
 
-- [ ] **Step 3: 操作間隔と状態ピル全周色を追加する**
+- [x] **Step 3: 操作間隔と状態ピル全周色を追加する**
 
 `styles.css` に次のCSSを追加する。
 
@@ -200,13 +204,13 @@ Expected: 追加した `TC-DUI-001` は日報IDがまだ表示されるため失
 - Consumes: Task 2のDOMとCSS。
 - Produces: 受入条件AC-DUI-001～004の検証結果。
 
-- [ ] **Step 1: 対象テストを実行する**
+- [x] **Step 1: 対象テストを実行する**
 
 Run: `npm.cmd test -- DailyReportApprovalPanel.test.tsx`
 
-Expected: 対象テストが成功し、日報ID非表示、操作領域、承認状態クラス、承認・差戻し回帰が確認できる。
+Expected: 対象テストが成功し、日報ID非表示、操作領域、CSS契約、承認状態クラス、承認・差戻し回帰が確認できる。
 
-- [ ] **Step 2: 型チェックと全フロントテストを実行する**
+- [x] **Step 2: 型チェックと全フロントテストを実行する**
 
 Run: `npm.cmd run typecheck`
 
@@ -216,13 +220,13 @@ Run: `npm.cmd test`
 
 Expected: 全テスト成功、失敗0件。
 
-- [ ] **Step 3: production buildを実行する**
+- [x] **Step 3: production buildを実行する**
 
 Run: `npm.cmd run build`
 
 Expected: `tsc --noEmit` とVite buildが終了コード0で完了する。
 
-- [ ] **Step 4: ブラウザで目視確認する**
+- [x] **Step 4: ブラウザで目視確認する**
 
 Run: `npm.cmd run build` 後に `vite preview` を起動し、上長で `/daily-reports/{reportId}` を開く。
 
@@ -232,10 +236,10 @@ Expected:
 - 承認・差戻しと一覧遷移の操作行に16px相当の間隔がある。
 - `承認待ち` のステータスピル全体が青系の背景・外枠で表示され、左端だけが濃くならない。
 
-- [ ] **Step 5: 変更内容をコミットする**
+- [x] **Step 5: 変更内容をコミットする**
 
 ```powershell
-git add frontend/src/dailyReport/DailyReportDetail.tsx frontend/src/styles.css frontend/test/DailyReportApprovalPanel.test.tsx
+git add frontend/src/dailyReport/DailyReportDetail.tsx frontend/src/styles.css frontend/test/DailyReportApprovalPanel.test.tsx frontend/e2e/approval-rejection.spec.ts docs
 git commit -m "fix: polish daily report detail actions"
 ```
 
