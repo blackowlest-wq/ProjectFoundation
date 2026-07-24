@@ -24,12 +24,14 @@
 ### Task 0: 実装前ケース、トレーサビリティ、レビュー入力の確定
 
 **Files:**
+
 - Create: `docs/AI活用開発研究/作業記録/日報承認差戻し_作業記録.md`
 - Create: `docs/AI活用開発研究/作業記録/日報承認差戻し_受入条件レビュー.md`
 - Create: `docs/AI活用開発研究/作業記録/日報承認差戻し_テストケース.md`
 - Create: `docs/AI活用開発研究/作業記録/日報承認差戻し_テストケースレビュー.md`
 
 **Interfaces:**
+
 - Consumes: 設計書のBDD-APR-001～007、`機能一覧・受入条件.md`のF-005/F-007/F-008/F-010、API一覧A-009/A-012/A-013/A-015、画面設計S-005/S-006/S-007、`テストケースレビュー観点.md`、`テスト方針.md`。
 - Produces: 承認済みの`TC-APR-*`、受入条件・テスト・実テストの対応表、テスト構成・責務対応表、P0レビュー入力資料。
 
@@ -59,6 +61,7 @@ git commit -m "docs: define approval and rejection test cases"
 ### Task 1: 承認・差し戻しのドメイン、DB、API
 
 **Files:**
+
 - Modify: `backend/src/main/java/com/example/dailyreport/report/entity/DailyReportEntity.java`
 - Create: `backend/src/main/java/com/example/dailyreport/report/dto/RejectRequest.java`
 - Create: `backend/src/main/java/com/example/dailyreport/report/dto/ApproveResponse.java`
@@ -72,6 +75,7 @@ git commit -m "docs: define approval and rejection test cases"
 - Modify: `backend/src/test/java/com/example/dailyreport/report/support/DailyReportTestSupport.java`
 
 **Interfaces:**
+
 - Consumes: `AuthenticatedUser`, `DailyReportRepository`, `DailyReportAccessPolicy`, `AppUser`, `ApprovalStatus`。
 - Produces: `POST /api/daily-reports/{reportId}/approve`、`POST /api/daily-reports/{reportId}/reject`、Entityの承認監査項目、詳細・一覧DTOの承認監査項目。
 
@@ -237,6 +241,7 @@ git commit -m "feat: add daily report approval and rejection API"
 ### Task 2: 未承認一覧APIと詳細APIの監査情報
 
 **Files:**
+
 - Create: `backend/src/main/java/com/example/dailyreport/report/DailyReportPendingApprovalService.java`
 - Create: `backend/src/main/java/com/example/dailyreport/report/controller/DailyReportPendingApprovalController.java`
 - Modify: `backend/src/main/java/com/example/dailyreport/report/entity/DailyReportRepository.java`
@@ -245,6 +250,7 @@ git commit -m "feat: add daily report approval and rejection API"
 - Modify: `backend/src/test/java/com/example/dailyreport/report/support/DailyReportTestSupport.java`
 
 **Interfaces:**
+
 - Consumes: `DailyReportSearchService`と同じ日付範囲検証方針、`DailyReportAccessPolicy.permittedGroupIds`、`DailyReportListItemResponse`。
 - Produces: `GET /api/daily-reports/pending-approvals`、担当グループ限定の未承認一覧、詳細APIの監査情報。
 
@@ -317,6 +323,7 @@ git commit -m "feat: add pending daily report approvals endpoint"
 ### Task 3: フロントエンドAPIと純粋ロジック
 
 **Files:**
+
 - Modify: `frontend/src/dailyReport/types.ts`
 - Modify: `frontend/src/dailyReport/dailyReportApi.ts`
 - Create: `frontend/src/dailyReport/dailyReportApproval.ts`
@@ -324,6 +331,7 @@ git commit -m "feat: add pending daily report approvals endpoint"
 - Modify: `frontend/test/dailyReportApi.test.ts`
 
 **Interfaces:**
+
 - Consumes: `getJson`, `postJsonWithCsrf`, `ApprovalStatus`、既存の日報DTO。
 - Produces: `approveDailyReport`、`rejectDailyReport`、`fetchPendingApprovals`、拒否コメント検証、当月検索条件。
 
@@ -414,6 +422,7 @@ git commit -m "feat: add approval frontend API client"
 ### Task 4: 未承認一覧・日報詳細・差し戻しUI
 
 **Files:**
+
 - Create: `frontend/src/dailyReport/DailyReportPendingApprovalList.tsx`
 - Create: `frontend/src/dailyReport/DailyReportDetail.tsx`
 - Modify: `frontend/src/app/App.tsx`
@@ -422,6 +431,7 @@ git commit -m "feat: add approval frontend API client"
 - Create: `frontend/test/DailyReportApprovalPanel.test.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 1/2のAPI、Task 3の型・API・検証関数、`CurrentUser`、既存の401処理。
 - Produces: 上長専用未承認一覧、認可範囲の日報詳細、承認ボタン、差し戻し入力ダイアログ、詳細リンク。
 
@@ -505,11 +515,13 @@ git commit -m "feat: add daily report approval screens"
 ### Task 5: 承認・差し戻しのMock E2E
 
 **Files:**
+
 - Create: `frontend/e2e/approval-rejection.spec.ts`
 - Create: `frontend/e2e/support/dailyReportApprovalMocks.ts`
 - Modify: `frontend/e2e/support/dailyReportMocks.ts`
 
 **Interfaces:**
+
 - Consumes: 実装済みのログインモック、静的Frontend配信、承認API、差し戻しAPI、詳細API、未承認一覧API。
 - Produces: `RT-APR-E2E-001`、`RT-APR-E2E-002`、`RT-APR-E2E-003`のPlaywright証跡。
 
@@ -577,6 +589,7 @@ git commit -m "test: cover daily report approval and rejection flow"
 ### Task 6: 実装後レビュー、指摘、品質ゲート
 
 **Files:**
+
 - Modify: `docs/AI活用開発研究/作業記録/日報承認差戻し_作業記録.md`
 - Modify: `docs/AI活用開発研究/作業記録/日報承認差戻し_受入条件レビュー.md`
 - Modify: `docs/AI活用開発研究/作業記録/日報承認差戻し_テストケース.md`
@@ -587,6 +600,7 @@ git commit -m "test: cover daily report approval and rejection flow"
 - Modify: `docs/AI活用開発研究/作業記録/日報登録編集_指摘一覧.md`
 
 **Interfaces:**
+
 - Consumes: 設計書の`TC-APR-*`、実装差分、各テスト結果、P0/P1レビュー結果。
 - Produces: 作業記録、レビュー記録、指摘の標準化判定、最終品質ゲート結果。
 
