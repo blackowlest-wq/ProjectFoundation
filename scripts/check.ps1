@@ -1,6 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [ValidateSet('Quick', 'PrePush', 'Full', 'Oracle', 'All')]
+    [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All')]
     [string]$Mode = 'Quick',
     [string]$PushInput,
     [switch]$Offline,
@@ -8,7 +8,16 @@ param(
     [string]$CiTask = 'None',
     [switch]$AllowDdl,
     [string]$DdlScript,
-    [string]$OracleConfigPath
+    [string]$OracleConfigPath,
+    [ValidateSet('Docs', 'Frontend', 'Backend', 'Harness', 'Mixed')]
+    [string]$Scope,
+    [ValidateSet('Frontend', 'Backend', 'Harness')]
+    [string]$FocusedUnitScope,
+    [string]$FocusedUnitTarget,
+    [string]$FocusedUnitNotApplicableReason,
+    [switch]$DisplayRequirement,
+    [string]$BrowserCase,
+    [string]$BrowserManualReason
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,12 +29,14 @@ function New-CheckDefinition {
         [string]$Name,
         [string]$Command,
         [object[]]$Arguments = @(),
-        [scriptblock]$Action
+        [scriptblock]$Action,
+        [string[]]$DependsOn = @()
     )
 
     $definition = [ordered]@{
         Name = $Name
         Action = $Action
+        DependsOn = @($DependsOn)
     }
     if ($PSBoundParameters.ContainsKey('Command')) {
         $definition.Command = $Command
@@ -36,11 +47,18 @@ function New-CheckDefinition {
 }
 
 function New-CoverageReportCheckDefinition {
-    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string[]]$Paths)
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string[]]$Paths,
+        [string]$FailureCode = 'COVERAGE_REPORT_MISSING',
+        [string[]]$DependsOn = @()
+    )
 
-    New-CheckDefinition -Name $Name -Action {
+    New-CheckDefinition -Name $Name -DependsOn $DependsOn -Action {
         $missing = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
-        if ($missing.Count -gt 0) { throw "Coverage reports are missing: $($missing -join ', ')" }
+        if ($missing.Count -gt 0) {
+            throw "${FailureCode}: Coverage reports are missing: $($missing -join ', ')"
+        }
         Write-Host 'Coverage reports:'
         $Paths | ForEach-Object { Write-Host " - $_" }
     }.GetNewClosure()
@@ -142,6 +160,217 @@ function Get-QuickCheckDefinitions {
     $definitions.Add((New-CheckDefinition -Name 'staged-secrets' -Command $GitleaksCommand -Arguments @(
         'git', '--pre-commit', '--staged', '--redact', '--verbose', '--config', (Join-Path $RepoRoot '.gitleaks.toml')
     )))
+    $definitions
+}
+
+function Get-WorkingTreeChangedFiles {
+    param([Parameter(Mandatory)][string]$RepoRoot)
+
+    $tracked = @(git -c core.quotePath=false -C $RepoRoot diff --name-only HEAD)
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Unable to read tracked working-tree changes.'
+    }
+
+    $untracked = @(git -c core.quotePath=false -C $RepoRoot ls-files --others --exclude-standard)
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Unable to read untracked working-tree files.'
+    }
+
+    @($tracked + $untracked |
+        ForEach-Object { $_.Replace('\', '/') } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+}
+
+function New-SimpleFocusedUnitCheckDefinition {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][ValidateSet('Frontend', 'Backend', 'Harness')][string]$Layer,
+        [string]$Target,
+        [string]$NotApplicableReason,
+        [Parameter(Mandatory)][string]$NpmCommand,
+        [Parameter(Mandatory)][string]$MavenCommand,
+        [switch]$Offline
+    )
+
+    $hasTarget = -not [string]::IsNullOrWhiteSpace($Target)
+    $hasReason = -not [string]::IsNullOrWhiteSpace($NotApplicableReason)
+    if ($hasTarget -eq $hasReason) {
+        throw 'Simple Mode requires exactly one of FocusedUnitTarget or FocusedUnitNotApplicableReason.'
+    }
+
+    if ($hasReason) {
+        return New-CheckDefinition -Name 'simple-focused-unit-na' -Action {
+            Write-Host "N/A: $NotApplicableReason"
+        }.GetNewClosure()
+    }
+
+    switch ($Layer) {
+        'Frontend' {
+            if ($Target -notmatch '^test/[A-Za-z0-9._/-]+\.(test|spec)\.(ts|tsx)$') {
+                throw 'Frontend FocusedUnitTarget must be a test/*.test.ts, test/*.test.tsx, test/*.spec.ts, or test/*.spec.tsx path.'
+            }
+            New-CheckDefinition -Name 'simple-focused-unit' -Command $NpmCommand -Arguments @(
+                '--prefix', 'frontend', 'test', '--', $Target
+            )
+        }
+        'Backend' {
+            if ($Target -notmatch '^[A-Za-z0-9_]+(?:#[A-Za-z0-9_*]+)?$') {
+                throw 'Backend FocusedUnitTarget must be a test class or class#method name.'
+            }
+            New-CheckDefinition -Name 'simple-focused-unit' -Command $MavenCommand -Arguments (
+                Get-MavenArguments -Offline:$Offline -Goals @("-Dtest=$Target", 'test')
+            )
+        }
+        'Harness' {
+            $normalizedTarget = $Target.Replace('\', '/')
+            if ($normalizedTarget -notmatch '^scripts/[A-Za-z0-9._/-]+\.tests\.ps1$') {
+                throw 'Harness FocusedUnitTarget must be a scripts/*.tests.ps1 path.'
+            }
+            $targetPath = Join-Path $RepoRoot $normalizedTarget
+            if (-not (Test-Path -LiteralPath $targetPath -PathType Leaf)) {
+                throw "Harness FocusedUnitTarget does not exist: $normalizedTarget"
+            }
+            New-CheckDefinition -Name 'simple-focused-unit' -Command 'pwsh' -Arguments @(
+                '-NoProfile', '-File', $targetPath
+            )
+        }
+    }
+}
+
+function New-SimpleBrowserCheckDefinition {
+    param(
+        [Parameter(Mandatory)][string]$NpmCommand,
+        [string]$BrowserCase,
+        [string]$BrowserManualReason
+    )
+
+    $hasCase = -not [string]::IsNullOrWhiteSpace($BrowserCase)
+    $hasReason = -not [string]::IsNullOrWhiteSpace($BrowserManualReason)
+    if ($hasCase -eq $hasReason) {
+        throw 'DisplayRequirement requires exactly one of BrowserCase or BrowserManualReason.'
+    }
+
+    if ($hasCase) {
+        return New-CheckDefinition -Name 'simple-frontend-browser' -Command $NpmCommand -Arguments @(
+            '--prefix', 'frontend', 'exec', '--', 'playwright', 'test', '--grep', $BrowserCase
+        )
+    }
+
+    New-CheckDefinition -Name 'simple-browser-manual' -Action {
+        Write-Host "Manual browser fallback: $BrowserManualReason"
+    }.GetNewClosure()
+}
+
+function Get-SimpleCheckDefinitions {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][ValidateSet('Docs', 'Frontend', 'Backend', 'Harness', 'Mixed')][string]$Scope,
+        [string]$FocusedUnitScope,
+        [string]$FocusedUnitTarget,
+        [string]$FocusedUnitNotApplicableReason,
+        [switch]$DisplayRequirement,
+        [string]$BrowserCase,
+        [string]$BrowserManualReason,
+        [string[]]$ChangedFiles = @(),
+        [string]$NpmCommand = 'npm.cmd',
+        [string]$MavenCommand = 'backend/mvnw.cmd',
+        [switch]$Offline
+    )
+
+    $hasBrowserCase = -not [string]::IsNullOrWhiteSpace($BrowserCase)
+    $hasBrowserReason = -not [string]::IsNullOrWhiteSpace($BrowserManualReason)
+    if (-not [string]::IsNullOrWhiteSpace($FocusedUnitScope) -and $FocusedUnitScope -notin @('Frontend', 'Backend', 'Harness')) {
+        throw 'FocusedUnitScope must be Frontend, Backend, or Harness.'
+    }
+    if ($hasBrowserCase -and $hasBrowserReason) {
+        throw 'BrowserCase and BrowserManualReason cannot be used together.'
+    }
+    if ($DisplayRequirement -and -not ($hasBrowserCase -xor $hasBrowserReason)) {
+        throw 'DisplayRequirement requires BrowserCase or BrowserManualReason.'
+    }
+    if (-not $DisplayRequirement -and ($hasBrowserCase -or $hasBrowserReason)) {
+        throw 'BrowserCase or BrowserManualReason requires DisplayRequirement.'
+    }
+    if ($DisplayRequirement -and $Scope -notin @('Frontend', 'Mixed')) {
+        throw 'DisplayRequirement requires Frontend or Mixed Scope.'
+    }
+
+    $focusedScope = $FocusedUnitScope
+    if ($Scope -eq 'Mixed' -and [string]::IsNullOrWhiteSpace($focusedScope)) {
+        throw 'Mixed Scope requires FocusedUnitScope.'
+    }
+    if ($Scope -in @('Frontend', 'Backend', 'Harness') -and [string]::IsNullOrWhiteSpace($focusedScope)) {
+        $focusedScope = $Scope
+    }
+
+    $normalizedFiles = @($ChangedFiles |
+        ForEach-Object { $_.Replace('\', '/') } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $definitions = [System.Collections.Generic.List[object]]::new()
+
+    if ($Scope -eq 'Docs') {
+        if (-not [string]::IsNullOrWhiteSpace($FocusedUnitTarget)) {
+            throw 'Docs Scope does not accept a FocusedUnitTarget.'
+        }
+        if ([string]::IsNullOrWhiteSpace($FocusedUnitNotApplicableReason)) {
+            throw 'Docs Scope requires FocusedUnitNotApplicableReason.'
+        }
+        $definitions.Add((New-CheckDefinition -Name 'simple-focused-unit-na' -Action {
+                    Write-Host "N/A: $FocusedUnitNotApplicableReason"
+                }.GetNewClosure()))
+    }
+    else {
+        $definitions.Add((New-SimpleFocusedUnitCheckDefinition -RepoRoot $RepoRoot -Layer $focusedScope `
+                -Target $FocusedUnitTarget -NotApplicableReason $FocusedUnitNotApplicableReason `
+                -NpmCommand $NpmCommand -MavenCommand $MavenCommand -Offline:$Offline))
+    }
+
+    if ($Scope -in @('Frontend', 'Mixed')) {
+        $definitions.Add((New-CheckDefinition -Name 'simple-frontend-lint' -Command $NpmCommand -Arguments @(
+                    '--prefix', 'frontend', 'run', 'lint'
+                )))
+        $definitions.Add((New-CheckDefinition -Name 'simple-frontend-typecheck' -Command $NpmCommand -Arguments @(
+                    '--prefix', 'frontend', 'run', 'typecheck'
+                )))
+        $definitions.Add((New-CheckDefinition -Name 'simple-frontend-build' -Command $NpmCommand -Arguments @(
+                    '--prefix', 'frontend', 'run', 'build'
+                )))
+    }
+
+    if ($Scope -in @('Backend', 'Mixed')) {
+        $definitions.Add((New-CheckDefinition -Name 'simple-backend-spotless' -Command $MavenCommand -Arguments (
+                    Get-MavenArguments -Offline:$Offline -Goals @('spotless:check')
+                )))
+        $definitions.Add((New-CheckDefinition -Name 'simple-backend-checkstyle' -Command $MavenCommand -Arguments (
+                    Get-MavenArguments -Offline:$Offline -Goals @('checkstyle:check')
+                )))
+        $definitions.Add((New-CheckDefinition -Name 'simple-backend-test-compile' -Command $MavenCommand -Arguments (
+                    Get-MavenArguments -Offline:$Offline -Goals @('test-compile')
+                )))
+    }
+
+    $markdownFiles = @($normalizedFiles | Where-Object { $_ -match '\.md$' })
+    if ($Scope -eq 'Docs') {
+        if ($markdownFiles.Count -eq 0) {
+            throw 'Docs Scope requires at least one changed Markdown file.'
+        }
+        $definitions.Add((New-CheckDefinition -Name 'simple-docs-markdown-lint' -Command $NpmCommand -Arguments (@(
+                    'run', 'lint:markdown', '--', '--no-globs'
+                ) + $markdownFiles)))
+    }
+    elseif ($Scope -eq 'Harness' -and $markdownFiles.Count -gt 0) {
+        $definitions.Add((New-CheckDefinition -Name 'simple-harness-markdown-lint' -Command $NpmCommand -Arguments (@(
+                    'run', 'lint:markdown', '--', '--no-globs'
+                ) + $markdownFiles)))
+    }
+
+    if ($DisplayRequirement) {
+        $definitions.Add((New-SimpleBrowserCheckDefinition -NpmCommand $NpmCommand `
+                -BrowserCase $BrowserCase -BrowserManualReason $BrowserManualReason))
+    }
+
     $definitions
 }
 
@@ -389,7 +618,9 @@ function Get-CiTaskDefinitions {
             $arguments += @('-Pcoverage', 'verify')
             @(
                 New-CheckDefinition -Name 'backend-coverage' -Command 'pwsh' -Arguments $arguments
-                New-CoverageReportCheckDefinition -Name 'backend-coverage-report' -Paths @(
+                New-CoverageReportCheckDefinition -Name 'backend-coverage-report' -FailureCode 'JACOCO_REPORT_MISSING' `
+                    -DependsOn @('backend-coverage') -Paths @(
+                    (Join-Path $RepoRoot 'backend/target/jacoco.exec')
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/index.html')
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.xml')
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.csv')
@@ -474,6 +705,11 @@ function Invoke-QualityChecks {
 
     foreach ($definition in $Definitions) {
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $failedDependencies = @($definition.DependsOn | Where-Object { $Failures -contains $_ })
+        if ($failedDependencies.Count -gt 0) {
+            Write-Warning "SKIP $($definition.Name): dependency failed: $($failedDependencies -join ', ')"
+            continue
+        }
         Write-Host "==> $($definition.Name)"
         try {
             if ($definition.Action) {
@@ -526,7 +762,7 @@ function Invoke-QualityRunner {
     param(
         [Parameter(Mandatory)]
         [string]$RepoRoot,
-        [ValidateSet('Quick', 'PrePush', 'Full', 'Oracle', 'All')]
+        [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All')]
         [string]$Mode = 'Quick',
         [string]$PushInput,
         [switch]$Offline,
@@ -534,7 +770,14 @@ function Invoke-QualityRunner {
         [string]$CiTask = 'None',
         [switch]$AllowDdl,
         [string]$DdlScript,
-        [string]$OracleConfigPath
+        [string]$OracleConfigPath,
+        [string]$Scope,
+        [string]$FocusedUnitScope,
+        [string]$FocusedUnitTarget,
+        [string]$FocusedUnitNotApplicableReason,
+        [switch]$DisplayRequirement,
+        [string]$BrowserCase,
+        [string]$BrowserManualReason
     )
 
     $failures = [System.Collections.Generic.List[string]]::new()
@@ -549,7 +792,31 @@ function Invoke-QualityRunner {
 
     Push-Location $RepoRoot
     try {
-        if ($CiTask -ne 'None') {
+        if ($Mode -eq 'Simple' -and $CiTask -ne 'None') {
+            $failures.Add('simple-definition')
+            Write-Warning 'Simple Mode cannot be combined with -CiTask.'
+        }
+        elseif ($Mode -eq 'Simple') {
+            try {
+                if ([string]::IsNullOrWhiteSpace($Scope)) {
+                    throw 'Simple Mode requires -Scope.'
+                }
+
+                $changedFiles = @(Get-WorkingTreeChangedFiles -RepoRoot $RepoRoot)
+                $definitions = @(Get-SimpleCheckDefinitions -RepoRoot $RepoRoot -Scope $Scope `
+                    -FocusedUnitScope $FocusedUnitScope -FocusedUnitTarget $FocusedUnitTarget `
+                    -FocusedUnitNotApplicableReason $FocusedUnitNotApplicableReason `
+                    -DisplayRequirement:$DisplayRequirement -BrowserCase $BrowserCase `
+                    -BrowserManualReason $BrowserManualReason -ChangedFiles $changedFiles `
+                    -NpmCommand $npmCommand -MavenCommand $mavenCommand -Offline:$Offline)
+                Invoke-QualityChecks -Definitions $definitions -Failures $failures
+            }
+            catch {
+                $failures.Add('simple-definition')
+                Write-Warning "FAIL simple-definition: $($_.Exception.Message)"
+            }
+        }
+        elseif ($CiTask -ne 'None') {
             $definitions = @(Get-CiTaskDefinitions -CiTask $CiTask -RepoRoot $RepoRoot -NpmCommand $npmCommand `
                 -MavenCommand $mavenCommand -OracleScript (Join-Path $RepoRoot 'backend/scripts/test-oracle.ps1') `
                 -OracleConfigPath $OracleConfigPath -GitleaksCommand $gitleaksCommand -Offline:$Offline)
@@ -622,5 +889,8 @@ if ($MyInvocation.InvocationName -ne '.') {
 
     $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
     exit (Invoke-QualityRunner -RepoRoot $repoRoot -Mode $Mode -PushInput $PushInput -Offline:$Offline `
-        -CiTask $CiTask -AllowDdl:$AllowDdl -DdlScript $DdlScript -OracleConfigPath $OracleConfigPath)
+        -CiTask $CiTask -AllowDdl:$AllowDdl -DdlScript $DdlScript -OracleConfigPath $OracleConfigPath `
+        -Scope $Scope -FocusedUnitScope $FocusedUnitScope -FocusedUnitTarget $FocusedUnitTarget `
+        -FocusedUnitNotApplicableReason $FocusedUnitNotApplicableReason `
+        -DisplayRequirement:$DisplayRequirement -BrowserCase $BrowserCase -BrowserManualReason $BrowserManualReason)
 }

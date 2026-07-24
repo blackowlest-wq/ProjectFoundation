@@ -194,6 +194,32 @@ h2 {
   gap: 12px;
 }
 
+.detail-action-groups {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.detail-actions {
+  gap: 16px;
+}
+
+.status-pill.status-draft {
+  border-color: #64748b;
+}
+
+.status-pill.status-pending {
+  border-color: #2563eb;
+}
+
+.status-pill.status-rejected {
+  border-color: #e11d48;
+}
+
+.status-pill.status-approved {
+  border-color: #059669;
+}
+
 .button-link {
   align-items: center;
   background: #2563eb;

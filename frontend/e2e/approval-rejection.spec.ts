@@ -61,6 +61,36 @@ test('TC-APR-003 RT-APR-E2E-001 manager approves a pending report from the detai
   await expect(pendingPanel.getByRole('cell', { name: 'R-PENDING-001', exact: true })).toHaveCount(0);
 });
 
+test('TC-DUI-001 TC-DUI-002 TC-DUI-003 RT-DUI-003 verifies the daily report detail presentation in a browser', async ({ page }) => {
+  await mockApprovalApis(page, { user: manager });
+  await mockStaticFrontend(page);
+  await loginAsManager(page);
+  await page.getByRole('link', { name: '詳細', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: '日報詳細' })).toBeVisible();
+  await expect(page.locator('.detail-heading')).not.toContainText('R-PENDING-001');
+  await expect(page.locator('.detail-action-groups > .detail-actions')).toHaveCount(2);
+
+  const presentationStyles = await page.locator('.detail-action-groups').evaluate((element) => {
+    const actionGroupStyle = getComputedStyle(element);
+    const actionRowStyle = getComputedStyle(element.querySelector('.detail-actions')!);
+    const statusStyle = getComputedStyle(document.querySelector('.status-pill')!);
+    return {
+      actionGroupGap: actionGroupStyle.gap,
+      actionRowGap: actionRowStyle.gap,
+      statusBackground: statusStyle.backgroundColor,
+      statusBorderTop: statusStyle.borderTopColor,
+    };
+  });
+
+  expect(presentationStyles).toEqual({
+    actionGroupGap: '16px',
+    actionRowGap: '16px',
+    statusBackground: 'rgb(239, 246, 255)',
+    statusBorderTop: 'rgb(37, 99, 235)',
+  });
+});
+
 test('TC-APR-007 RT-APR-E2E-002 manager rejects a pending report and the employee updates then resubmits it', async ({ page, browser }) => {
   const state = createApprovalMockState();
   await mockApprovalApis(page, { user: manager, state });

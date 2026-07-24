@@ -110,6 +110,63 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/reject')).toBe(0);
   });
 
+  it('TC-DUI-001 RT-DUI-001 does not render the report ID below the detail heading', async () => {
+    installFrontendFetch({
+      reportDetails: {
+        'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })),
+      },
+    });
+
+    await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
+
+    expect(document.body.textContent).not.toContain('R-PENDING-001');
+    expect(document.body.textContent).toContain('山田 太郎の日報');
+  });
+
+  it('TC-DUI-002 RT-DUI-002 keeps approval and navigation actions in separated detail action groups', async () => {
+    installFrontendFetch({
+      reportDetails: {
+        'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })),
+      },
+    });
+
+    await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
+
+    const actionGroups = document.querySelectorAll('.detail-action-groups > .detail-actions');
+    expect(actionGroups).toHaveLength(2);
+    expect(document.querySelector('[aria-label="承認操作"]')?.textContent).toContain('承認する');
+    expect(document.querySelector('[aria-label="詳細画面の遷移"]')?.textContent).toContain('一覧へ戻る');
+  });
+
+  it('TC-DUI-003 RT-DUI-003 applies full pending status styling and detail action spacing', async () => {
+    installFrontendFetch({
+      reportDetails: {
+        'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })),
+      },
+    });
+
+    await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
+
+    expect(document.querySelector('.status-pill')?.classList.contains('status-pending')).toBe(true);
+    expect(document.querySelector('.detail-action-groups')).not.toBeNull();
+    expect(document.querySelector('.detail-actions')).not.toBeNull();
+  });
+
+  it('TC-DUI-004 RT-DUI-004 retains the pending status class and approval actions', async () => {
+    installFrontendFetch({
+      reportDetails: {
+        'R-PENDING-001': respondJson(buildReportDetail('R-PENDING-001', { approvalStatus: 'PENDING' })),
+      },
+    });
+
+    await renderUi(<DailyReportDetail user={managerUser} reportId="R-PENDING-001" />);
+
+    expect(document.querySelector('.status-pill')?.classList.contains('status-pending')).toBe(true);
+    expect(buttonByText('承認する')).toBeTruthy();
+    expect(buttonByText('差し戻しする')).toBeTruthy();
+    expect(Array.from(document.querySelectorAll('a')).some((link) => link.textContent === '一覧へ戻る')).toBe(true);
+  });
+
   it('TC-APR-010 RT-APR-UI-004 shows approval audit values after approving a pending report', async () => {
     installFrontendFetch({
       reportDetails: {

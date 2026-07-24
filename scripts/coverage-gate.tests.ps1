@@ -30,6 +30,7 @@ $bootstrapText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/b
 $pomText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'backend/pom.xml')
 $qualityWorkflowText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot '.github/workflows/quality.yml')
 $oracleWorkflowText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot '.github/workflows/oracle.yml')
+$coverageGateText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/check.ps1')
 $wrapperMode = @(git -C $repoRoot ls-files -s backend/mvnw)[0].Split()[0]
 $ratchetReference = [regex]::Match($pomText, '<ratchetFrom>(?<reference>[^<]+)</ratchetFrom>').Groups['reference'].Value
 
@@ -47,6 +48,12 @@ Assert-Condition ($backendArguments[2] -eq $oracleScript) 'Backend coverage must
 Assert-Condition ($backendArguments -contains '-Pcoverage') 'Backend coverage profile is missing.'
 Assert-Condition ($backendArguments -contains 'verify') 'Backend coverage must run Maven verify.'
 Assert-Condition ($backendNames -contains 'backend-coverage-report') 'Backend report check is missing.'
+Assert-Condition (@($backend[1].DependsOn) -contains 'backend-coverage') `
+    'Backend report check must depend on the coverage command.'
+Assert-Condition ($coverageGateText -match 'JACOCO_REPORT_MISSING') `
+    'Backend report checks must expose a stable failure code.'
+Assert-Condition ($coverageGateText -match 'backend/target/jacoco\.exec') `
+    'Backend coverage must verify the JaCoCo data file.'
 Assert-Condition ($unitCommand.Name -eq 'backend-unit-test') 'BackendUnit name is incorrect.'
 Assert-Condition ($unitArguments -contains 'test') 'BackendUnit must run Maven test.'
 Assert-Condition ($unitArguments -contains '-Dtest=ApiExceptionHandlerTest,BusinessEventLoggingTest,MasterDataRepositoryTest,RequestIdFilterTest,RequestMetadataInterceptorTest,TimeRulesTest') `

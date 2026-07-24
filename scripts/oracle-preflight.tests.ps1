@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $preflightScript = Join-Path $repoRoot 'scripts/doctor-backend-oracle.ps1'
 $preflightText = Get-Content -Raw -Encoding UTF8 $preflightScript
+$oracleWorkflowText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot '.github/workflows/oracle.yml')
 
 function Assert-Condition {
     param([Parameter(Mandatory)][bool]$Condition, [Parameter(Mandatory)][string]$Message)
@@ -91,9 +92,14 @@ DAILY_REPORT_ALLOW_DDL=false
     Assert-Condition ($wrapperOutput -match 'Oracle test config key is required: DAILY_REPORT_DB_PASSWORD') `
         'Oracle wrapper must reach PowerShell configuration validation.'
     if ($IsWindows) {
-        Assert-Condition ($wrapperOutput -notmatch 'is was unexpected') `
+    Assert-Condition ($wrapperOutput -notmatch 'is was unexpected') `
             'Oracle wrapper must not fail with a CMD parenthesis parsing error.'
     }
+
+    Assert-Condition ($oracleWorkflowText -notmatch 'continue-on-error:\s*true') `
+        'Oracle workflow must not convert test or coverage failure into success.'
+    Assert-Condition ($oracleWorkflowText -match 'if:\s*always\(\)') `
+        'Oracle workflow must preserve failure-time diagnostics.'
 
     $temporaryConfig = [IO.Path]::GetTempFileName()
     try {
