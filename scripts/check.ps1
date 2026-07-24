@@ -266,7 +266,7 @@ function Get-SimpleCheckDefinitions {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
         [Parameter(Mandatory)][ValidateSet('Docs', 'Frontend', 'Backend', 'Harness', 'Mixed')][string]$Scope,
-        [ValidateSet('Frontend', 'Backend', 'Harness')][string]$FocusedUnitScope,
+        [string]$FocusedUnitScope,
         [string]$FocusedUnitTarget,
         [string]$FocusedUnitNotApplicableReason,
         [switch]$DisplayRequirement,
@@ -280,6 +280,9 @@ function Get-SimpleCheckDefinitions {
 
     $hasBrowserCase = -not [string]::IsNullOrWhiteSpace($BrowserCase)
     $hasBrowserReason = -not [string]::IsNullOrWhiteSpace($BrowserManualReason)
+    if (-not [string]::IsNullOrWhiteSpace($FocusedUnitScope) -and $FocusedUnitScope -notin @('Frontend', 'Backend', 'Harness')) {
+        throw 'FocusedUnitScope must be Frontend, Backend, or Harness.'
+    }
     if ($hasBrowserCase -and $hasBrowserReason) {
         throw 'BrowserCase and BrowserManualReason cannot be used together.'
     }
