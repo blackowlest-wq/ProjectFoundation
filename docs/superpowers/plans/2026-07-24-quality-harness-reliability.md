@@ -88,7 +88,7 @@ BackendCoverageの必須パスは次の4件とする。
     backend/target/site/jacoco/jacoco.xml
     backend/target/site/jacoco/jacoco.csv
 
-Maven非0終了はテストまたはthreshold側の失敗として非0を維持する。
+Maven非0終了はテストまたはthreshold側の失敗として非0を維持する。report checkにはbackend-coverageへの依存を設定し、前段が失敗した場合は二次的な成果物欠落をfailure一覧へ追加せず、SKIP理由だけを出力する。
 
 - [ ] Step 3: 契約テストとBackendCoverageを実行する
 

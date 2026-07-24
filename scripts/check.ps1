@@ -20,12 +20,14 @@ function New-CheckDefinition {
         [string]$Name,
         [string]$Command,
         [object[]]$Arguments = @(),
-        [scriptblock]$Action
+        [scriptblock]$Action,
+        [string[]]$DependsOn = @()
     )
 
     $definition = [ordered]@{
         Name = $Name
         Action = $Action
+        DependsOn = @($DependsOn)
     }
     if ($PSBoundParameters.ContainsKey('Command')) {
         $definition.Command = $Command
@@ -36,11 +38,18 @@ function New-CheckDefinition {
 }
 
 function New-CoverageReportCheckDefinition {
-    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string[]]$Paths)
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string[]]$Paths,
+        [string]$FailureCode = 'COVERAGE_REPORT_MISSING',
+        [string[]]$DependsOn = @()
+    )
 
-    New-CheckDefinition -Name $Name -Action {
+    New-CheckDefinition -Name $Name -DependsOn $DependsOn -Action {
         $missing = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
-        if ($missing.Count -gt 0) { throw "Coverage reports are missing: $($missing -join ', ')" }
+        if ($missing.Count -gt 0) {
+            throw "${FailureCode}: Coverage reports are missing: $($missing -join ', ')"
+        }
         Write-Host 'Coverage reports:'
         $Paths | ForEach-Object { Write-Host " - $_" }
     }.GetNewClosure()
@@ -389,7 +398,9 @@ function Get-CiTaskDefinitions {
             $arguments += @('-Pcoverage', 'verify')
             @(
                 New-CheckDefinition -Name 'backend-coverage' -Command 'pwsh' -Arguments $arguments
-                New-CoverageReportCheckDefinition -Name 'backend-coverage-report' -Paths @(
+                New-CoverageReportCheckDefinition -Name 'backend-coverage-report' -FailureCode 'JACOCO_REPORT_MISSING' `
+                    -DependsOn @('backend-coverage') -Paths @(
+                    (Join-Path $RepoRoot 'backend/target/jacoco.exec')
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/index.html')
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.xml')
                     (Join-Path $RepoRoot 'backend/target/site/jacoco/jacoco.csv')
@@ -474,6 +485,11 @@ function Invoke-QualityChecks {
 
     foreach ($definition in $Definitions) {
         $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $failedDependencies = @($definition.DependsOn | Where-Object { $Failures -contains $_ })
+        if ($failedDependencies.Count -gt 0) {
+            Write-Warning "SKIP $($definition.Name): dependency failed: $($failedDependencies -join ', ')"
+            continue
+        }
         Write-Host "==> $($definition.Name)"
         try {
             if ($definition.Action) {
