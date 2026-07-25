@@ -53,7 +53,7 @@ test('TC-APR-003 RT-APR-E2E-001 manager approves a pending report from the detai
 
   await expect(page.locator('.status-pill')).toHaveText('承認済み');
   await expect(page.locator('.detail-grid').getByText('佐藤 花子', { exact: true })).toBeVisible();
-  await expect(page.getByText('2026-06-28T09:00:00+09:00', { exact: true })).toBeVisible();
+  await expect(page.getByText('2026-06-28 09:00:00', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '承認する' })).not.toBeVisible();
   await expect(page.getByRole('button', { name: '差し戻しする' })).not.toBeVisible();
   await page.getByRole('link', { name: '一覧へ戻る' }).click();
@@ -111,7 +111,7 @@ test('TC-APR-007 RT-APR-E2E-002 manager rejects a pending report and the employe
   await expect(page.locator('.status-pill')).toHaveText('差戻し');
   await expect(page.locator('.detail-grid').getByText('佐藤 花子', { exact: true })).toBeVisible();
   await expect(page.getByText('作業内容を補足してください。', { exact: true })).toBeVisible();
-  await expect(page.getByText('2026-06-28T09:05:00+09:00', { exact: true })).toBeVisible();
+  await expect(page.getByText('2026-06-28 09:05:00', { exact: true })).toBeVisible();
 
   const employeeContext = await browser.newContext();
   const employeePage = await employeeContext.newPage();
@@ -155,7 +155,7 @@ test('TC-APR-007 RT-APR-E2E-002 manager rejects a pending report and the employe
   ]);
   await employeePage.goto('/daily-reports/R-PENDING-001');
   await expect(employeePage.locator('.status-pill')).toHaveText('承認待ち');
-  await expect(employeePage.getByText('2026-06-28T10:00:00+09:00', { exact: true })).toBeVisible();
+  await expect(employeePage.getByText('2026-06-28 10:00:00', { exact: true })).toBeVisible();
   await expect(employeePage.getByText('佐藤 花子', { exact: true })).toBeVisible();
   await expect(employeePage.getByText('作業内容を補足してください。', { exact: true })).toBeVisible();
   await expect(employeePage.getByRole('link', { name: '編集する' })).not.toBeVisible();

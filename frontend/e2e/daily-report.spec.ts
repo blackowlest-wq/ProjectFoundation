@@ -299,7 +299,7 @@ test('employee can resubmit a rejected report from the edit screen', async ({ pa
   await expect(page.getByText('差戻しコメント')).toBeVisible();
   await expect(page.getByText('詳細を追記してください。')).toBeVisible();
   await expect(page.getByText('佐藤 上長')).toBeVisible();
-  await expect(page.getByText('2026-06-27T17:30:00+09:00')).toBeVisible();
+  await expect(page.getByText('2026-06-27 17:30:00')).toBeVisible();
   await page.getByLabel('備考').fill('E2Eで再提出');
   await page.getByRole('button', { name: '保存して提出' }).click();
 

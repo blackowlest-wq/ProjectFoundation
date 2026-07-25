@@ -30,7 +30,8 @@ function New-CheckDefinition {
         [string]$Command,
         [object[]]$Arguments = @(),
         [scriptblock]$Action,
-        [string[]]$DependsOn = @()
+        [string[]]$DependsOn = @(),
+        [string]$WorkingDirectory
     )
 
     $definition = [ordered]@{
@@ -41,6 +42,9 @@ function New-CheckDefinition {
     if ($PSBoundParameters.ContainsKey('Command')) {
         $definition.Command = $Command
         $definition.Arguments = @($Arguments)
+    }
+    if ($PSBoundParameters.ContainsKey('WorkingDirectory')) {
+        $definition.WorkingDirectory = $WorkingDirectory
     }
 
     [pscustomobject]$definition
@@ -240,6 +244,7 @@ function New-SimpleFocusedUnitCheckDefinition {
 
 function New-SimpleBrowserCheckDefinition {
     param(
+        [Parameter(Mandatory)][string]$RepoRoot,
         [Parameter(Mandatory)][string]$NpmCommand,
         [string]$BrowserCase,
         [string]$BrowserManualReason
@@ -252,13 +257,15 @@ function New-SimpleBrowserCheckDefinition {
     }
 
     if ($hasCase) {
+        # How: Playwrightの設定とtestDirをFrontendプロジェクト基準で解決する。
+        # Why not: npmの--prefixは依存解決先を変えるだけで、Playwrightの設定探索用カレントディレクトリを変えないため。
         return New-CheckDefinition -Name 'simple-frontend-browser' -Command $NpmCommand -Arguments @(
             '--prefix', 'frontend', 'exec', '--', 'playwright', 'test', '--grep', $BrowserCase
-        )
+        ) -WorkingDirectory (Join-Path $RepoRoot 'frontend')
     }
 
     New-CheckDefinition -Name 'simple-browser-manual' -Action {
-        Write-Host "Manual browser fallback: $BrowserManualReason"
+        throw "BROWSER_UNVERIFIED: $BrowserManualReason"
     }.GetNewClosure()
 }
 
@@ -367,7 +374,7 @@ function Get-SimpleCheckDefinitions {
     }
 
     if ($DisplayRequirement) {
-        $definitions.Add((New-SimpleBrowserCheckDefinition -NpmCommand $NpmCommand `
+        $definitions.Add((New-SimpleBrowserCheckDefinition -RepoRoot $RepoRoot -NpmCommand $NpmCommand `
                 -BrowserCase $BrowserCase -BrowserManualReason $BrowserManualReason))
     }
 
@@ -697,9 +704,20 @@ function Invoke-QualityChecks {
         [AllowEmptyCollection()]
         [System.Collections.Generic.List[string]]$Failures,
         [scriptblock]$CommandInvoker = {
-            param($Command, $Arguments)
-            & $Command @Arguments | Out-Host
-            $LASTEXITCODE
+            param($Command, $Arguments, $WorkingDirectory)
+            $hasWorkingDirectory = -not [string]::IsNullOrWhiteSpace($WorkingDirectory)
+            if ($hasWorkingDirectory) {
+                Push-Location $WorkingDirectory
+            }
+            try {
+                & $Command @Arguments | Out-Host
+                $LASTEXITCODE
+            }
+            finally {
+                if ($hasWorkingDirectory) {
+                    Pop-Location
+                }
+            }
         }
     )
 
@@ -717,7 +735,7 @@ function Invoke-QualityChecks {
                 $exitCode = 0
             }
             else {
-                $result = & $CommandInvoker $definition.Command @($definition.Arguments)
+                $result = & $CommandInvoker $definition.Command @($definition.Arguments) $definition.WorkingDirectory
                 $exitCode = if ($result -is [int]) { $result } else { [int]$result.ExitCode }
             }
             if ($exitCode -ne 0) {

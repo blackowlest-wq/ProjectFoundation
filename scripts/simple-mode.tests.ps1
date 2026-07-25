@@ -41,6 +41,19 @@ $browser = @(Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Frontend `
 $browserNames = @($browser | ForEach-Object Name)
 Assert-Condition ($browserNames -contains 'simple-frontend-browser') `
     'Display requirement must add exactly one focused browser definition.'
+$browserDefinition = $browser | Where-Object Name -eq 'simple-frontend-browser'
+Assert-Condition ($browserDefinition.WorkingDirectory -eq (Join-Path $repoRoot 'frontend')) `
+    'Focused browser definition must run from the frontend project directory.'
+
+$manual = @(Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Frontend `
+        -FocusedUnitScope Frontend -FocusedUnitTarget 'test/App.test.tsx' `
+        -DisplayRequirement -BrowserManualReason 'BrowserCase was not executed.' `
+        -ChangedFiles @('frontend/src/App.tsx', 'frontend/test/App.test.tsx'))
+$manualBrowser = $manual | Where-Object Name -eq 'simple-browser-manual'
+$manualFailures = [System.Collections.Generic.List[string]]::new()
+Invoke-QualityChecks -Definitions @($manualBrowser) -Failures $manualFailures
+Assert-Condition ($manualFailures -contains 'simple-browser-manual') `
+    'BrowserManualReason must not produce a passing quality check.'
 
 $backend = @(Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Backend `
         -FocusedUnitScope Backend -FocusedUnitTarget 'TimeRulesTest' `
