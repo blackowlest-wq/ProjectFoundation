@@ -8,6 +8,7 @@ import {
   validateDailyReportSearch,
   type DailyReportSearchCriteria,
 } from './dailyReportSearch';
+import { formatDateTime } from './dateTimeFormat';
 import type { ApprovalStatus, DailyReportListItem, HolidayType, HolidayTypeOption } from './types';
 
 const statusLabelByStatus: Record<ApprovalStatus, string> = {
@@ -237,9 +238,9 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
                 <td>{report.workTimeDisplay}</td>
                 <td>{formatMinutes(report.totalWorkItemMinutes)}</td>
                 <td>{statusLabelByStatus[report.approvalStatus]}</td>
-                <td>{report.submittedAt ?? '-'}</td>
+                <td>{formatDateTime(report.submittedAt)}</td>
                 <td>{report.approverName ?? '-'}</td>
-                <td>{report.approvedAt ?? '-'}</td>
+                <td>{formatDateTime(report.approvedAt)}</td>
                 <td><a href={`/daily-reports/${encodeURIComponent(report.reportId)}`}>詳細</a></td>
               </tr>
             ))}

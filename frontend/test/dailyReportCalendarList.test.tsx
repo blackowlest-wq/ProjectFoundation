@@ -38,9 +38,9 @@ describe('DailyReportCalendarList behavior from task-owned tests', () => {
           reportDate: '2026-07-15',
           workTimeDisplay: '09:00-18:00',
           totalWorkItemMinutes: 480,
-          submittedAt: null,
+          submittedAt: '2026-07-17T09:00:00+09:00',
           approverName: null,
-          approvedAt: null,
+          approvedAt: '2026-07-17T09:00:00+09:00',
         }),
       ]),
     });
@@ -51,7 +51,8 @@ describe('DailyReportCalendarList behavior from task-owned tests', () => {
     expect(document.querySelector('[aria-label="2026-07-15 承認待ち"]')).not.toBeNull();
     expect(document.body.textContent).toContain('通常勤務');
     expect(document.body.textContent).toContain('8:00');
-    expect(document.body.textContent).toContain('-');
+    expect(document.body.textContent).toContain('2026-07-17 09:00:00');
+    expect(document.body.textContent).not.toContain('2026-07-17T09:00:00+09:00');
     expect(Array.from(document.querySelectorAll('a')).find((link) => link.textContent === '詳細')?.getAttribute('href'))
       .toBe('/daily-reports/R%20%2F%3F');
   });

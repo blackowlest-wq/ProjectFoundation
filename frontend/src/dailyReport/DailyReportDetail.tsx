@@ -3,6 +3,7 @@ import type { CurrentUser } from '../auth/types';
 import type { ApiError } from '../shared/apiClient';
 import { approveDailyReport, fetchDailyReport, rejectDailyReport } from './dailyReportApi';
 import { validateRejectComment } from './dailyReportApproval';
+import { formatDateTime } from './dateTimeFormat';
 import type { ApprovalStatus, DailyReportResponse } from './types';
 
 const statusLabelByStatus: Record<ApprovalStatus, string> = {
@@ -258,12 +259,12 @@ export function DailyReportDetail({
             <div><dt>グループ</dt><dd>{report.groupName}</dd></div>
             <div><dt>休日区分</dt><dd>{report.holidayType}</dd></div>
             <div><dt>勤務時間</dt><dd>{report.workTimeDisplay}</dd></div>
-            <div><dt>提出日時</dt><dd>{report.submittedAt ?? '-'}</dd></div>
+            <div><dt>提出日時</dt><dd>{formatDateTime(report.submittedAt)}</dd></div>
             <div><dt>備考</dt><dd>{report.remarks ?? '-'}</dd></div>
             <div><dt>承認者</dt><dd>{report.approverName ?? '-'}</dd></div>
-            <div><dt>承認日時</dt><dd>{report.approvedAt ?? '-'}</dd></div>
+            <div><dt>承認日時</dt><dd>{formatDateTime(report.approvedAt)}</dd></div>
             <div><dt>差戻し者</dt><dd>{report.rejectorName ?? '-'}</dd></div>
-            <div><dt>差戻し日時</dt><dd>{report.rejectedAt ?? '-'}</dd></div>
+            <div><dt>差戻し日時</dt><dd>{formatDateTime(report.rejectedAt)}</dd></div>
             <div><dt>差戻しコメント</dt><dd>{report.rejectComment ?? '-'}</dd></div>
           </dl>
           <section className="work-item-panel" aria-labelledby="work-items-heading">

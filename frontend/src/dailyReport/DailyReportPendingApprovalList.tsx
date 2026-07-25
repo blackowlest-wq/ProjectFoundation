@@ -4,6 +4,7 @@ import type { ApiError } from '../shared/apiClient';
 import { fetchPendingApprovals } from './dailyReportApi';
 import { pendingApprovalCriteria } from './dailyReportApproval';
 import { validateDailyReportSearch } from './dailyReportSearch';
+import { formatDateTime } from './dateTimeFormat';
 import type { DailyReportListItem } from './types';
 
 /** 未承認一覧取得時のAPIエラーを、画面に表示できる文言へ変換する。 */
@@ -135,7 +136,7 @@ export function DailyReportPendingApprovalList({ user, onUnauthorized }: { user:
                   <td>{report.holidayType}</td>
                   <td>{report.workTimeDisplay}</td>
                   <td>{formatMinutes(report.totalWorkItemMinutes)}</td>
-                  <td>{report.submittedAt ?? '-'}</td>
+                  <td>{formatDateTime(report.submittedAt)}</td>
                   <td><a href={`/daily-reports/${encodeURIComponent(report.reportId)}`}>詳細</a></td>
                 </tr>
               ))}

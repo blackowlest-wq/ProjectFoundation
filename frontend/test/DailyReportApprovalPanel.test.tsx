@@ -35,12 +35,17 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
 
   it('TC-APR-008 RT-APR-UI-001 sends current-month and selected pending filters, then clears them back to the current month', async () => {
     const { calls } = installFrontendFetch({
-      pendingApprovals: respondJson([buildListItem('R-PENDING-001', { approvalStatus: 'PENDING' })]),
+      pendingApprovals: respondJson([buildListItem('R-PENDING-001', {
+        approvalStatus: 'PENDING',
+        submittedAt: '2026-07-17T09:00:00+09:00',
+      })]),
     });
 
     await renderUi(<DailyReportPendingApprovalList user={managerUser} />);
 
     expect(document.body.textContent).toContain('山田 太郎');
+    expect(document.body.textContent).toContain('2026-07-17 09:00:00');
+    expect(document.body.textContent).not.toContain('2026-07-17T09:00:00+09:00');
     const initialRequest = calls.find((call) => call.method === 'GET' && call.url.pathname === '/api/daily-reports/pending-approvals');
     expect(initialRequest?.url.searchParams.get('dateFrom')).toBe('2026-07-01');
     expect(initialRequest?.url.searchParams.get('dateTo')).toBe('2026-07-31');
@@ -180,6 +185,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
 
     expect(document.body.textContent).toContain('承認済み');
     expect(document.body.textContent).toContain('佐藤 上長');
+    expect(document.body.textContent).toContain('2026-07-17 09:00:00');
   });
 
   it('TC-APR-003 TC-APR-010 RT-APR-UI-004 opens an approval confirmation before sending the request and safely cancels it', async () => {
@@ -272,6 +278,7 @@ describe('DailyReport approval panel behavior from task-owned tests', () => {
     expect(countRequests(calls, 'POST', '/api/daily-reports/R-PENDING-001/reject')).toBe(1);
     expect(document.body.textContent).toContain('差戻し');
     expect(document.body.textContent).toContain('作業時間を確認してください。');
+    expect(document.body.textContent).toContain('2026-07-17 09:00:00');
   });
 
   it.each(['DRAFT', 'REJECTED'] as const)('TC-APR-010 RT-APR-UI-004 provides an encoded employee edit link and list return for %s reports only', async (approvalStatus) => {

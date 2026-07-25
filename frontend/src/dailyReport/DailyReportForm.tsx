@@ -14,6 +14,7 @@ import {
   updateDailyReport,
 } from './dailyReportApi';
 import { validateDailyReportInput } from './dailyReportValidation';
+import { formatDateTime } from './dateTimeFormat';
 import type { CurrentUser } from '../auth/types';
 import type { ApiError } from '../shared/apiClient';
 import type {
@@ -370,7 +371,7 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
           <dl>
             <div><dt>差戻しコメント</dt><dd>{editor.rejectionDetails?.rejectComment ?? '-'}</dd></div>
             <div><dt>差戻し者</dt><dd>{editor.rejectionDetails?.rejectorName ?? '-'}</dd></div>
-            <div><dt>差戻し日時</dt><dd>{editor.rejectionDetails?.rejectedAt ?? '-'}</dd></div>
+            <div><dt>差戻し日時</dt><dd>{formatDateTime(editor.rejectionDetails?.rejectedAt ?? null)}</dd></div>
           </dl>
         </div>
       )}

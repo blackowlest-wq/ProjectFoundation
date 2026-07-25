@@ -180,7 +180,8 @@ describe('DailyReportForm behavior from task-owned tests', () => {
     expect(document.body.textContent).toContain('差戻しコメント');
     expect(document.body.textContent).toContain('詳細を追記してください。');
     expect(document.body.textContent).toContain('佐藤 上長');
-    expect(document.body.textContent).toContain('2026-07-16T17:30:00+09:00');
+    expect(document.body.textContent).toContain('2026-07-16 17:30:00');
+    expect(document.body.textContent).not.toContain('2026-07-16T17:30:00+09:00');
 
     await click(buttonByText('保存して提出'));
 
