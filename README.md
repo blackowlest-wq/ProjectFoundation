@@ -53,6 +53,8 @@ AIを使わずに実装する場合も、2〜8の実装前確認、テスト設�
 
 個人開発ではPull Requestを作成しません。ブランチpushはLefthookの`PrePush`だけを実行し、`main`へ反映した後にGitHub ActionsのFull、Backend単体、coverage、E2E、Gitleaksを一度だけ実行します。
 
+新しいブランチを作成する前は、まず`main`へ切り替え、作業ツリーがcleanであること、`git rev-list --left-right --count main...origin/main`の結果が`0 0`であることを確認します。差分やmainに残った未pushコミットがある場合は、自動修正せず内容を確認してからブランチを作成します。
+
 実行前に固定バージョンや依存環境を確認する場合は`doctor`を実行します。代表的な実行例は次のとおりです。
 
 ```powershell
