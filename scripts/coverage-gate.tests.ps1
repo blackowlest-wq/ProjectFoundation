@@ -77,6 +77,10 @@ Assert-Condition (([regex]::Matches($pomText, '<minimum>0\.85</minimum>')).Count
     'Backend JaCoCo must retain all four 85 percent counters.'
 Assert-Condition ($qualityWorkflowText -match 'write-coverage-summary\.ps1 -FrontendSummaryPath') `
     'Quality workflow must publish the Frontend coverage summary.'
+Assert-Condition ($qualityWorkflowText -notmatch '(?m)^\s*pull_request\s*:') `
+    'Quality workflow must not require a pull request for individual development.'
+Assert-Condition ($qualityWorkflowText -match '(?ms)^\s*push\s*:\s*\r?\n\s*branches\s*:\s*\r?\n\s*-\s*main\b') `
+    'Quality workflow must run on pushes to main.'
 Assert-Condition (([regex]::Matches($oracleWorkflowText, 'doctor-backend-oracle\.ps1')).Count -eq 3) `
     'All Oracle jobs must run the backend preflight.'
 Assert-Condition (([regex]::Matches($oracleWorkflowText, 'timeout-minutes: 30')).Count -eq 3) `

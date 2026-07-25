@@ -51,6 +51,8 @@ AIを使わずに実装する場合も、2〜8の実装前確認、テスト設�
 
 `PrePush`はpush対象差分を検査します。`Quick`はGit indexから対象ファイル名を取得するため、確認対象をstageしてから実行します。作業ツリーの内容を検査するため、stage後の変更も検査対象になります。`Full`にはOracle接続、E2E、coverageは含まれず、E2Eやcoverageは別のCI taskとして実行します。Oracle接続を使うModeは、接続先と資格情報の安全条件を満たす環境でのみ実行してください。
 
+個人開発ではPull Requestを作成しません。ブランチpushはLefthookの`PrePush`だけを実行し、`main`へ反映した後にGitHub ActionsのFull、Backend単体、coverage、E2E、Gitleaksを一度だけ実行します。
+
 実行前に固定バージョンや依存環境を確認する場合は`doctor`を実行します。代表的な実行例は次のとおりです。
 
 ```powershell
