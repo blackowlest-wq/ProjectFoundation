@@ -75,6 +75,21 @@ foreach ($forbiddenName in @(
     Assert-Condition ($names -notcontains $forbiddenName) "Full definition leaked into PrePush: $forbiddenName"
 }
 
+$deletionOnlyDefinitions = @(Get-PrePushCheckDefinitions `
+        -RepoRoot $repoRoot `
+        -ChangedFiles @() `
+        -NpmCommand 'npm.cmd' `
+        -MavenCommand 'backend/mvnw.cmd' `
+        -GitleaksCommand 'gitleaks')
+$deletionOnlyNames = @($deletionOnlyDefinitions | ForEach-Object Name)
+foreach ($requiredName in @(
+        'pre-push-diff-check',
+        'pre-push-artifact-check',
+        'pre-push-secrets')) {
+    Assert-Condition ($deletionOnlyNames -contains $requiredName) `
+        "Deletion-only push is missing PrePush definition: $requiredName"
+}
+
 $lefthookText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'lefthook.yml')
 Assert-Condition ($lefthookText -match '-Mode PrePush') 'Lefthook must invoke PrePush mode.'
 Assert-Condition ($lefthookText -match 'use_stdin:\s*true') 'Lefthook must pass pre-push stdin to the runner.'

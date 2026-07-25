@@ -516,7 +516,7 @@ function Invoke-PrePushDiffCheck {
 function Get-PrePushCheckDefinitions {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
-        [Parameter(Mandatory)][string[]]$ChangedFiles,
+        [string[]]$ChangedFiles = @(),
         [object[]]$PushRefs = @(),
         [Parameter(Mandatory)][string]$NpmCommand,
         [Parameter(Mandatory)][string]$MavenCommand,
