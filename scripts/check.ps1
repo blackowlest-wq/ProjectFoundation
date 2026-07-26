@@ -4,7 +4,7 @@ param(
     [string]$Mode = 'Quick',
     [string]$PushInput,
     [switch]$Offline,
-    [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+    [ValidateSet('None', 'FullFrontend', 'FullBackend', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
     [string]$CiTask = 'None',
     [switch]$AllowDdl,
     [string]$DdlScript,
@@ -82,6 +82,59 @@ function Get-MavenArguments {
     $arguments + $Goals
 }
 
+function Get-FullFrontendCheckDefinitions {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory)]
+        [string]$NpmCommand
+    )
+
+    @(
+        New-CheckDefinition -Name 'frontend-lint' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'lint')
+        New-CheckDefinition -Name 'frontend-typecheck' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'typecheck')
+        New-CheckDefinition -Name 'frontend-unit-test' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'test')
+        New-CheckDefinition -Name 'frontend-build' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'build:ci')
+    )
+}
+
+function Get-FullBackendCheckDefinitions {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory)]
+        [string]$MavenCommand,
+        [switch]$Offline
+    )
+
+    @(
+        # How: Mavenを1回だけ起動し、test-compile後に静的解析ゴールを同じプロセスで実行する。
+        # Why not: 個別起動するとMaven・POM・プラグイン初期化とtest-compileが重複するため。
+        New-CheckDefinition -Name 'backend-quality' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @(
+                'test-compile', 'spotless:check', 'checkstyle:check', 'spotbugs:check'
+            ))
+    )
+}
+
+function Get-FullContractCheckDefinitions {
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepoRoot
+    )
+
+    @(
+        New-CheckDefinition -Name 'oracle-preflight-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/oracle-preflight.tests.ps1')
+        )
+        New-CheckDefinition -Name 'coverage-summary-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-summary.tests.ps1')
+        )
+        New-CheckDefinition -Name 'coverage-gate-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-gate.tests.ps1')
+        )
+    )
+}
+
 function Get-FullCheckDefinitions {
     param(
         [Parameter(Mandatory)]
@@ -93,27 +146,10 @@ function Get-FullCheckDefinitions {
         [switch]$Offline
     )
 
-    # How: Mavenは集約POM、Frontendはプロジェクト境界のaggregate scriptを入口にし、
-    # moduleやpackageを個別列挙せず追加分を自動的に検査へ含める。
-    # Why not: moduleごとのパスをrunnerへ固定すると、追加時に品質ゲートの更新漏れが起きるため。
     @(
-        New-CheckDefinition -Name 'frontend-lint' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'lint')
-        New-CheckDefinition -Name 'frontend-typecheck' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'typecheck')
-        New-CheckDefinition -Name 'frontend-unit-test' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'test')
-        New-CheckDefinition -Name 'frontend-build' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'build')
-        New-CheckDefinition -Name 'backend-test-compile' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('test-compile'))
-        New-CheckDefinition -Name 'backend-spotless' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('spotless:check'))
-        New-CheckDefinition -Name 'backend-checkstyle' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('checkstyle:check'))
-        New-CheckDefinition -Name 'backend-spotbugs' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @('test-compile', 'spotbugs:check'))
-        New-CheckDefinition -Name 'oracle-preflight-contract-test' -Command 'pwsh' -Arguments @(
-            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/oracle-preflight.tests.ps1')
-        )
-        New-CheckDefinition -Name 'coverage-summary-contract-test' -Command 'pwsh' -Arguments @(
-            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-summary.tests.ps1')
-        )
-        New-CheckDefinition -Name 'coverage-gate-contract-test' -Command 'pwsh' -Arguments @(
-            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-gate.tests.ps1')
-        )
+        Get-FullFrontendCheckDefinitions -RepoRoot $RepoRoot -NpmCommand $NpmCommand
+        Get-FullBackendCheckDefinitions -RepoRoot $RepoRoot -MavenCommand $MavenCommand -Offline:$Offline
+        Get-FullContractCheckDefinitions -RepoRoot $RepoRoot
     )
 }
 
@@ -342,7 +378,7 @@ function Get-SimpleCheckDefinitions {
                     '--prefix', 'frontend', 'run', 'typecheck'
                 )))
         $definitions.Add((New-CheckDefinition -Name 'simple-frontend-build' -Command $NpmCommand -Arguments @(
-                    '--prefix', 'frontend', 'run', 'build'
+                    '--prefix', 'frontend', 'run', 'build:ci'
                 )))
     }
 
@@ -591,7 +627,7 @@ function Get-PrePushInputText {
 function Get-CiTaskDefinitions {
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [ValidateSet('FullFrontend', 'FullBackend', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
         [string]$CiTask,
         [Parameter(Mandatory)]
         [string]$RepoRoot,
@@ -607,6 +643,15 @@ function Get-CiTaskDefinitions {
     )
 
     switch ($CiTask) {
+        'FullFrontend' {
+            Get-FullFrontendCheckDefinitions -RepoRoot $RepoRoot -NpmCommand $NpmCommand
+        }
+        'FullBackend' {
+            @(
+                Get-FullBackendCheckDefinitions -RepoRoot $RepoRoot -MavenCommand $MavenCommand -Offline:$Offline
+                Get-FullContractCheckDefinitions -RepoRoot $RepoRoot
+            )
+        }
         'FrontendCoverage' {
             @(
                 New-CheckDefinition -Name 'frontend-coverage' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'coverage')
@@ -784,7 +829,7 @@ function Invoke-QualityRunner {
         [string]$Mode = 'Quick',
         [string]$PushInput,
         [switch]$Offline,
-        [ValidateSet('None', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [ValidateSet('None', 'FullFrontend', 'FullBackend', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
         [string]$CiTask = 'None',
         [switch]$AllowDdl,
         [string]$DdlScript,

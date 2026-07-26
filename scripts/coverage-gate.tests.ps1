@@ -9,6 +9,10 @@ function Assert-Condition {
 
 $oracleScript = Join-Path $repoRoot 'backend/scripts/test-oracle.ps1'
 $full = @(Get-FullCheckDefinitions -RepoRoot $repoRoot -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd')
+$fullFrontend = @(Get-CiTaskDefinitions -CiTask FullFrontend -RepoRoot $repoRoot `
+        -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
+$fullBackend = @(Get-CiTaskDefinitions -CiTask FullBackend -RepoRoot $repoRoot `
+        -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
 $frontend = @(Get-CiTaskDefinitions -CiTask FrontendCoverage -RepoRoot $repoRoot `
         -NpmCommand 'npm.cmd' -MavenCommand 'backend/mvnw.cmd' -OracleScript $oracleScript)
 $backend = @(Get-CiTaskDefinitions -CiTask BackendCoverage -RepoRoot $repoRoot `
@@ -25,6 +29,10 @@ $unitArguments = @($unitCommand.Arguments)
 $frontendNames = @($frontend | ForEach-Object Name)
 $backendNames = @($backend | ForEach-Object Name)
 $fullNames = @($full | ForEach-Object Name)
+$fullFrontendNames = @($fullFrontend | ForEach-Object Name)
+$fullBackendNames = @($fullBackend | ForEach-Object Name)
+$fullFrontendBuild = $fullFrontend | Where-Object Name -eq 'frontend-build'
+$fullBackendQuality = $fullBackend | Where-Object Name -eq 'backend-quality'
 $packageJson = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'frontend/package.json')
 $bootstrapText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/bootstrap.ps1')
 $pomText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'backend/pom.xml')
@@ -41,6 +49,24 @@ Assert-Condition ($fullNames -contains 'oracle-preflight-contract-test') `
     'Full must execute the Oracle preflight contract test.'
 Assert-Condition ($fullNames -contains 'coverage-summary-contract-test') `
     'Full must execute the coverage summary contract test.'
+Assert-Condition ($fullFrontendNames -contains 'frontend-build') `
+    'FullFrontend must include the frontend build.'
+Assert-Condition (@($fullFrontendBuild.Arguments) -contains 'build:ci') `
+    'FullFrontend must use the build command without a duplicate typecheck.'
+Assert-Condition ($packageJson -match '"build:ci"\s*:\s*"vite build"') `
+    'Frontend must provide a CI build command without a duplicate typecheck.'
+Assert-Condition ($fullBackendNames -contains 'backend-quality') `
+    'FullBackend must include the combined backend quality command.'
+Assert-Condition (@($fullBackendQuality.Arguments) -contains 'test-compile') `
+    'Combined backend quality must compile tests.'
+Assert-Condition (@($fullBackendQuality.Arguments) -contains 'spotless:check') `
+    'Combined backend quality must run Spotless.'
+Assert-Condition (@($fullBackendQuality.Arguments) -contains 'checkstyle:check') `
+    'Combined backend quality must run Checkstyle.'
+Assert-Condition (@($fullBackendQuality.Arguments) -contains 'spotbugs:check') `
+    'Combined backend quality must run SpotBugs.'
+Assert-Condition (($fullNames | Where-Object { $_ -in @('backend-test-compile', 'backend-spotless', 'backend-checkstyle', 'backend-spotbugs') }).Count -eq 0) `
+    'Full must not define duplicate Maven quality commands.'
 Assert-Condition ($backendCommand.Command -eq 'pwsh') 'Backend coverage must use the Oracle wrapper.'
 Assert-Condition ($backendArguments[0] -eq '-NoProfile') 'Backend coverage must start with -NoProfile.'
 Assert-Condition ($backendArguments[1] -eq '-File') 'Backend coverage must invoke the wrapper script with -File.'
@@ -81,10 +107,24 @@ Assert-Condition ($qualityWorkflowText -notmatch '(?m)^\s*pull_request\s*:') `
     'Quality workflow must not require a pull request for individual development.'
 Assert-Condition ($qualityWorkflowText -match '(?ms)^\s*push\s*:\s*\r?\n\s*branches\s*:\s*\r?\n\s*-\s*main\b') `
     'Quality workflow must run on pushes to main.'
+Assert-Condition ($qualityWorkflowText -match 'full-windows-frontend') `
+    'Quality workflow must define the Windows frontend job.'
+Assert-Condition ($qualityWorkflowText -match 'full-windows-backend') `
+    'Quality workflow must define the Windows backend job.'
+Assert-Condition ($qualityWorkflowText -notmatch 'full-linux') `
+    'Quality workflow must not run the duplicate Linux Full job.'
+Assert-Condition (([regex]::Matches($qualityWorkflowText, 'cache:\s*npm')).Count -ge 2) `
+    'Quality workflow must configure npm dependency caching.'
+Assert-Condition (([regex]::Matches($qualityWorkflowText, 'cache:\s*maven')).Count -ge 2) `
+    'Quality workflow must configure Maven dependency caching.'
 Assert-Condition (([regex]::Matches($oracleWorkflowText, 'doctor-backend-oracle\.ps1')).Count -eq 3) `
     'All Oracle jobs must run the backend preflight.'
 Assert-Condition (([regex]::Matches($oracleWorkflowText, 'timeout-minutes: 30')).Count -eq 3) `
     'All Oracle jobs must have a 30-minute timeout.'
+Assert-Condition (([regex]::Matches($oracleWorkflowText, 'cache:\s*maven')).Count -ge 3) `
+    'Oracle workflow must configure Maven dependency caching.'
+Assert-Condition (([regex]::Matches($oracleWorkflowText, 'cache:\s*npm')).Count -ge 1) `
+    'Oracle E2E workflow must configure npm dependency caching.'
 Assert-Condition ($oracleWorkflowText -match 'write-coverage-summary\.ps1 -BackendXmlPath') `
     'Oracle coverage workflow must publish the Backend coverage summary.'
 

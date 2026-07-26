@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  full-windows:
-    name: Full / Windows
+  full-windows-frontend:
+    name: Full / Windows / Frontend
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -26,44 +26,38 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.18.0
-      - name: Setup Java
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
-        with:
-          distribution: temurin
-          java-version: '21'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
       - name: Install Node dependencies
         shell: pwsh
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
-      - name: Prepare Maven dependencies
+      - name: Run Full Frontend
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
-      - name: Run Full
-        shell: pwsh
-        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Full
+        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask FullFrontend
 
-  full-linux:
-    name: Full / Linux
-    runs-on: ubuntu-latest
+  full-windows-backend:
+    name: Full / Windows / Backend
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 24.18.0
       - name: Setup Java
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
-      - name: Install Node dependencies
-        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
+          cache: maven
+          cache-dependency-path: backend/pom.xml
       - name: Prepare Maven dependencies
+        shell: pwsh
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
-      - name: Run Full
-        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Full
+      - name: Run Full Backend
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask FullBackend
 
   backend-unit:
     name: Backend / Unit
@@ -78,6 +72,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
       - name: Prepare Maven dependencies
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
       - name: Run Backend unit tests
@@ -95,6 +91,10 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
       - name: Install Node dependencies
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
       - name: Run frontend coverage
@@ -122,6 +122,10 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
       - name: Install Node dependencies and browser
         run: |
           pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node

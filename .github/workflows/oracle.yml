@@ -43,6 +43,13 @@ jobs:
       - name: Diagnose isolated runner
         shell: pwsh
         run: pwsh -NoProfile -File scripts/doctor.ps1
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
       - name: Run Oracle integration
         shell: pwsh
         run: pwsh -NoProfile -File scripts/check.ps1 -Mode Oracle
@@ -75,6 +82,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
       - name: Preflight Oracle backend
         shell: pwsh
         run: pwsh -NoProfile -File scripts/doctor-backend-oracle.ps1
@@ -129,11 +138,17 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
       - name: Setup Java
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
       - name: Install Node dependencies and browser
         shell: pwsh
         run: |

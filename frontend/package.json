@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit",
     "build": "tsc --noEmit && vite build",
+    "build:ci": "vite build",
     "dev": "vite --host 127.0.0.1"
   },
   "dependencies": {

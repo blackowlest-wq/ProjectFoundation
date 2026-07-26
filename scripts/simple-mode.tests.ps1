@@ -22,6 +22,7 @@ $frontend = @(Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Frontend `
         -FocusedUnitScope Frontend -FocusedUnitTarget 'test/App.test.tsx' `
         -ChangedFiles @('frontend/src/App.tsx', 'frontend/test/App.test.tsx'))
 $frontendNames = @($frontend | ForEach-Object Name)
+$frontendBuild = $frontend | Where-Object Name -eq 'simple-frontend-build'
 
 Assert-Condition ($frontendNames -contains 'simple-focused-unit') `
     'Frontend Simple Mode must include one focused unit definition.'
@@ -31,6 +32,8 @@ Assert-Condition ($frontendNames -contains 'simple-frontend-typecheck') `
     'Frontend Simple Mode must include typecheck.'
 Assert-Condition ($frontendNames -contains 'simple-frontend-build') `
     'Frontend Simple Mode must include build.'
+Assert-Condition (@($frontendBuild.Arguments) -contains 'build:ci') `
+    'Frontend Simple Mode must use the build command without a duplicate typecheck.'
 Assert-Condition (($frontendNames | Where-Object { $_ -match 'coverage|oracle|secret|full|e2e' }).Count -eq 0) `
     'Frontend Simple Mode must not add broad local checks.'
 
