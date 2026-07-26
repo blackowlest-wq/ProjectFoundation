@@ -3,7 +3,7 @@
     "id": "F-001",
     "name": "ログイン",
     "screenId": "S-001",
-    "title": "ログイン機能 コード品質確認",
+    "title": "ログイン機能 テスト・品質確認",
     "scope": [
       "ログイン画面",
       "ログイン・ログアウト・現在利用者API",
@@ -696,14 +696,14 @@
     {"id": "IT-FE-CHECK-002", "file": "../../../../frontend/package.json", "name": "npm run build", "runCommand": "npm.cmd run build", "executionStatus": "成功"}
   ],
   "evidence": [
-    {"id": "EVD-CASES", "type": "テストケース正本", "path": "../../../../docs/AI活用開発研究/作業記録/ログイン機能_テストケース.md", "available": true, "note": "F-001のケース、期待結果、実テスト参照"},
-    {"id": "EVD-REVIEW", "type": "品質レビュー", "path": "../../../../docs/AI活用開発研究/作業記録/ログイン機能_テストケース品質レビュー_2026-07-15.md", "available": true, "note": "受入条件、専門レビュー、保留、実行証跡"},
-    {"id": "EVD-FE-TEST", "type": "Frontendテスト", "path": "../../../../frontend/test/authApi.test.ts", "available": true, "note": "authApi、入力検証、LoginFormの関連テストは同じテスト実行で確認"},
-    {"id": "EVD-APP-TEST", "type": "Frontend統合テスト", "path": "../../../../frontend/test/App.test.tsx", "available": true, "note": "未認証起動、ロール遷移、ログアウト状態の確認"},
-    {"id": "EVD-BE-TEST", "type": "Backendテスト", "path": "../../../../backend/src/test/java/com/example/dailyreport/auth/AuthControllerTest.java", "available": true, "note": "テストコードは存在するが、直近実行はORA-01017でアサーション未実行"},
-    {"id": "EVD-FE-COVERAGE", "type": "Frontendカバレッジ", "path": "../../../../frontend/coverage/index.html", "summaryPath": "../../../../frontend/coverage/coverage-summary.json", "available": true, "note": "全体Branches 94.58%、ログイン関連ソースは既存レポート上100%"},
-    {"id": "EVD-BE-COVERAGE", "type": "Backendカバレッジ", "path": "../../../../backend/target/site/jacoco/index.html", "available": true, "note": "既存JaCoCoレポートを参照。全体Branch 79.71%で85%未満"},
-    {"id": "EVD-ORACLE", "type": "Oracle実機手順", "path": "../../../../docs/AI活用開発研究/作業記録/ログイン機能_Oracle接続手順.md", "available": true, "note": "Oracle資格情報復旧後にBE-ORA-001を再実行"}
+    {"id": "EVD-CASES", "type": "テストケース正本", "path": "../../../../docs/AI活用開発研究/作業記録/ログイン機能_テストケース.md", "available": true, "note": "F-001のケース、期待結果、実テスト参照", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}},
+    {"id": "EVD-REVIEW", "type": "品質レビュー", "path": "../../../../docs/AI活用開発研究/作業記録/ログイン機能_テストケース品質レビュー_2026-07-15.md", "available": true, "note": "受入条件、専門レビュー、保留、実行証跡", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}},
+    {"id": "EVD-FE-TEST", "type": "Frontendテスト", "path": "../../../../frontend/test/authApi.test.ts", "available": true, "note": "authApi、入力検証、LoginFormの関連テストは同じテスト実行で確認", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}},
+    {"id": "EVD-APP-TEST", "type": "Frontend統合テスト", "path": "../../../../frontend/test/App.test.tsx", "available": true, "note": "未認証起動、ロール遷移、ログアウト状態の確認", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}},
+    {"id": "EVD-BE-TEST", "type": "Backendテスト", "path": "../../../../backend/src/test/java/com/example/dailyreport/auth/AuthControllerTest.java", "available": true, "note": "テストコードは存在するが、直近実行はORA-01017でアサーション未実行", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}},
+    {"id": "EVD-FE-COVERAGE", "type": "Frontendカバレッジ", "path": "../../../../frontend/coverage/index.html", "summaryPath": "../../../../frontend/coverage/coverage-summary.json", "available": true, "note": "全体Branches 94.58%、ログイン関連ソースは既存レポート上100%", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}},
+    {"id": "EVD-BE-COVERAGE", "type": "Backendカバレッジ", "path": "../../../../backend/target/site/jacoco/index.html", "available": true, "note": "既存JaCoCoレポートを参照。全体Branch 79.71%で85%未満", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}},
+    {"id": "EVD-ORACLE", "type": "Oracle実機手順", "path": "../../../../docs/AI活用開発研究/作業記録/ログイン機能_Oracle接続手順.md", "available": true, "note": "Oracle資格情報復旧後にBE-ORA-001を再実行", "executionInfo": {"executedAt": null, "sourceCommit": null, "command": null, "exitCode": null, "environment": null, "reportGeneratedAt": null, "isStale": null}}
   ],
   "findings": [
     {"id": "D-LOGIN-001", "classification": "Oracle実行環境", "targetIds": ["BE-ORA-001"], "status": "保留", "priority": "Medium", "summary": "Oracle接続確認が資格情報エラーで未完了", "action": "正しいOracleテスト資格情報を設定して再実行", "standardization": "個別対応"},
