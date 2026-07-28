@@ -1,0 +1,4 @@
+interface:
+  display_name: "品質確認レポート作成"
+  short_description: "既存形式で機能別品質確認レポートを作成・検証するワークフロー"
+  default_prompt: "品質確認レポートを作成します。対象機能を指定してください。"
