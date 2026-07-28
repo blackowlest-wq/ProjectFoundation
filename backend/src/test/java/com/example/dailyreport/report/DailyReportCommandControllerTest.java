@@ -3,6 +3,7 @@ package com.example.dailyreport.report;
 import static com.example.dailyreport.report.support.DailyReportTestSupport.*;
 import static com.example.dailyreport.support.MockMvcTestSupport.loginAs;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -271,5 +272,175 @@ class DailyReportCommandControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.startTime").doesNotExist())
                 .andExpect(jsonPath("$.workTimeDisplay", equalTo("0:00")));
+    }
+
+    @Test
+    void createAllowsMultipleWorkItemsAndPreservesOrder() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportJsonWithItems(objectMapper, LocalDate.of(2026, 6, 24), "WORKDAY",
+                                "09:00", "18:00", "multiple", List.of(
+                                        Map.of("projectId", "P001", "workCategoryId", "WC001", "workMinutes", 240),
+                                        Map.of("projectId", "P002", "workCategoryId", "WC002", "workMinutes", 240)))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workItems", hasSize(2)))
+                .andExpect(jsonPath("$.workItems[0].projectId", equalTo("P001")))
+                .andExpect(jsonPath("$.workItems[0].workCategoryId", equalTo("WC001")))
+                .andExpect(jsonPath("$.workItems[1].projectId", equalTo("P002")))
+                .andExpect(jsonPath("$.workItems[1].workCategoryId", equalTo("WC002")))
+                .andExpect(jsonPath("$.totalWorkItemMinutes", equalTo(480)));
+    }
+
+    @Test
+    void createAllowsOneMinuteWorkItem() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportJson(objectMapper, LocalDate.of(2026, 6, 25), "HOLIDAY", "09:00", "09:01", 1, "one minute")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workMinutes", equalTo(1)))
+                .andExpect(jsonPath("$.totalWorkItemMinutes", equalTo(1)))
+                .andExpect(jsonPath("$.approvalStatus", equalTo("DRAFT")));
+    }
+
+    @Test
+    void createAllowsHolidayWithWorkItems() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportJson(objectMapper, LocalDate.of(2026, 6, 26), "HOLIDAY", "09:00", "12:00", 180, "holiday work")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.holidayType", equalTo("HOLIDAY")))
+                .andExpect(jsonPath("$.workMinutes", equalTo(180)))
+                .andExpect(jsonPath("$.totalWorkItemMinutes", equalTo(180)));
+    }
+
+    @Test
+    void createAllowsAmOffWorkdayInput() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportJson(objectMapper, LocalDate.of(2026, 6, 27), "AM_OFF", "09:00", "18:00", 480, "am off")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.holidayType", equalTo("AM_OFF")))
+                .andExpect(jsonPath("$.workMinutes", equalTo(480)))
+                .andExpect(jsonPath("$.totalWorkItemMinutes", equalTo(480)));
+    }
+
+    @Test
+    void createAllowsPmOffWorkdayInput() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportJson(objectMapper, LocalDate.of(2026, 6, 28), "PM_OFF", "09:00", "18:00", 480, "pm off")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.holidayType", equalTo("PM_OFF")))
+                .andExpect(jsonPath("$.workMinutes", equalTo(480)))
+                .andExpect(jsonPath("$.totalWorkItemMinutes", equalTo(480)));
+    }
+
+    @Test
+    void createUsesAuthenticatedSecondaryEmployeeSnapshot() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee002");
+
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportJson(objectMapper, LocalDate.of(2026, 6, 29), "WORKDAY", "09:00", "17:30", 450, "secondary")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employeeId", equalTo("E002")))
+                .andExpect(jsonPath("$.employeeName", equalTo("高橋 次郎")))
+                .andExpect(jsonPath("$.groupId", equalTo("G002")))
+                .andExpect(jsonPath("$.breakTypeId", equalTo("BT002")))
+                .andExpect(jsonPath("$.workTimeTypeId", equalTo("WT002")));
+    }
+
+    @Test
+    void createCannotChangeOwnerWithClientEmployeeFields() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee002");
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("reportDate", LocalDate.of(2026, 6, 30).toString());
+        request.put("holidayType", "WORKDAY");
+        request.put("startTime", "09:00");
+        request.put("endTime", "17:30");
+        request.put("remarks", "client owner attempt");
+        request.put("employeeUserId", "U001");
+        request.put("employeeId", "E001");
+        request.put("employeeName", "山田 太郎");
+        request.put("workItems", List.of(Map.of("projectId", "P001", "workCategoryId", "WC001", "workMinutes", 450)));
+
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employeeId", equalTo("E002")))
+                .andExpect(jsonPath("$.employeeName", equalTo("高橋 次郎")));
     }
 }

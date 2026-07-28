@@ -46,6 +46,7 @@ public class DataInitializer {
             seedMasterData(jdbcTemplate);
             // How: 利用者表の件数に依存せず、不足している標準テスト利用者だけを追加し、既存利用者を上書きしない。
             saveIfAbsent(userRepository, employee(passwordEncoder));
+            saveIfAbsent(userRepository, secondaryEmployee(passwordEncoder));
             saveIfAbsent(userRepository, manager(passwordEncoder));
             saveIfAbsent(userRepository, admin(passwordEncoder));
             seedManagerPermissions(jdbcTemplate);
@@ -362,6 +363,15 @@ public class DataInitializer {
         return new AppUser("U001", "E001", "employee001", passwordEncoder.encode("password"),
                 "山田 太郎", Role.EMPLOYEE, "G001", "第1開発グループ",
                 "BT001", "標準休憩", "WT001", "通常勤務");
+    }
+
+    /**
+     * 別社員認可テスト用に、標準社員と異なる所属・勤務設定を持つ社員を生成する。
+     */
+    private AppUser secondaryEmployee(PasswordEncoder passwordEncoder) {
+        return new AppUser("U004", "E002", "employee002", passwordEncoder.encode("password"),
+                "高橋 次郎", Role.EMPLOYEE, "G002", "第2開発グループ",
+                "BT002", "分割休憩", "WT002", "短時間勤務");
     }
 
     /**
