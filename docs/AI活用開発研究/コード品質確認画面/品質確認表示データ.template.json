@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "feature": {
+    "id": "F-XXX",
+    "name": "機能名",
+    "screenId": "S-XXX",
+    "title": "機能名 テスト・品質確認",
+    "scope": ["対象範囲"],
+    "reviewMode": "簡易修正モード",
+    "snapshot": {
+      "capturedOn": "YYYY-MM-DD",
+      "sourceCommit": "commit",
+      "description": "表示用スナップショットの説明"
+    }
+  },
+  "acceptanceCriteria": [],
+  "qualityGates": [],
+  "rootCauses": [],
+  "testCases": [],
+  "viewpoints": [],
+  "testImplementations": [],
+  "evidence": [],
+  "findings": [],
+  "coverage": {
+    "frontend": {
+      "status": "未生成",
+      "reportPath": "",
+      "summaryPath": "",
+      "metrics": {
+        "lines": null,
+        "statements": null,
+        "functions": null,
+        "branches": null
+      },
+      "scopedFiles": [],
+      "uncoveredBranches": []
+    },
+    "backend": {
+      "status": "未生成",
+      "reportPath": "",
+      "summaryPath": "",
+      "metrics": {
+        "instruction": null,
+        "branch": null,
+        "line": null,
+        "method": null
+      },
+      "uncoveredBranches": []
+    }
+  },
+  "sources": []
+}

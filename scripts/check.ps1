@@ -353,6 +353,10 @@ function Get-SimpleCheckDefinitions {
         Sort-Object -Unique)
     $definitions = [System.Collections.Generic.List[object]]::new()
 
+    $qualityReportFiles = @($normalizedFiles | Where-Object {
+            $_ -like 'docs/AI活用開発研究/コード品質確認画面/*'
+        })
+
     if ($Scope -eq 'Docs') {
         if (-not [string]::IsNullOrWhiteSpace($FocusedUnitTarget)) {
             throw 'Docs Scope does not accept a FocusedUnitTarget.'
@@ -396,12 +400,20 @@ function Get-SimpleCheckDefinitions {
 
     $markdownFiles = @($normalizedFiles | Where-Object { $_ -match '\.md$' })
     if ($Scope -eq 'Docs') {
-        if ($markdownFiles.Count -eq 0) {
+        if ($markdownFiles.Count -eq 0 -and $qualityReportFiles.Count -eq 0) {
             throw 'Docs Scope requires at least one changed Markdown file.'
         }
-        $definitions.Add((New-CheckDefinition -Name 'simple-docs-markdown-lint' -Command $NpmCommand -Arguments (@(
-                    'run', 'lint:markdown', '--', '--no-globs'
-                ) + $markdownFiles)))
+        if ($markdownFiles.Count -gt 0) {
+            $definitions.Add((New-CheckDefinition -Name 'simple-docs-markdown-lint' -Command $NpmCommand -Arguments (@(
+                        'run', 'lint:markdown', '--', '--no-globs'
+                    ) + $markdownFiles)))
+        }
+        if ($qualityReportFiles.Count -gt 0) {
+            $qualityReportRunner = Join-Path $RepoRoot 'scripts/check-quality-reports.ps1'
+            $definitions.Add((New-CheckDefinition -Name 'simple-quality-report' -Command 'pwsh' -Arguments @(
+                        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $qualityReportRunner, '-ValidateOnly'
+                    ) -WorkingDirectory $RepoRoot))
+        }
     }
     elseif ($Scope -eq 'Harness' -and $markdownFiles.Count -gt 0) {
         $definitions.Add((New-CheckDefinition -Name 'simple-harness-markdown-lint' -Command $NpmCommand -Arguments (@(

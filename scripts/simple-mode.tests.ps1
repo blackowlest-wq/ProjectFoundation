@@ -75,6 +75,24 @@ $notApplicable = @(Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Docs `
 Assert-Condition ((@($notApplicable | ForEach-Object Name) -contains 'simple-focused-unit-na')) `
     'N/A reason must produce an explicit non-applicable check.'
 
+$qualityReportDocs = @(Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Docs `
+        -FocusedUnitNotApplicableReason 'Static quality report change has no application unit logic.' `
+        -ChangedFiles @(
+            'docs/AI活用開発研究/コード品質確認画面/F-001_ログイン/F-001_ログイン_生成.ps1'
+            'docs/AI活用開発研究/コード品質確認画面/F-001_ログイン/README.md'
+        ))
+$qualityReportDefinition = $qualityReportDocs | Where-Object Name -eq 'simple-quality-report'
+Assert-Condition ($null -ne $qualityReportDefinition) `
+    'Docs Simple Mode must run the quality report batch check when a quality report changes.'
+Assert-Condition (@($qualityReportDefinition.Arguments) -contains '-ValidateOnly') `
+    'Docs quality report check must use the validation mode before the final report generation step.'
+
+$qualityReportOnlyDocs = @(Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Docs `
+        -FocusedUnitNotApplicableReason 'Static quality report change has no application unit logic.' `
+        -ChangedFiles @('docs/AI活用開発研究/コード品質確認画面/F-001_ログイン/F-001_ログイン_表示データ.json'))
+Assert-Condition (@($qualityReportOnlyDocs | ForEach-Object Name) -contains 'simple-quality-report') `
+    'Quality report-only Docs changes must not require an unrelated Markdown change.'
+
 Assert-Throws {
     Get-SimpleCheckDefinitions -RepoRoot $repoRoot -Scope Frontend `
         -FocusedUnitScope Frontend -ChangedFiles @('frontend/src/App.tsx')

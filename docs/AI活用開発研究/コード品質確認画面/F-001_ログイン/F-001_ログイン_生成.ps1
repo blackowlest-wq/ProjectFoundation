@@ -118,7 +118,7 @@ function Assert-BidirectionalAcceptanceReferences {
     }
 }
 
-function Assert-AcceptanceOutcomeNotOverstated {
+function Assert-AcceptanceExecutionStateNotOverstated {
     param(
         [object[]]$AcceptanceCriteria,
         [object[]]$TestCases
@@ -132,9 +132,9 @@ function Assert-AcceptanceOutcomeNotOverstated {
         $relatedCases = @($TestCases | Where-Object { $caseIds -contains [string]$_.id })
         $hasFailure = @($relatedCases | Where-Object { [string]$_.executionStatus -eq '失敗' }).Count -gt 0
         $hasIncomplete = @($relatedCases | Where-Object { [string]$_.executionStatus -ne '成功' }).Count -gt 0
-        $overallStatus = [string](Get-RequiredProperty -Object $acceptance -Name 'overallStatus' -Context "acceptanceCriteria $acceptanceId")
-        if ($overallStatus -eq 'OK' -and ($hasFailure -or $hasIncomplete)) {
-            Throw-ValidationError "acceptanceCriteria $acceptanceId is marked overallStatus OK while a related case is not successful."
+        $executionStatus = [string](Get-RequiredProperty -Object $acceptance -Name 'executionStatus' -Context "acceptanceCriteria $acceptanceId")
+        if ($executionStatus -eq '完了' -and ($hasFailure -or $hasIncomplete)) {
+            Throw-ValidationError "acceptanceCriteria $acceptanceId is marked executionStatus 完了 while a related case is not successful."
         }
     }
 }
@@ -292,6 +292,150 @@ function Assert-CoverageThresholds {
     }
 }
 
+# 機械的に検証した事実を、HTMLへ渡す共通の結果形式へ整える。
+function New-AutomatedFinding {
+    param(
+        [string]$Category,
+        [string]$Id,
+        [string]$Text,
+        [string]$Status,
+        [string]$Priority = ''
+    )
+
+    $finding = [ordered]@{
+        category = $Category
+        id = $Id
+        text = $Text
+        status = $Status
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Priority)) {
+        $finding.priority = $Priority
+    }
+    return [pscustomobject]$finding
+}
+
+# 実行状態と明示された照合条件だけから、影響ケースを原因単位へ集約する。
+function Get-RootCauseGroups {
+    param(
+        [object[]]$RootCauses,
+        [object[]]$TestCases
+    )
+
+    $groups = @()
+    foreach ($definition in $RootCauses) {
+        $matchProperty = $definition.PSObject.Properties['match']
+        if ($null -eq $matchProperty -or $null -eq $matchProperty.Value) {
+            continue
+        }
+        $match = $matchProperty.Value
+        $layer = [string]$match.layer
+        $noteContains = [string]$match.executionNoteContains
+        $affectedCases = @($TestCases | Where-Object {
+                [string]$_.executionStatus -ne '成功' -and
+                [string]$_.layer -eq $layer -and
+                [string]$_.executionNote -like "*$noteContains*"
+            })
+        if ($affectedCases.Count -eq 0) {
+            continue
+        }
+        $hasFailure = @($affectedCases | Where-Object { [string]$_.executionStatus -eq '失敗' }).Count -gt 0
+        $groups += [pscustomobject]@{
+            id = [string]$definition.id
+            name = [string]$definition.name
+            reason = [string]$definition.reason
+            status = if ($hasFailure) { 'NG' } else { '保留' }
+            caseIds = @($affectedCases | ForEach-Object { [string]$_.id })
+            impactCaseCount = $affectedCases.Count
+        }
+    }
+    return @($groups)
+}
+
+# AIの意味評価を参照せず、JSONの構造・紐付け・実行・基準値から確認項目を生成する。
+function Get-AutomatedFindings {
+    param([object]$Data)
+
+    $acceptanceCriteria = @(Get-Items -Object $Data -Name 'acceptanceCriteria')
+    $qualityGates = @(Get-Items -Object $Data -Name 'qualityGates')
+    $rootCauses = @(Get-Items -Object $Data -Name 'rootCauses')
+    $testCases = @(Get-Items -Object $Data -Name 'testCases')
+    $findings = @(Get-Items -Object $Data -Name 'findings')
+    $coverage = Get-RequiredProperty -Object $Data -Name 'coverage' -Context 'root data'
+
+    $automatedFindings = @()
+    foreach ($acceptance in $acceptanceCriteria) {
+        $caseIds = @(Get-RequiredProperty -Object $acceptance -Name 'testCaseIds' -Context "acceptanceCriteria $($acceptance.id)")
+        if ($caseIds.Count -eq 0) {
+            $automatedFindings += New-AutomatedFinding -Category '受入条件未対応' -Id ([string]$acceptance.id) -Text ([string]$acceptance.text) -Status '未対応'
+        }
+    }
+
+    foreach ($testCase in $testCases) {
+        $caseId = [string]$testCase.id
+        $implementationIds = @(Get-RequiredProperty -Object $testCase -Name 'testImplementationIds' -Context "testCases $caseId")
+        $evidenceIds = @(Get-RequiredProperty -Object $testCase -Name 'evidenceIds' -Context "testCases $caseId")
+        if ($implementationIds.Count -eq 0) {
+            $automatedFindings += New-AutomatedFinding -Category '実テスト未紐付け' -Id $caseId -Text ([string]$testCase.name) -Status '未紐付け'
+        }
+        if ($evidenceIds.Count -eq 0) {
+            $automatedFindings += New-AutomatedFinding -Category '証跡未紐付け' -Id $caseId -Text ([string]$testCase.name) -Status '未紐付け'
+        }
+    }
+
+    $rootCauseGroups = @(Get-RootCauseGroups -RootCauses $rootCauses -TestCases $testCases)
+    foreach ($rootCause in $rootCauseGroups) {
+        $text = "{0} / 原因: {1} / 影響ケース: {2}件" -f $rootCause.name, $rootCause.reason, $rootCause.impactCaseCount
+        $automatedFindings += New-AutomatedFinding -Category 'ブロッカー' -Id ([string]$rootCause.id) -Text $text -Status ([string]$rootCause.status) -Priority 'ブロッカー'
+    }
+
+    foreach ($testCase in $testCases | Where-Object { [string]$_.executionStatus -ne '成功' }) {
+        $category = if ([string]$testCase.executionStatus -eq '失敗') { '失敗' } else { '未実行' }
+        $automatedFindings += New-AutomatedFinding -Category $category -Id ([string]$testCase.id) -Text ([string]($testCase.executionNote ?? $testCase.name)) -Status ([string]$testCase.executionStatus)
+    }
+
+    $caseById = @{}
+    foreach ($testCase in $testCases) {
+        $caseById[[string]$testCase.id] = $testCase
+    }
+    foreach ($gate in $qualityGates) {
+        $gateCases = @((Get-RequiredProperty -Object $gate -Name 'testCaseIds' -Context "qualityGates $($gate.id)") | ForEach-Object { $caseById[[string]$_] } | Where-Object { $null -ne $_ })
+        $failures = @($gateCases | Where-Object { [string]$_.executionStatus -eq '失敗' })
+        $incomplete = @($gateCases | Where-Object { [string]$_.executionStatus -ne '成功' })
+        if ($failures.Count -gt 0) {
+            $gateStatus = 'NG'
+            $gateReason = "必須ケースの失敗: $($failures.id -join ', ')"
+        }
+        elseif ($incomplete.Count -gt 0) {
+            $gateStatus = '未通過'
+            $gateReason = '必須ケースが未実行'
+        }
+        else {
+            $gateStatus = '通過'
+            $gateReason = ''
+        }
+        if ($gateStatus -ne '通過') {
+            $automatedFindings += New-AutomatedFinding -Category '品質ゲート' -Id ([string]$gate.id) -Text ([string]($gateReason ?? $gate.reason)) -Status $gateStatus -Priority '品質ゲート'
+        }
+    }
+
+    foreach ($layer in @('frontend', 'backend')) {
+        $coverageItem = Get-RequiredProperty -Object $coverage -Name $layer -Context 'coverage'
+        $coverageStatus = [string](Get-RequiredProperty -Object $coverageItem -Name 'status' -Context "coverage $layer")
+        if ($coverageStatus -ne '通過') {
+            $automatedFindings += New-AutomatedFinding -Category 'カバレッジ' -Id ("COV-{0}" -f $layer.ToUpperInvariant()) -Text ([string]($coverageItem.reason ?? "$layer coverage")) -Status $coverageStatus
+        }
+        foreach ($branch in @($coverageItem.uncoveredBranches)) {
+            $automatedFindings += New-AutomatedFinding -Category '未通過分岐' -Id ([string]$branch.id) -Text ([string]$branch.text) -Status '未通過'
+        }
+    }
+
+    foreach ($finding in $findings | Where-Object { [string]$_.status -eq '保留' }) {
+        $automatedFindings += New-AutomatedFinding -Category '指摘・保留' -Id ([string]$finding.id) -Text ([string]$finding.summary) -Status '保留' -Priority ([string]$finding.priority)
+    }
+
+    return @($automatedFindings)
+}
+
 function Update-EvidenceMetadata {
     param(
         [object]$Data,
@@ -382,6 +526,11 @@ function Read-QualityData {
 function Test-QualityData {
     param([object]$Data)
 
+    $schemaVersion = [string](Get-RequiredProperty -Object $Data -Name 'schemaVersion' -Context 'root data')
+    if ($schemaVersion -ne '1.0') {
+        Throw-ValidationError "root data schemaVersion must be 1.0, got '$schemaVersion'."
+    }
+
     $feature = Get-RequiredProperty -Object $Data -Name 'feature' -Context 'root data'
     foreach ($name in @('id', 'name', 'screenId', 'title', 'scope', 'reviewMode', 'snapshot')) {
         Get-RequiredProperty -Object $feature -Name $name -Context 'feature' | Out-Null
@@ -443,7 +592,7 @@ function Test-QualityData {
     Assert-References -Items $viewpoints -CollectionName 'viewpoints' -ReferenceProperty 'caseIds' -KnownIds $caseIds
     Assert-References -Items $viewpoints -CollectionName 'viewpoints' -ReferenceProperty 'findingIds' -KnownIds $findingIds
     Assert-BidirectionalAcceptanceReferences -AcceptanceCriteria $acceptanceCriteria -TestCases $testCases
-    Assert-AcceptanceOutcomeNotOverstated -AcceptanceCriteria $acceptanceCriteria -TestCases $testCases
+    Assert-AcceptanceExecutionStateNotOverstated -AcceptanceCriteria $acceptanceCriteria -TestCases $testCases
     Assert-ExecutionConsistency -TestCases $testCases -TestImplementations $testImplementations
     Assert-QualityGateOutcomeNotOverstated -QualityGates $qualityGates -TestCases $testCases
     Assert-TargetReferences -Findings $findings -KnownTargetIds $knownTargetIds
@@ -453,7 +602,6 @@ function Test-QualityData {
     Assert-AllowedStatus -Items $acceptanceCriteria -CollectionName 'acceptanceCriteria' -PropertyName 'reviewStatus' -Allowed @('OK', '不足', '対象外', '保留')
     Assert-AllowedStatus -Items $acceptanceCriteria -CollectionName 'acceptanceCriteria' -PropertyName 'caseDesignStatus' -Allowed @('OK', '不足', '対象外', '保留')
     Assert-AllowedStatus -Items $acceptanceCriteria -CollectionName 'acceptanceCriteria' -PropertyName 'executionStatus' -Allowed @('完了', '未完了', '失敗')
-    Assert-AllowedStatus -Items $acceptanceCriteria -CollectionName 'acceptanceCriteria' -PropertyName 'overallStatus' -Allowed @('OK', '保留', 'NG')
     Assert-AllowedStatus -Items $qualityGates -CollectionName 'qualityGates' -PropertyName 'status' -Allowed @('通過', '未通過', '保留', 'NG')
     Assert-AllowedStatus -Items $rootCauses -CollectionName 'rootCauses' -PropertyName 'status' -Allowed @('解消', '保留', 'NG')
     Assert-AllowedStatus -Items $testCases -CollectionName 'testCases' -PropertyName 'reviewStatus' -Allowed @('OK', '不足', '対象外', '保留')
@@ -582,7 +730,7 @@ function Get-HtmlTemplate {
       <button type="button" data-panel="overview" class="active">概要</button>
       <button type="button" data-panel="traceability">受入条件・追跡</button>
       <button type="button" data-panel="viewpoints">観点一覧</button>
-      <button type="button" data-panel="gaps">不足・保留</button>
+      <button type="button" data-panel="gaps">NG・要確認</button>
       <button type="button" data-panel="evidence">証跡・ソース</button>
     </nav>
     <section id="panel-overview" class="panel" data-panel-content="overview"></section>
@@ -608,30 +756,25 @@ function Get-HtmlTemplate {
         const hasFailure = affectedCases.some((item) => item.executionStatus === '失敗');
         return { ...definition, status: hasFailure ? 'NG' : '保留', caseIds: affectedCases.map((item) => item.id), impactCaseCount: affectedCases.length };
       }).filter((item) => item.impactCaseCount > 0);
-      const designStatus = (item) => item.caseDesignStatus || item.reviewStatus;
       const rootCauseNamesForCases = (items) => [...new Set(items.flatMap((item) => rootCauseGroups.filter((rootCause) => rootCause.caseIds.includes(item.id)).map((rootCause) => rootCause.name)))];
       const deriveAcceptance = (acceptance) => {
         const relatedCases = (acceptance.testCaseIds || []).map((id) => cases.find((item) => item.id === id)).filter(Boolean);
-        const designGaps = relatedCases.filter((item) => !['OK', '対象外'].includes(designStatus(item)));
         const failures = relatedCases.filter((item) => item.executionStatus === '失敗');
         const incomplete = relatedCases.filter((item) => item.executionStatus !== '成功');
         const rootCauseNames = rootCauseNamesForCases(incomplete);
-        let overallStatus = 'OK';
+        let confirmationStatus = '確認済み';
         let executionStatus = '完了';
         let blockingReason = '';
         if (failures.length > 0) {
-          overallStatus = 'NG';
+          confirmationStatus = '実行失敗';
           executionStatus = '失敗';
           blockingReason = `必須ケースの失敗: ${failures.map((item) => item.id).join(', ')}`;
         } else if (incomplete.length > 0) {
-          overallStatus = '保留';
+          confirmationStatus = '未完了';
           executionStatus = '未完了';
           blockingReason = rootCauseNames.join('、') || '必須ケースが未実行';
-        } else if (designGaps.length > 0) {
-          overallStatus = '保留';
-          blockingReason = `テストケース設計不足: ${designGaps.map((item) => item.id).join(', ')}`;
         }
-        return { ...acceptance, caseDesignStatus: designGaps.length > 0 ? '不足' : 'OK', executionStatus, overallStatus, blockingReason };
+        return { ...acceptance, executionStatus, confirmationStatus, blockingReason };
       };
       const acceptanceStates = (data.acceptanceCriteria || []).map(deriveAcceptance);
       const acceptanceById = byId(acceptanceStates);
@@ -639,14 +782,13 @@ function Get-HtmlTemplate {
       const implementationById = byId(data.testImplementations);
       const evidenceById = byId(data.evidence);
       const findingById = byId(data.findings);
-      const evidenceWarnings = (data.evidence || []).filter((item) => item.available === false || item.executionInfo?.isStale === true);
+      const evidenceWarnings = (data.evidence || []).filter((item) => item.available === false);
       const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[character]));
       const list = (values) => (values || []).map(esc).join(', ') || '<span class="muted">なし</span>';
-      const statusClass = (status) => ({ 'OK':'ok', '成功':'ok', '通過':'ok', '承認可能':'ok', '不足':'warn', '要補足':'warn', '対象外':'neutral', '未実行':'hold', '未完了':'hold', '未生成':'hold', '保留':'hold', '失敗':'danger', 'NG':'danger', '未通過':'danger', '対応済み':'ok' }[status] || 'neutral');
+      const statusClass = (status) => ({ 'OK':'ok', '成功':'ok', '確認済み':'ok', '全件実行済み':'ok', '通過':'ok', '不足':'warn', '設計不足':'warn', '要補足':'warn', '対象外':'neutral', '未実行':'hold', '一部未実行':'hold', '未完了':'hold', '未生成':'hold', '保留':'hold', '失敗':'danger', '実行失敗':'danger', '失敗あり':'danger', 'NG':'danger', '未通過':'danger', '対応済み':'ok' }[status] || 'neutral');
       const badge = (status) => `<span class="badge ${statusClass(status)}">${esc(status)}</span>`;
       const link = (item) => item && item.available !== false && item.path ? `<a href="${esc(item.path)}">参照</a>` : '<span class="muted">未生成・未確認</span>';
       const idLinks = (ids, map) => (ids || []).map((id) => map.has(id) ? `<a href="#item-${esc(id)}">${esc(id)}</a>` : `<span class="badge danger">未紐付け:${esc(id)}</span>`).join(', ') || '<span class="muted">なし</span>';
-      const count = (items, predicate) => (items || []).filter(predicate).length;
       const qualityGates = (data.qualityGates || []).map((gate) => {
         const relatedCases = (gate.testCaseIds || []).map((id) => caseById.get(id)).filter(Boolean);
         const failures = relatedCases.filter((item) => item.executionStatus === '失敗');
@@ -656,47 +798,21 @@ function Get-HtmlTemplate {
         const reason = failures.length > 0 ? `必須ケースの失敗: ${failures.map((item) => item.id).join(', ')}` : incomplete.length > 0 ? (rootCauseNames.join('、') || '必須ケースが未実行') : '';
         return { ...gate, status, reason, impactCaseCount: incomplete.length };
       });
-      const blockingGate = qualityGates.find((gate) => gate.blocking && gate.status !== '通過');
-      const requiredCaseIds = [...new Set(qualityGates.filter((gate) => gate.blocking).flatMap((gate) => gate.testCaseIds || []))];
-      const requiredCases = requiredCaseIds.map((id) => caseById.get(id)).filter(Boolean);
-      const failedRequiredCases = requiredCases.filter((item) => item.executionStatus === '失敗');
-      const incompleteRequiredCases = requiredCases.filter((item) => item.executionStatus !== '成功');
-      const unresolvedHighFindings = findings.filter((item) => item.priority === 'High' && !['対応済み', '対象外'].includes(item.status));
-      const scopeStatus = (items) => items.some((item) => item.executionStatus === '失敗') ? 'NG' : items.some((item) => !['OK', '対象外'].includes(designStatus(item))) || items.some((item) => item.executionStatus !== '成功') ? '保留' : '承認可能';
-      const frontendScopeStatus = scopeStatus(cases.filter((item) => item.layer.startsWith('Frontend') || item.layer === 'Static'));
-      const backendScopeStatus = scopeStatus(cases.filter((item) => item.layer === 'Backend'));
-      const oracleScopeStatus = scopeStatus(cases.filter((item) => item.layer === 'Oracle'));
-      const assessmentRules = Object.freeze({
-        failedRequiredCases: { status: 'NG', reason: (items) => `必須ケースの失敗: ${items.map((item) => item.id).join(', ')}` },
-        unresolvedHighFindings: { status: 'NG', reason: (items) => `High優先度の未対応指摘: ${items.map((item) => item.id).join(', ')}` },
-        blockingQualityGate: { status: '保留', reason: (item) => item.reason || '品質ゲート未通過' },
-        incompleteRequiredCases: { status: '保留', reason: () => '必須ケースが未実行' },
-        allSatisfied: { status: 'OK', reason: () => '必須ケース、品質ゲート、指摘を確認済み' }
-      });
-      const deriveFeatureAssessment = () => {
-        if (failedRequiredCases.length > 0) return { status: assessmentRules.failedRequiredCases.status, reason: assessmentRules.failedRequiredCases.reason(failedRequiredCases) };
-        if (unresolvedHighFindings.length > 0) return { status: assessmentRules.unresolvedHighFindings.status, reason: assessmentRules.unresolvedHighFindings.reason(unresolvedHighFindings) };
-        if (blockingGate) return { status: assessmentRules.blockingQualityGate.status, reason: assessmentRules.blockingQualityGate.reason(blockingGate) };
-        if (incompleteRequiredCases.length > 0) return { status: assessmentRules.incompleteRequiredCases.status, reason: assessmentRules.incompleteRequiredCases.reason() };
-        return { status: assessmentRules.allSatisfied.status, reason: assessmentRules.allSatisfied.reason() };
+      const scopeExecutionFacts = (items) => {
+        const total = items.length;
+        const successCount = items.filter((item) => item.executionStatus === '成功').length;
+        const failedCount = items.filter((item) => item.executionStatus === '失敗').length;
+        const unexecutedCount = items.filter((item) => item.executionStatus === '未実行').length;
+        const status = total === 0 ? '対象外' : failedCount > 0 ? '失敗あり' : unexecutedCount > 0 ? (successCount > 0 ? '一部未実行' : '未実行') : '全件実行済み';
+        return { status, total, successCount, failedCount, unexecutedCount };
       };
-      const featureAssessment = deriveFeatureAssessment();
-      const gaps = [];
-      acceptanceStates.forEach((item) => { if (!item.testCaseIds || item.testCaseIds.length === 0) gaps.push({ category:'受入条件未対応', id:item.id, text:item.text, status:'不足' }); });
-      cases.forEach((item) => {
-        if (!item.testImplementationIds || item.testImplementationIds.length === 0) gaps.push({ category:'実テスト未紐付け', id:item.id, text:item.name, status:'不足' });
-        if (!item.evidenceIds || item.evidenceIds.length === 0) gaps.push({ category:'証跡未紐付け', id:item.id, text:item.name, status:'不足' });
-        if (designStatus(item) === '不足') gaps.push({ category:'期待結果・ケース設計不足', id:item.id, text:item.expected, status:'不足' });
-      });
-      viewpoints.filter((item) => item.reviewStatus !== 'OK').forEach((item) => gaps.push({ category:'観点判定', id:item.id, text:item.description, status:item.reviewStatus }));
-      rootCauseGroups.forEach((rootCause) => gaps.push({ category:'ブロッカー', id:rootCause.id, text:`${rootCause.name} / 原因: ${rootCause.reason} / 影響ケース: ${rootCause.impactCaseCount}件`, status:rootCause.status, priority:'ブロッカー' }));
-      const groupedExecutionCaseIds = new Set(rootCauseGroups.flatMap((rootCause) => rootCause.caseIds));
-      cases.filter((item) => item.executionStatus !== '成功' && !groupedExecutionCaseIds.has(item.id)).forEach((item) => gaps.push({ category:item.executionStatus === '失敗' ? '失敗' : '未実行', id:item.id, text:item.executionNote || item.name, status:item.executionStatus }));
-      qualityGates.filter((item) => item.status !== '通過').forEach((item) => gaps.push({ category:'品質ゲート', id:item.id, text:item.reason || item.name, status:item.status, priority:'品質ゲート' }));
-      ['frontend', 'backend'].forEach((layer) => { const item = data.coverage[layer]; if (item.status !== '通過') gaps.push({ category:'カバレッジ', id:`COV-${layer.toUpperCase()}`, text:item.reason || `${layer} coverage`, status:item.status }); (item.uncoveredBranches || []).forEach((branch) => gaps.push({ category:'未通過分岐', id:branch.id, text:branch.text, status:'未通過' })); });
-      findings.filter((item) => ['保留', '要補足'].includes(item.status)).forEach((item) => gaps.push({ category:item.priority === 'High' ? 'High優先度未対応' : '指摘・保留', id:item.id, text:item.summary, status:item.status, priority:item.priority }));
-      const gapRank = (item) => ({ '失敗': 1, 'ブロッカー': 2, 'High優先度未対応': 3, '品質ゲート': 4, 'カバレッジ': 5, '未通過分岐': 5, '期待結果・ケース設計不足': 6, '実行未完了': 7, '指摘・保留': 8 }[item.category] || 9);
-      const orderedGaps = gaps.map((item, index) => ({ ...item, order: index })).sort((left, right) => gapRank(left) - gapRank(right) || left.order - right.order);
+      const frontendScopeFacts = scopeExecutionFacts(cases.filter((item) => item.layer.startsWith('Frontend') || item.layer === 'Static'));
+      const backendScopeFacts = scopeExecutionFacts(cases.filter((item) => item.layer === 'Backend'));
+      const oracleScopeFacts = scopeExecutionFacts(cases.filter((item) => item.layer === 'Oracle'));
+      const featureExecutionFacts = scopeExecutionFacts(cases);
+      const automatedFindings = data.automatedFindings || [];
+      const gapRank = (item) => ({ '失敗': 1, 'ブロッカー': 2, '品質ゲート': 3, '未通過分岐': 4, 'カバレッジ': 4, '受入条件未対応': 5, '実テスト未紐付け': 5, '証跡未紐付け': 5, '未実行': 6, '指摘・保留': 7 }[item.category] || 9);
+      const orderedGaps = automatedFindings.map((item, index) => ({ ...item, order: index })).sort((left, right) => gapRank(left) - gapRank(right) || left.order - right.order);
       const targetIds = new Set([
         ...acceptanceStates.map((item) => item.id),
         ...cases.map((item) => item.id),
@@ -715,29 +831,32 @@ function Get-HtmlTemplate {
       document.getElementById('meta').innerHTML = `モード: ${esc(data.feature.reviewMode)}<br>スナップショット: ${esc(data.feature.snapshot.capturedOn)}<br>対象コミット: ${esc(data.feature.snapshot.sourceCommit)}<br>生成コミット: ${esc(data.feature.generatedCommit || '生成時に取得')}`;
 
       const summaryItems = [
-        ['総合判定', featureAssessment.status, featureAssessment.reason],
+        ['実行状況', featureExecutionFacts.status, `成功 ${featureExecutionFacts.successCount}件 / 未実行 ${featureExecutionFacts.unexecutedCount}件 / 失敗 ${featureExecutionFacts.failedCount}件`],
         ['根本原因', rootCauseGroups.length, '概要は原因単位'],
         ['影響ケース', rootCauseGroups.reduce((total, item) => total + item.impactCaseCount, 0), '根本原因に紐付く件数'],
         ['品質ゲート', `${qualityGates.filter((item) => item.status === '通過').length}/${qualityGates.length}`, '通過数 / 全ゲート数'],
-        ['受入条件', acceptanceStates.length, '設計・実行・総合を分離'],
+        ['受入条件', acceptanceStates.length, '実行状態・確認状況を事実表示'],
         ['テストケース', cases.length, 'Backend・Oracle・Frontend・Static'],
         ['実テスト', (data.testImplementations || []).length, '実装参照'],
-        ['観点不足', count(viewpoints, (item) => item.reviewStatus !== 'OK'), '不足・保留・対象外'],
+        ['観点一覧', viewpoints.length, '入力された観点件数（判定は自動評価しない）'],
         ['確認項目', orderedGaps.length, '優先順位付き']
       ];
       document.getElementById('summary').innerHTML = summaryItems.map(([label, value, note]) => `<article class="card"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="note">${esc(note)}</div></article>`).join('');
+
+      const renderScopeFacts = (label, facts) => `<div><strong>${esc(label)}</strong><br>${badge(facts.status)}<br><span class="muted">成功 ${esc(facts.successCount)} / 未実行 ${esc(facts.unexecutedCount)} / 失敗 ${esc(facts.failedCount)}</span></div>`;
 
       const renderCase = (item) => {
         const implementations = (item.testImplementationIds || []).map((id) => implementationById.get(id)).filter(Boolean);
         const evidence = (item.evidenceIds || []).map((id) => evidenceById.get(id)).filter(Boolean);
         const findingsForCase = (item.findingIds || []).map((id) => findingById.get(id)).filter(Boolean);
-        return `<details class="case" id="item-${esc(item.id)}"><summary>${esc(item.id)} ${esc(item.name)} ${badge(item.reviewStatus)} ${badge(item.executionStatus)}</summary><div class="case-body"><div class="case-field"><strong>目的</strong>${esc(item.purpose)}</div><div class="case-field"><strong>前提</strong>${esc(item.precondition)}</div><div class="case-field"><strong>操作</strong>${esc(item.action)}</div><div class="case-field"><strong>期待結果</strong>${esc(item.expected)}</div><div class="case-field"><strong>受入条件</strong>${idLinks(item.acceptanceCriteriaIds, acceptanceById)}</div><div class="case-field"><strong>実テスト</strong>${implementations.map((impl) => `<a href="${esc(impl.file)}">${esc(impl.name)}</a>`).join('<br>') || '<span class="muted">未紐付け</span>'}</div><div class="case-field"><strong>証跡</strong>${evidence.map((entry) => `${link(entry)} ${esc(entry.type)}`).join('<br>') || '<span class="muted">未紐付け</span>'}</div><div class="case-field"><strong>指摘・補足</strong>${findingsForCase.map((finding) => `${badge(finding.status)} ${esc(finding.summary)}`).join('<br>') || '<span class="muted">なし</span>'}</div></div>${item.executionNote ? `<div class="callout warn small">${esc(item.executionNote)}</div>` : ''}</details>`;
+        return `<details class="case" id="item-${esc(item.id)}"><summary>${esc(item.id)} ${esc(item.name)} ${badge(item.executionStatus)}</summary><div class="case-body"><div class="case-field"><strong>目的</strong>${esc(item.purpose)}</div><div class="case-field"><strong>前提</strong>${esc(item.precondition)}</div><div class="case-field"><strong>操作</strong>${esc(item.action)}</div><div class="case-field"><strong>期待結果</strong>${esc(item.expected)}</div><div class="case-field"><strong>レビュー記録（入力）</strong>${badge(item.reviewStatus)}</div><div class="case-field"><strong>受入条件</strong>${idLinks(item.acceptanceCriteriaIds, acceptanceById)}</div><div class="case-field"><strong>実テスト</strong>${implementations.map((impl) => `<a href="${esc(impl.file)}">${esc(impl.name)}</a>`).join('<br>') || '<span class="muted">未紐付け</span>'}</div><div class="case-field"><strong>証跡</strong>${evidence.map((entry) => `${link(entry)} ${esc(entry.type)}`).join('<br>') || '<span class="muted">未紐付け</span>'}</div><div class="case-field"><strong>指摘・補足（入力）</strong>${findingsForCase.map((finding) => `${badge(finding.status)} ${esc(finding.summary)}`).join('<br>') || '<span class="muted">なし</span>'}</div></div>${item.executionNote ? `<div class="callout warn small">${esc(item.executionNote)}</div>` : ''}</details>`;
       };
 
-      document.getElementById('panel-overview').innerHTML = `<h2>概要</h2><div id="overall-assessment" class="callout ${featureAssessment.status === 'NG' ? 'danger' : featureAssessment.status === '保留' ? 'warn' : ''}"><h3>総合判定: ${badge(featureAssessment.status)}</h3><p>${esc(featureAssessment.reason)}</p><div class="assessment-grid"><div><strong>Frontend範囲</strong><br>${badge(frontendScopeStatus)}</div><div><strong>Backend範囲</strong><br>${badge(backendScopeStatus)}</div><div><strong>Oracle実機確認</strong><br>${badge(oracleScopeStatus)}</div><div><strong>機能全体</strong><br>${badge(featureAssessment.status === 'OK' ? '承認可能' : '承認不可')}</div></div></div><div class="callout">${esc(data.feature.snapshot.description)}</div>${evidenceWarnings.length > 0 ? `<div class="callout warn"><strong>証跡警告</strong><br>${evidenceWarnings.map((item) => `${esc(item.id)}: ${item.available === false ? 'ファイル未生成・未確認' : '対象コミットと証跡コミットが不一致'}`).join('<br>')}</div>` : '<div class="callout"><strong>証跡状態</strong><br>ファイル存在を生成時に確認。実行日時・証跡コミットは未取得項目を明示しています。</div>'}<h3>品質ゲート</h3>${qualityGates.map((gate) => `<div id="item-${esc(gate.id)}" class="callout ${gate.status === 'NG' ? 'danger' : gate.status === '通過' ? '' : 'warn'}">${badge(gate.status)} <strong>${esc(gate.id)} ${esc(gate.name)}</strong><br>${esc(gate.reason || '判定理由なし')}<br>影響ケース: ${esc(gate.impactCaseCount)}件</div>`).join('') || '<div class="empty">品質ゲートはありません。</div>'}<h3>根本原因</h3>${rootCauseGroups.map((rootCause) => `<div id="item-${esc(rootCause.id)}" class="callout warn"><strong>${esc(rootCause.name)}</strong> ${badge(rootCause.status)}<br>原因: ${esc(rootCause.reason)}<br>影響ケース: ${esc(rootCause.impactCaseCount)}件</div>`).join('') || '<div class="empty">根本原因はありません。</div>'}<h3>カバレッジ詳細</h3><div id="item-COV-FRONTEND" class="callout"><strong>Frontend</strong> ${badge(data.coverage.frontend.status)}<br>Branches: ${esc(data.coverage.frontend.metrics.branches)}%</div><div id="item-COV-BACKEND" class="callout ${data.coverage.backend.status === '通過' ? '' : 'warn'}"><strong>Backend</strong> ${badge(data.coverage.backend.status)}<br>Branches: ${esc(data.coverage.backend.metrics.branch)}%<br>${esc(data.coverage.backend.reason || '')}${(data.coverage.backend.uncoveredBranches || []).map((branch) => `<div id="item-${esc(branch.id)}" class="callout danger small">${esc(branch.file)}: ${esc(branch.text)}</div>`).join('')}</div><h3>現在の確認状態</h3><div class="grid summary"><article class="card"><div class="label">Frontend coverage</div><div class="value">${badge(data.coverage.frontend.status)}</div><div class="note">Branches ${esc(data.coverage.frontend.metrics.branches)}%</div></article><article class="card"><div class="label">Backend coverage</div><div class="value">${badge(data.coverage.backend.status)}</div><div class="note">${data.coverage.backend.status === '未生成' ? '未生成は未通過と判定しない' : '未通過分岐を抽出表示'}</div></article><article class="card"><div class="label">根本原因 / 影響ケース</div><div class="value">${esc(rootCauseGroups.length)} / ${esc(rootCauseGroups.reduce((total, item) => total + item.impactCaseCount, 0))}</div><div class="note">ケース単位ではなく原因単位</div></article></div><h3>優先順位付きの主な未完了事項</h3>${orderedGaps.slice(0, 8).map((item) => `<div class="callout ${item.status === '失敗' || item.status === 'NG' || item.status === '未通過' ? 'danger' : 'warn'}">${badge(item.status)} <strong>${esc(item.category)} ${esc(item.id)}</strong><br>${esc(item.text)}</div>`).join('') || '<div class="empty">未完了事項はありません。</div>'}`;
+      const overviewTone = featureExecutionFacts.status === '失敗あり' ? 'danger' : featureExecutionFacts.unexecutedCount > 0 ? 'warn' : '';
+      document.getElementById('panel-overview').innerHTML = `<h2>概要</h2><div id="execution-summary" class="callout ${overviewTone}"><h3>実行状況: ${badge(featureExecutionFacts.status)}</h3><p>成功 ${esc(featureExecutionFacts.successCount)}件 / 未実行 ${esc(featureExecutionFacts.unexecutedCount)}件 / 失敗 ${esc(featureExecutionFacts.failedCount)}件</p><div class="assessment-grid">${renderScopeFacts('Frontend実行状況', frontendScopeFacts)}${renderScopeFacts('Backend実行状況', backendScopeFacts)}${renderScopeFacts('Oracle実行状況', oracleScopeFacts)}</div></div><div class="callout">${esc(data.feature.snapshot.description)}</div><div class="callout"><strong>表示方針</strong><br>品質の自動評価は表示せず、実行結果・品質ゲート・証跡・カバレッジを個別に表示しています。</div>${evidenceWarnings.length > 0 ? `<div class="callout warn"><strong>証跡警告</strong><br>${evidenceWarnings.map((item) => `${esc(item.id)}: ファイル未生成・未確認`).join('<br>')}</div>` : '<div class="callout"><strong>証跡状態</strong><br>ファイル存在を生成時に確認。実行情報は取得できた項目だけを表示しています。</div>'}<h3>品質ゲート</h3>${qualityGates.map((gate) => `<div id="item-${esc(gate.id)}" class="callout ${gate.status === 'NG' ? 'danger' : gate.status === '通過' ? '' : 'warn'}">${badge(gate.status)} <strong>${esc(gate.id)} ${esc(gate.name)}</strong><br>${esc(gate.reason || '判定理由なし')}<br>影響ケース: ${esc(gate.impactCaseCount)}件</div>`).join('') || '<div class="empty">品質ゲートはありません。</div>'}<h3>根本原因</h3>${rootCauseGroups.map((rootCause) => `<div id="item-${esc(rootCause.id)}" class="callout warn"><strong>${esc(rootCause.name)}</strong> ${badge(rootCause.status)}<br>原因: ${esc(rootCause.reason)}<br>影響ケース: ${esc(rootCause.impactCaseCount)}件</div>`).join('') || '<div class="empty">根本原因はありません。</div>'}<h3>カバレッジ詳細</h3><div id="item-COV-FRONTEND" class="callout"><strong>Frontend</strong> ${badge(data.coverage.frontend.status)}<br>Branches: ${esc(data.coverage.frontend.metrics.branches)}%</div><div id="item-COV-BACKEND" class="callout ${data.coverage.backend.status === '通過' ? '' : 'warn'}"><strong>Backend</strong> ${badge(data.coverage.backend.status)}<br>Branches: ${esc(data.coverage.backend.metrics.branch)}%<br>${esc(data.coverage.backend.reason || '')}${(data.coverage.backend.uncoveredBranches || []).map((branch) => `<div id="item-${esc(branch.id)}" class="callout danger small">${esc(branch.file)}: ${esc(branch.text)}</div>`).join('')}</div><h3>取得済みメトリクス</h3><div class="grid summary"><article class="card"><div class="label">Frontend coverage</div><div class="value">${badge(data.coverage.frontend.status)}</div><div class="note">Branches ${esc(data.coverage.frontend.metrics.branches)}%</div></article><article class="card"><div class="label">Backend coverage</div><div class="value">${badge(data.coverage.backend.status)}</div><div class="note">${data.coverage.backend.status === '未生成' ? '未生成のため数値なし' : '未通過分岐を抽出表示'}</div></article><article class="card"><div class="label">根本原因 / 影響ケース</div><div class="value">${esc(rootCauseGroups.length)} / ${esc(rootCauseGroups.reduce((total, item) => total + item.impactCaseCount, 0))}</div><div class="note">ケース単位ではなく原因単位</div></article></div><h3>優先順位付きの主な確認事項</h3>${orderedGaps.slice(0, 8).map((item) => `<div class="callout ${item.status === '失敗' || item.status === 'NG' || item.status === '未通過' ? 'danger' : 'warn'}">${badge(item.status)} <strong>${esc(item.category)} ${esc(item.id)}</strong><br>${esc(item.text)}</div>`).join('') || '<div class="empty">確認事項はありません。</div>'}`;
 
-      const traceRows = acceptanceStates.map((ac) => `<tr id="item-${esc(ac.id)}"><td><strong>${esc(ac.id)}</strong><br>${esc(ac.text)}<br><span class="muted">設計品質</span> ${badge(ac.caseDesignStatus)}<br><span class="muted">実行状態</span> ${badge(ac.executionStatus)}<br><span class="muted">総合判定</span> ${badge(ac.overallStatus)}<br><span class="muted">理由</span> ${esc(ac.blockingReason || 'なし')}</td><td>${idLinks(ac.testCaseIds, caseById)}</td><td>${(ac.testCaseIds || []).map((id) => caseById.get(id)).filter(Boolean).map((item) => `${esc(item.layer)} ${badge(item.executionStatus)}`).join('<br>') || '<span class="muted">未対応</span>'}</td></tr>`).join('');
-      document.getElementById('panel-traceability').innerHTML = `<h2>受入条件・追跡</h2><div class="filter"><input id="trace-search" type="search" placeholder="ID・内容で検索" aria-label="受入条件検索"><select id="trace-status" aria-label="実行結果フィルター"><option value="">全実行結果</option><option>成功</option><option>未実行</option><option>失敗</option></select></div><div class="table-wrap"><table><thead><tr><th>受入条件（設計・実行・総合）</th><th>テストケース</th><th>ケース実行結果</th></tr></thead><tbody id="trace-rows">${traceRows}</tbody></table></div><h3>ケース詳細</h3><div id="case-list" class="case-list">${cases.map(renderCase).join('')}</div>`;
+      const traceRows = acceptanceStates.map((ac) => `<tr id="item-${esc(ac.id)}"><td><strong>${esc(ac.id)}</strong><br>${esc(ac.text)}<br><span class="muted">実行状態</span> ${badge(ac.executionStatus)}<br><span class="muted">確認状況</span> ${badge(ac.confirmationStatus)}<br><span class="muted">理由</span> ${esc(ac.blockingReason || 'なし')}</td><td>${idLinks(ac.testCaseIds, caseById)}</td><td>${(ac.testCaseIds || []).map((id) => caseById.get(id)).filter(Boolean).map((item) => `${esc(item.layer)} ${badge(item.executionStatus)}`).join('<br>') || '<span class="muted">未対応</span>'}</td></tr>`).join('');
+      document.getElementById('panel-traceability').innerHTML = `<h2>受入条件・追跡</h2><div class="filter"><input id="trace-search" type="search" placeholder="ID・内容で検索" aria-label="受入条件検索"><select id="trace-status" aria-label="実行結果フィルター"><option value="">全実行結果</option><option>成功</option><option>未実行</option><option>失敗</option></select></div><div class="table-wrap"><table><thead><tr><th>受入条件（実行・確認）</th><th>テストケース</th><th>ケース実行結果</th></tr></thead><tbody id="trace-rows">${traceRows}</tbody></table></div><h3>ケース詳細</h3><div id="case-list" class="case-list">${cases.map(renderCase).join('')}</div>`;
       const applyTraceFilter = () => {
         const query = document.getElementById('trace-search').value.toLowerCase();
         const status = document.getElementById('trace-status').value;
@@ -757,12 +876,12 @@ function Get-HtmlTemplate {
       document.getElementById('trace-status').addEventListener('change', applyTraceFilter);
 
       const viewpointRows = viewpoints.map((item) => `<tr id="item-${esc(item.id)}"><td><strong>${esc(item.id)}</strong><br>${esc(item.name)}</td><td>${esc(item.description)}</td><td>${badge(item.reviewStatus)}</td><td>${idLinks(item.caseIds, caseById)}</td><td>${(item.findingIds || []).map((id) => findingById.get(id)).filter(Boolean).map((finding) => `${badge(finding.status)} ${esc(finding.summary)}`).join('<br>') || '<span class="muted">なし</span>'}</td></tr>`).join('');
-      document.getElementById('panel-viewpoints').innerHTML = `<h2>観点一覧</h2><div class="filter"><input id="viewpoint-search" type="search" placeholder="観点・内容で検索" aria-label="観点検索"><select id="viewpoint-status" aria-label="観点判定フィルター"><option value="">全判定</option><option>OK</option><option>不足</option><option>対象外</option><option>保留</option></select></div><div class="table-wrap"><table><thead><tr><th>観点</th><th>確認内容</th><th>判定</th><th>根拠ケース</th><th>関連指摘</th></tr></thead><tbody id="viewpoint-rows">${viewpointRows}</tbody></table></div>`;
+      document.getElementById('panel-viewpoints').innerHTML = `<h2>観点一覧</h2><div class="filter"><input id="viewpoint-search" type="search" placeholder="観点・内容で検索" aria-label="観点検索"><select id="viewpoint-status" aria-label="レビュー記録フィルター"><option value="">全レビュー記録</option><option>OK</option><option>不足</option><option>対象外</option><option>保留</option></select></div><div class="table-wrap"><table><thead><tr><th>観点</th><th>確認内容</th><th>レビュー記録（入力）</th><th>根拠ケース</th><th>関連指摘</th></tr></thead><tbody id="viewpoint-rows">${viewpointRows}</tbody></table></div>`;
       const applyViewpointFilter = () => { const query = document.getElementById('viewpoint-search').value.toLowerCase(); const status = document.getElementById('viewpoint-status').value; document.querySelectorAll('#viewpoint-rows tr').forEach((row) => { const item = viewpoints.find((candidate) => candidate.id === row.id.replace('item-', '')); row.hidden = !item || (query && !JSON.stringify(item).toLowerCase().includes(query)) || (status && item.reviewStatus !== status); }); };
       document.getElementById('viewpoint-search').addEventListener('input', applyViewpointFilter);
       document.getElementById('viewpoint-status').addEventListener('change', applyViewpointFilter);
 
-      document.getElementById('panel-gaps').innerHTML = `<h2>不足・保留</h2><p class="muted">根本原因、品質ゲート、カバレッジ、設計不足の順に優先表示しています。ケース詳細では個別ケースを確認できます。</p><div class="table-wrap"><table><thead><tr><th>分類</th><th>ID</th><th>内容</th><th>状態</th></tr></thead><tbody>${orderedGaps.map((item) => `<tr><td>${esc(item.category)}</td><td>${targetLink(item.id)}</td><td>${esc(item.text)}</td><td>${badge(item.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">不足・保留はありません。</td></tr>'}</tbody></table></div>`;
+      document.getElementById('panel-gaps').innerHTML = `<h2>機械検証結果</h2><p class="muted">JSONの構造、ID、紐付け、実行結果、品質ゲート、カバレッジ、明示された保留だけを表示しています。レビュー状態や意味評価は自動判定していません。</p><div class="table-wrap"><table><thead><tr><th>分類</th><th>ID</th><th>内容</th><th>状態</th></tr></thead><tbody>${orderedGaps.map((item) => `<tr><td>${esc(item.category)}</td><td>${targetLink(item.id)}</td><td>${esc(item.text)}</td><td>${badge(item.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">機械検証上の確認事項はありません。</td></tr>'}</tbody></table></div>`;
 
       const displayNullable = (value) => value === null || value === undefined || value === '' ? '未取得' : String(value);
       const executionForEvidence = (evidence) => {
@@ -772,10 +891,10 @@ function Get-HtmlTemplate {
         const commands = [...new Set(implementations.map((item) => item.runCommand).filter(Boolean))];
         return { status, command: commands.join(' / ') || null };
       };
-      const evidenceRows = (data.evidence || []).map((item) => { const info = item.executionInfo || {}; const execution = executionForEvidence(item); return `<tr><td>${esc(item.id)}</td><td>${esc(item.type)}</td><td>${link(item)}</td><td>${esc(item.note)}</td><td>${badge(execution.status)}</td><td>${esc(displayNullable(info.executedAt))}</td><td>${esc(displayNullable(info.sourceCommit))}</td><td>${esc(displayNullable(info.command || execution.command))}</td><td>${esc(displayNullable(info.exitCode))}</td><td>${esc(displayNullable(info.environment))}</td><td>${esc(displayNullable(info.reportGeneratedAt))}</td><td>${info.isStale === true ? badge('古い証跡') : info.isStale === false ? badge('現行') : '<span class="muted">未判定</span>'}</td></tr>`; }).join('');
+      const evidenceRows = (data.evidence || []).map((item) => { const info = item.executionInfo || {}; const execution = executionForEvidence(item); return `<tr><td>${esc(item.id)}</td><td>${esc(item.type)}</td><td>${link(item)}</td><td>${esc(item.note)}</td><td>${badge(execution.status)}</td><td>${esc(displayNullable(info.command || execution.command))}</td><td>${esc(displayNullable(info.reportGeneratedAt))}</td></tr>`; }).join('');
       const sourceRows = (data.sources || []).map((item) => `<tr><td>${esc(item.id)}</td><td>${esc(item.name)}</td><td><a href="${esc(item.path)}">参照</a></td><td>${esc(item.section)}</td></tr>`).join('');
       const findingRows = findings.map((item) => `<tr id="item-${esc(item.id)}"><td>${esc(item.id)}</td><td>${esc(item.priority)}</td><td>${badge(item.status)}</td><td>${esc(item.summary)}</td><td>${esc(item.action)}</td></tr>`).join('');
-      document.getElementById('panel-evidence').innerHTML = `<h2>証跡・ソース</h2><h3>証跡</h3><div class="table-wrap"><table><thead><tr><th>ID</th><th>種別</th><th>リンク</th><th>備考</th><th>実行結果</th><th>実行日時</th><th>証跡コミット</th><th>コマンド</th><th>終了コード</th><th>環境</th><th>レポート生成日時</th><th>鮮度</th></tr></thead><tbody>${evidenceRows}</tbody></table></div><h3>指摘一覧</h3><div class="table-wrap"><table><thead><tr><th>ID</th><th>優先度</th><th>状態</th><th>概要</th><th>対応</th></tr></thead><tbody>${findingRows}</tbody></table></div><h3>正本・参照資料</h3><div class="table-wrap"><table><thead><tr><th>ID</th><th>資料</th><th>リンク</th><th>参照節</th></tr></thead><tbody>${sourceRows}</tbody></table></div>`;
+      document.getElementById('panel-evidence').innerHTML = `<h2>証跡・ソース</h2><h3>証跡</h3><div class="table-wrap"><table><thead><tr><th>ID</th><th>種別</th><th>リンク</th><th>備考</th><th>実行結果</th><th>コマンド</th><th>レポート生成日時</th></tr></thead><tbody>${evidenceRows}</tbody></table></div><h3>指摘一覧</h3><div class="table-wrap"><table><thead><tr><th>ID</th><th>優先度</th><th>状態</th><th>概要</th><th>対応</th></tr></thead><tbody>${findingRows}</tbody></table></div><h3>正本・参照資料</h3><div class="table-wrap"><table><thead><tr><th>ID</th><th>資料</th><th>リンク</th><th>参照節</th></tr></thead><tbody>${sourceRows}</tbody></table></div>`;
 
       const showPanel = (panelName) => { document.querySelectorAll('.nav button').forEach((button) => button.classList.toggle('active', button.dataset.panel === panelName)); document.querySelectorAll('[data-panel-content]').forEach((panel) => { panel.hidden = panel.dataset.panelContent !== panelName; }); };
       const focusTarget = (id) => { const target = document.getElementById(`item-${id}`); if (!target) return false; const panel = target.closest('[data-panel-content]'); if (panel) showPanel(panel.dataset.panelContent); if (target.tagName === 'DETAILS') target.open = true; target.classList.remove('target-flash'); void target.offsetWidth; target.classList.add('target-flash'); target.scrollIntoView({ block: 'center' }); window.setTimeout(() => target.classList.remove('target-flash'), 1800); return true; };
@@ -800,6 +919,7 @@ if ($ValidateOnly) {
 $data.feature | Add-Member -NotePropertyName generatedAt -NotePropertyValue (Get-Date).ToString('o') -Force
 $generatedCommit = Get-GeneratedCommit
 $data.feature | Add-Member -NotePropertyName generatedCommit -NotePropertyValue $generatedCommit -Force
+$data | Add-Member -NotePropertyName automatedFindings -NotePropertyValue @(Get-AutomatedFindings -Data $data) -Force
 Update-EvidenceMetadata -Data $data -CurrentCommit $generatedCommit
 $embeddedJson = Get-EmbeddedJson -Data $data
 $html = (Get-HtmlTemplate).Replace('__TITLE__', [System.Net.WebUtility]::HtmlEncode([string]$data.feature.title)).Replace('__QUALITY_DATA__', $embeddedJson)

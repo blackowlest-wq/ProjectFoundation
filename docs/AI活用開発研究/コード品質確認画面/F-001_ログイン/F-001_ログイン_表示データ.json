@@ -1,4 +1,5 @@
 {
+  "schemaVersion": "1.0",
   "feature": {
     "id": "F-001",
     "name": "ログイン",
@@ -25,7 +26,6 @@
       "reviewStatus": "OK",
       "caseDesignStatus": "不足",
       "executionStatus": "未完了",
-      "overallStatus": "保留",
       "blockingReason": "Backend通常テストがORA-01017で未実行。Frontendケースに期待結果補足あり",
       "testCaseIds": ["BE-AUTH-001", "BE-AUTH-007", "BE-ORA-001", "FE-AUTH-002", "FE-AUTH-011"]
     },
@@ -35,7 +35,6 @@
       "reviewStatus": "OK",
       "caseDesignStatus": "OK",
       "executionStatus": "未完了",
-      "overallStatus": "保留",
       "blockingReason": "Backend通常テストがOracle資格情報エラーで未実行",
       "testCaseIds": ["BE-AUTH-007", "FE-AUTH-001", "FE-AUTH-014"]
     },
@@ -45,7 +44,6 @@
       "reviewStatus": "OK",
       "caseDesignStatus": "不足",
       "executionStatus": "未完了",
-      "overallStatus": "保留",
       "blockingReason": "Backend通常テストがOracle資格情報エラーで未実行。最大長ケースに期待結果補足あり",
       "testCaseIds": ["BE-AUTH-002", "BE-AUTH-006", "BE-AUTH-009", "BE-AUTH-010", "BE-AUTH-011", "BE-AUTH-012", "BE-AUTH-013", "BE-AUTH-014", "BE-AUTH-015", "FE-AUTH-004", "FE-AUTH-005", "FE-AUTH-008", "FE-AUTH-009", "FE-AUTH-010", "FE-AUTH-017"]
     },
@@ -55,7 +53,6 @@
       "reviewStatus": "OK",
       "caseDesignStatus": "OK",
       "executionStatus": "未完了",
-      "overallStatus": "保留",
       "blockingReason": "Backend通常テストがOracle資格情報エラーで未実行",
       "testCaseIds": ["BE-AUTH-003", "FE-AUTH-003", "FE-AUTH-013"]
     },
@@ -65,7 +62,6 @@
       "reviewStatus": "OK",
       "caseDesignStatus": "OK",
       "executionStatus": "未完了",
-      "overallStatus": "保留",
       "blockingReason": "Backend通常テストがOracle資格情報エラーで未実行",
       "testCaseIds": ["BE-AUTH-004", "BE-AUTH-005", "BE-ORA-001", "FE-AUTH-006", "FE-AUTH-007", "FE-AUTH-012", "FE-AUTH-015", "FE-AUTH-016"]
     }
