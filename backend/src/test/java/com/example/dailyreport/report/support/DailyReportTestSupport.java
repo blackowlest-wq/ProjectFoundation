@@ -91,6 +91,11 @@ public final class DailyReportTestSupport {
         List<Map<String, Object>> items = workMinutes > 0
                 ? List.of(Map.of("projectId", "P001", "workCategoryId", "WC001", "workMinutes", workMinutes))
                 : List.of();
+        return reportJsonWithItems(objectMapper, reportDate, holidayType, startTime, endTime, remarks, items);
+    }
+
+    public static String reportJsonWithItems(ObjectMapper objectMapper, LocalDate reportDate, String holidayType,
+            String startTime, String endTime, String remarks, List<Map<String, Object>> items) throws Exception {
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("reportDate", reportDate.toString());
         request.put("holidayType", holidayType);

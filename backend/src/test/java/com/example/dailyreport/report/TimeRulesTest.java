@@ -80,10 +80,77 @@ class TimeRulesTest {
     }
 
     @Test
+    void validateAndCalculateRejectsPaidLeaveWithWorkItemsButNoTimes() {
+        DailyReportRequest request = new DailyReportRequest(
+                LocalDate.of(2026, 7, 6), "PAID_LEAVE", null, null, null,
+                List.of(new DailyReportRequest.WorkItemRequest("P001", "WC001", 1)));
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
     void validateAndCalculateRejectsWorkdayWithEndBeforeStart() {
         DailyReportRequest request = workday(LocalDate.of(2026, 7, 7), "18:00", "09:00", 480);
 
         assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateAndCalculateRejectsWorkdayWithMissingStartOnly() {
+        DailyReportRequest request = workday(LocalDate.of(2026, 7, 7), null, "18:00", 480);
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateAndCalculateRejectsWorkdayWithMissingEndOnly() {
+        DailyReportRequest request = workday(LocalDate.of(2026, 7, 7), "09:00", null, 480);
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateAndCalculateRejectsBlankTimeValues() {
+        DailyReportRequest request = workday(LocalDate.of(2026, 7, 7), "", "", 480);
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateAndCalculateRejectsMinuteOutOfRange() {
+        DailyReportRequest request = workday(LocalDate.of(2026, 7, 7), "23:60", "23:59", 1);
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateAndCalculateRejectsNullWorkItemMinutes() {
+        DailyReportRequest request = new DailyReportRequest(
+                LocalDate.of(2026, 7, 7), "WORKDAY", "09:00", "18:00", "remarks",
+                List.of(new DailyReportRequest.WorkItemRequest("P001", "WC001", null)));
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", "WT001"), masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateAndCalculateRejectsEmployeeWithOnlyWorkTimeSettingMissing() {
+        DailyReportRequest request = workday(LocalDate.of(2026, 7, 7), "09:00", "18:00", 480);
+
+        assertThatThrownBy(() -> TimeRules.validateAndCalculate(request, employee("BT001", null), masterData()))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("入力内容が不正です。");
     }
@@ -105,6 +172,8 @@ class TimeRulesTest {
     void formatTimeAndDurationHandleMissingValues() {
         assertThat(TimeRules.formatTime(null)).isNull();
         assertThat(TimeRules.formatDuration(null)).isEqualTo("0:00");
+        assertThat(new TimeRules.CalculatedWorkTime(540, null, null, null, null, null, null).hasWorkTime())
+                .isFalse();
     }
 
     @Test
@@ -128,10 +197,123 @@ class TimeRulesTest {
     }
 
     @Test
+    void validateStoredReportAllowsPaidLeaveWithoutWorkInput() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        report.getWorkItems().clear();
+        set(report, "holidayType", "PAID_LEAVE");
+        set(report, "startTimeMinutes", null);
+        set(report, "endTimeMinutes", null);
+
+        TimeRules.validateStoredReport(report, masterData());
+    }
+
+    @Test
+    void validateStoredReportRejectsPaidLeaveWithWorkItemsButNoTimes() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report, "holidayType", "PAID_LEAVE");
+        set(report, "startTimeMinutes", null);
+        set(report, "endTimeMinutes", null);
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateStoredReportRejectsPaidLeaveWithTimesButNoWorkItems() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        report.getWorkItems().clear();
+        set(report, "holidayType", "PAID_LEAVE");
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
     void validateStoredReportRejectsHolidayWithoutItemsButWithTimes() throws Exception {
         DailyReportEntity report = reportWithValidWorkday();
         report.getWorkItems().clear();
         set(report, "holidayType", "HOLIDAY");
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateStoredReportAllowsHolidayWithoutItemsAndTimes() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        report.getWorkItems().clear();
+        set(report, "holidayType", "HOLIDAY");
+        set(report, "startTimeMinutes", null);
+        set(report, "endTimeMinutes", null);
+
+        TimeRules.validateStoredReport(report, masterData());
+    }
+
+    @Test
+    void validateStoredReportAllowsHolidayWithWorkItems() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report, "holidayType", "HOLIDAY");
+
+        TimeRules.validateStoredReport(report, masterData());
+    }
+
+    @Test
+    void validateStoredReportRejectsMissingStartTimeOnly() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report, "startTimeMinutes", null);
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateStoredReportRejectsMissingEndTimeOnly() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report, "endTimeMinutes", null);
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateStoredReportRejectsInvalidStoredEndTime() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report, "endTimeMinutes", report.getStartTimeMinutes());
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateStoredReportRejectsWorkItemTotalMismatch() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report.getWorkItems().get(0), "workMinutes", 479);
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateStoredReportRejectsStoredOvertimeMismatch() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report, "overtimeWorkMinutes", 1);
+
+        assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("入力内容が不正です。");
+    }
+
+    @Test
+    void validateStoredReportRejectsStoredNightMismatch() throws Exception {
+        DailyReportEntity report = reportWithValidWorkday();
+        set(report, "nightWorkMinutes", 1);
 
         assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
                 .isInstanceOf(ApiException.class)

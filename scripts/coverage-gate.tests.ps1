@@ -39,6 +39,7 @@ $pomText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'backend/pom.xml
 $qualityWorkflowText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot '.github/workflows/quality.yml')
 $oracleWorkflowText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot '.github/workflows/oracle.yml')
 $coverageGateText = Get-Content -Raw -Encoding UTF8 (Join-Path $repoRoot 'scripts/check.ps1')
+$oracleRunnerText = Get-Content -Raw -Encoding UTF8 $oracleScript
 $wrapperMode = @(git -C $repoRoot ls-files -s backend/mvnw)[0].Split()[0]
 $ratchetReference = [regex]::Match($pomText, '<ratchetFrom>(?<reference>[^<]+)</ratchetFrom>').Groups['reference'].Value
 
@@ -80,6 +81,10 @@ Assert-Condition ($coverageGateText -match 'JACOCO_REPORT_MISSING') `
     'Backend report checks must expose a stable failure code.'
 Assert-Condition ($coverageGateText -match 'backend/target/jacoco\.exec') `
     'Backend coverage must verify the JaCoCo data file.'
+Assert-Condition ($oracleRunnerText -match '\bsubst\b' -and $oracleRunnerText -match 'mappedDriveLetter') `
+    'Oracle runner must provide a temporary ASCII path for JaCoCo on non-ASCII Windows workspaces.'
+Assert-Condition ($oracleRunnerText -match 'subst .*?/d') `
+    'Oracle runner must remove the temporary ASCII path mapping.'
 Assert-Condition ($unitCommand.Name -eq 'backend-unit-test') 'BackendUnit name is incorrect.'
 Assert-Condition ($unitArguments -contains 'test') 'BackendUnit must run Maven test.'
 Assert-Condition ($unitArguments -contains '-Dtest=ApiExceptionHandlerTest,BusinessEventLoggingTest,MasterDataRepositoryTest,RequestIdFilterTest,RequestMetadataInterceptorTest,TimeRulesTest') `
