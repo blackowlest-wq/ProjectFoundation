@@ -22,11 +22,11 @@ if (@($data.acceptanceCriteria).Count -ne 19) {
 if ($null -ne $data.PSObject.Properties['automatedFindings']) {
     throw 'automatedFindings must not be stored in input display data.'
 }
-if (@($data.testCases | Where-Object executionStatus -eq '未実行').Count -eq 0) {
-    throw 'The report must preserve unexecuted F-002 cases as facts.'
+if (@($data.qualityGates | Where-Object status -eq '保留').Count -eq 0) {
+    throw 'The report must preserve the pending screen-scope gate as a fact.'
 }
-if ($data.coverage.backend.status -ne '未通過' -or $data.coverage.backend.reason -notmatch 'jacoco\.exec') {
-    throw 'Backend coverage hold reason must remain visible as a fact.'
+if ($data.coverage.backend.status -ne '通過' -or $data.coverage.backend.metrics.branch -lt 85) {
+    throw 'Backend coverage must show the regenerated passing metrics.'
 }
 
 foreach ($forbidden in @('総合判定', '評価A', '承認可能', '承認不可', 'overallStatus')) {
@@ -47,7 +47,7 @@ foreach ($forbiddenCategory in @('観点判定', '期待結果・ケース設計
         throw "Semantic review category must not be automated: $forbiddenCategory"
     }
 }
-foreach ($requiredCategory in @('未実行', 'カバレッジ', '指摘・保留')) {
+foreach ($requiredCategory in @('指摘・保留')) {
     if (-not ($categories -contains $requiredCategory)) {
         throw "Expected fact category is missing from generated findings: $requiredCategory"
     }
