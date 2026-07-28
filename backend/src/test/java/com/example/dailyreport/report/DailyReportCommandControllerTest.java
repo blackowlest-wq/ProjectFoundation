@@ -58,6 +58,32 @@ class DailyReportCommandControllerTest {
     }
 
     @Test
+    void createWorkdayReportReturnsOvertimeAndNightMinutes() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee002");
+
+        String responseBody = mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reportJson(objectMapper, LocalDate.of(2026, 7, 3), "WORKDAY",
+                                "09:00", "23:00", 765, "overtime and night")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String reportId = objectMapper.readTree(responseBody).get("reportId").asText();
+
+        mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workMinutes", equalTo(765)))
+                .andExpect(jsonPath("$.regularWorkMinutes", equalTo(450)))
+                .andExpect(jsonPath("$.overtimeWorkMinutes", equalTo(255)))
+                .andExpect(jsonPath("$.nightWorkMinutes", equalTo(60)))
+                .andExpect(jsonPath("$.overtimeWorkTimeDisplay", equalTo("4:15")))
+                .andExpect(jsonPath("$.nightWorkTimeDisplay", equalTo("1:00")));
+    }
+
+    @Test
     void editDraftReportKeepsDraftStatus() throws Exception {
         MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
         String reportId = createReportId(mockMvc, objectMapper, session, LocalDate.of(2026, 6, 7), 480);

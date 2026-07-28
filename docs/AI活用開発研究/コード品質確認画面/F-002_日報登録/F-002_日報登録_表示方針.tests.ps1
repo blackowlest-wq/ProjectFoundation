@@ -28,13 +28,19 @@ if (@($data.qualityGates | Where-Object status -eq '保留').Count -eq 0) {
 if ($data.coverage.backend.status -ne '通過' -or $data.coverage.backend.metrics.branch -lt 85) {
     throw 'Backend coverage must show the regenerated passing metrics.'
 }
+$missingExecutionDates = @($data.testImplementations | Where-Object {
+        $_.executionStatus -eq '成功' -and [string]::IsNullOrWhiteSpace([string]$_.executedAt)
+    })
+if ($missingExecutionDates.Count -gt 0) {
+    throw "Successful test implementations must record executedAt: $($missingExecutionDates.id -join ', ')."
+}
 
 foreach ($forbidden in @('総合判定', '評価A', '承認可能', '承認不可', 'overallStatus')) {
     if ($html.Contains($forbidden)) {
         throw "Forbidden evaluative label remains in generated HTML: $forbidden"
     }
 }
-foreach ($required in @('F-002', 'S-003', '実行状況', '品質ゲート', 'NG・要確認', '未実行')) {
+foreach ($required in @('F-002', 'S-003', '実行状況', '品質ゲート', '残業・深夜', 'NG・要確認', '未実行')) {
     if (-not $html.Contains($required)) {
         throw "Required fact label is missing from generated HTML: $required"
     }
