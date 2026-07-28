@@ -84,10 +84,8 @@
                       .with(csrf())
                       .session(session)
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(reportJsonWithItems(objectMapper, LocalDate.of(2026, 7, 10),
-                              "WORKDAY", "09:00", "23:00", List.of(
-                                      Map.of("projectId", "P001", "workCategoryId", "WC001", "workMinutes", 765)),
-                              "secondary")))
+                      .content(reportJson(objectMapper, LocalDate.of(2026, 7, 10),
+                              "WORKDAY", "09:00", "23:00", 765, "secondary")))
               .andExpect(status().isCreated())
               .andExpect(jsonPath("$.approvalStatus", equalTo("DRAFT")))
               .andReturn().getResponse().getContentAsString();
