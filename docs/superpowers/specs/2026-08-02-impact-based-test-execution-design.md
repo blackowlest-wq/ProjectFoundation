@@ -43,12 +43,25 @@
 - API/イベントなどの契約テスト追加
 - テスト影響分析に利用できる依存グラフの整備
 
+### 5. GitゲートとCIの実装
+
+- `pre-commit` / `pre-push`は差分ベースの軽量検査を維持し、Fullテストをhookへ移さない。
+- `scripts/check.ps1`に影響範囲実行の入口を追加し、変更ファイル、依存関係、変更種別から実行対象を選択する。判定不能時は全体実行へフォールバックする。
+- `main` pushのGitHub Actionsは影響範囲ゲートを通常実行し、変更対象がない層は明示的に除外記録を残す。required checkは安定した集約ジョブで判定し、条件付きスキップだけで成功扱いにしない。
+- 夜間またはリリース前のGitHub Actionsは、Frontend、Backend、Coverage、E2E、必要なOracleを全体実行する。
+- OracleはDB・DDL・Backend・認証など影響がある通常変更では対象範囲を実行し、影響がない変更では除外理由を記録する。夜間・リリース前は全体Oracleを実行する。
+- workflowの変更、テストrunner、依存関係、集約ビルド、カバレッジ設定の変更は、影響範囲選択自体を信用できないため、Gitゲートを全体実行へフォールバックする。
+
 ## 対象資料
 
 - `docs/AI活用開発研究/構想メモ/標準化/品質ゲート運用.md`
 - `docs/AI活用開発研究/構想メモ/標準化/テスト方針.md`
 - `docs/AI活用開発研究/構想メモ/標準化/skills/projectfoundation-review-ja/SKILL.md`
 - `.agents/skills/projectfoundation-review-ja/SKILL.md`
+- `scripts/check.ps1`
+- `lefthook.yml`
+- `.github/workflows/quality.yml`
+- `.github/workflows/oracle.yml`
 
 ## 成功条件
 
@@ -57,3 +70,5 @@
 - 未実行・除外・影響範囲不明を成功扱いにしない。
 - 夜間・リリース前の全体実行を省略しない。
 - Skillの編集元と`.agents`の配置内容が一致する。
+- pre-commit/pre-push、main push、夜間、リリース前のGitゲートが、文書と同じ実行範囲を実際に選択する。
+- required checkが安定して結果を返し、条件付き除外を成功と誤認しない。

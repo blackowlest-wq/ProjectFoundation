@@ -10,11 +10,13 @@
 
 ## Global Constraints
 
-- 変更対象は、品質ゲート運用資料、テスト方針資料、ProjectFoundation Review Skillの編集元・同期先、および移行記録に限定する。
+- 変更対象は、品質ゲート運用資料、テスト方針資料、ProjectFoundation Review Skillの編集元・同期先、Git gate runner/workflow、および移行記録に限定する。
 - 全体テスト・全体カバレッジを廃止せず、夜間またはリリース前の実行として維持する。
 - 影響範囲を判定できない変更、密結合で分離できない変更、高リスク変更は全体実行へフォールバックする。
 - 未実行、除外、影響範囲不明、カバレッジ未取得を成功扱いにしない。
 - Skillの編集元は`docs/AI活用開発研究/構想メモ/標準化/skills/`、配置先は`.agents/skills/`とする。
+- pre-commit/pre-pushは差分ベースの軽量検査を維持し、Fullテストをhookへ移さない。
+- main pushの通常ゲートは影響範囲、夜間・リリース前のゲートは全体実行とする。
 - 日本語資料はUTF-8で編集し、Markdown lint、既存契約テスト、差分確認を実行する。
 
 ## File Map
@@ -23,7 +25,11 @@
 - Modify: `docs/AI活用開発研究/構想メモ/標準化/テスト方針.md` — テスト選択、カバレッジ、テスト分割、共通依存の方針。
 - Modify: `docs/AI活用開発研究/構想メモ/標準化/skills/projectfoundation-review-ja/SKILL.md` — 品質重視モードのレビュー・最終ゲート手順。
 - Modify: `.agents/skills/projectfoundation-review-ja/SKILL.md` — 実行時に検出される同期済みSkill。
-- Test: `scripts/pre-push.tests.ps1`、`scripts/simple-mode.tests.ps1`、`scripts/coverage-gate.tests.ps1`、`npm run lint:markdown` — 既存の品質ゲート契約とMarkdown契約で影響を確認する。
+- Modify: `scripts/check.ps1` — 影響範囲を選択し、判定不能時に全体へフォールバックするGit gate runner。
+- Modify: `lefthook.yml` — 差分ベースhookを維持することを必要に応じて明示する。
+- Modify: `.github/workflows/quality.yml` — main pushの影響範囲ゲートと夜間・リリース前の全体ゲートを分離する。
+- Modify: `.github/workflows/oracle.yml` — main pushの影響範囲Oracleと夜間・リリース前の全体Oracleを分離する。
+- Test: `scripts/pre-push.tests.ps1`、`scripts/simple-mode.tests.ps1`、`scripts/coverage-gate.tests.ps1`、workflow契約テスト、`npm run lint:markdown` — 実行範囲と契約を確認する。
 
 ---
 
@@ -136,21 +142,60 @@
 
   Expected: 編集元と配置先に同じ運用条件があり、常時全実行を要求する矛盾した文面が残っていない。
 
-### Task 4: 統合検証と作業記録
+### Task 4: Git gate runnerとworkflowを影響範囲ベースへ更新
+
+**Files:**
+- Modify: `scripts/check.ps1`
+- Modify: `lefthook.yml`
+- Modify: `.github/workflows/quality.yml`
+- Modify: `.github/workflows/oracle.yml`
+- Test: `scripts/pre-push.tests.ps1`、`scripts/simple-mode.tests.ps1`、workflow契約テスト、`scripts/coverage-gate.tests.ps1`
+
+**Interfaces:**
+- Consumes: Task 1・Task 2の実行範囲定義、変更ファイル、依存関係、対象層情報
+- Produces: 通常main pushの影響範囲ゲート、夜間・リリース前の全体ゲート、安定した集約結果、判定不能時の全体フォールバック
+
+- [ ] **Step 1: 現行hookとworkflowの実行範囲を契約化する**
+
+  `lefthook.yml`、`.github/workflows/quality.yml`、`.github/workflows/oracle.yml`を読み、pre-push、main push、workflow_dispatch、schedule、Oracleの現在の実行範囲を契約テストの期待値として整理する。
+
+- [ ] **Step 2: check runnerの影響範囲入力とフォールバックを設計する**
+
+  `scripts/check.ps1`に、変更ファイルまたはpush refから影響範囲を受け取り、Frontend、Backend、E2E、Coverage、Oracleの対象を選択する入口を追加する。workflow、runner、依存関係、DB/DDL、認証・共通部品の変更は全体へフォールバックする。
+
+- [ ] **Step 3: 安定した集約ゲート結果を追加する**
+
+  影響範囲の対象ジョブ、除外ジョブ、フォールバック理由、各ジョブ結果をartifactまたはsummaryへ出力し、required checkが条件付きスキップだけを成功として受け取らない集約結果を返す。
+
+- [ ] **Step 4: main pushの通常ゲートを影響範囲実行へ切り替える**
+
+  `quality.yml`と`oracle.yml`のmain push経路を影響範囲入口へ接続し、対象外層は除外理由を記録する。pre-commit/pre-pushの既存軽量検査と責務を重複させない。
+
+- [ ] **Step 5: 夜間・リリース前の全体ゲートを追加する**
+
+  `quality.yml`と`oracle.yml`へscheduleまたはリリース前のworkflow_dispatch/tag入口を追加し、全テスト、全カバレッジ、全E2E、必要なOracleを実行する。失敗、未実行、生成物不足は非0終了とする。
+
+- [ ] **Step 6: Git gate契約を実行する**
+
+  Run: `pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\pre-push.tests.ps1`、`pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\simple-mode.tests.ps1`、`pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\coverage-gate.tests.ps1`、workflow契約テスト
+
+  Expected: hookは差分ベース、main pushは影響範囲、夜間・リリース前は全体、影響範囲不明は全体フォールバックとして検証される。
+
+### Task 5: 統合検証と作業記録
 
 **Files:**
 - Test: `git diff --check`、Markdown lint、関連PowerShell契約、編集元・同期先ハッシュ比較
 - Modify: `docs/AI活用開発研究/作業記録/コード品質確認画面_検証記録.md` — Skill編集元・配置先の同期、方針変更、検証結果、未実装のCI自動化範囲を記録する。
 
 **Interfaces:**
-- Consumes: Task 1～3の資料とSkill
+- Consumes: Task 1～4の資料、Skill、runner、workflow
 - Produces: 検証結果、未実行事項、影響範囲運用への移行記録
 
 - [ ] **Step 1: 変更ファイルと差分整合性を確認する**
 
   Run: `git status --short`、`git diff --check`、`git diff --stat`
 
-  Expected: 意図した標準資料、Skill、作業記録だけが変更される。
+  Expected: 意図した標準資料、Skill、runner、workflow、作業記録だけが変更される。
 
 - [ ] **Step 2: MarkdownとPowerShellの検証を実行する**
 
