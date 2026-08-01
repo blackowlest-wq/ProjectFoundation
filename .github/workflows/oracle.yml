@@ -1,27 +1,90 @@
 name: Oracle Integration
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  schedule:
+    - cron: '47 18 * * *'
+  workflow_dispatch:
+    inputs:
+      execution_scope:
+        description: Release-before Oracle gate scope
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
 
 permissions:
   contents: read
 
 concurrency:
-  group: projectfoundation-oracle-test
+  group: projectfoundation-oracle-test-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
+  impact-plan:
+    name: Oracle Impact / Plan
+    runs-on: ubuntu-latest
+    outputs:
+      oracle: ${{ steps.plan.outputs.oracle }}
+      backend_coverage: ${{ steps.plan.outputs.backend_coverage }}
+      e2e_oracle: ${{ steps.plan.outputs.e2e_oracle }}
+      fallback: ${{ steps.plan.outputs.fallback }}
+      execution_scope: ${{ steps.plan.outputs.execution_scope }}
+    steps:
+      - name: Checkout merged source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Select Oracle impact scope
+        id: plan
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GIT_REF: ${{ github.ref }}
+          IMPACT_BASE_REF: ${{ github.event.before }}
+          IMPACT_HEAD_REF: ${{ github.sha }}
+        run: |
+          $parameters = @{
+            Mode = 'Impact'
+            ImpactTask = 'Plan'
+            ImpactPlanPath = '.impact/plan.json'
+          }
+          if ($env:EVENT_NAME -eq 'workflow_dispatch') {
+            if ($env:GIT_REF -ne 'refs/heads/main') {
+              throw 'Release-before Oracle execution is restricted to main.'
+            }
+            $parameters.ForceFullReason = 'release-before'
+          }
+          elseif ($env:EVENT_NAME -eq 'schedule') {
+            $parameters.ForceFullReason = 'nightly'
+          }
+          else {
+            $parameters.BaseRef = $env:IMPACT_BASE_REF
+            $parameters.HeadRef = $env:IMPACT_HEAD_REF
+          }
+          & ./scripts/check.ps1 @parameters
+      - name: Upload Oracle impact plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oracle-impact-plan
+          path: .impact/plan.json
+          if-no-files-found: error
+
   oracle-integration:
     name: Oracle / Integration
+    if: ${{ needs.impact-plan.result == 'success' && needs.impact-plan.outputs.oracle == 'true' }}
+    needs: impact-plan
     runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
     timeout-minutes: 30
     concurrency:
       group: projectfoundation-oracle-test-db
       cancel-in-progress: false
     environment: oracle-test
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
     env:
       DAILY_REPORT_DB_URL: ${{ secrets.DAILY_REPORT_DB_URL }}
       DAILY_REPORT_DB_USER: ${{ secrets.DAILY_REPORT_DB_USER }}
@@ -37,6 +100,11 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Download Oracle impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: oracle-impact-plan
+          path: .impact
       - name: Preflight Oracle backend
         shell: pwsh
         run: pwsh -NoProfile -File scripts/doctor-backend-oracle.ps1
@@ -50,18 +118,23 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/pom.xml
-      - name: Run Oracle integration
+      - name: Run impact Oracle integration
+        id: impact
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Oracle
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask Oracle -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/oracle.json
 
   oracle-coverage:
     name: Oracle / Backend Coverage
+    if: ${{ needs.impact-plan.result == 'success' && needs.impact-plan.outputs.backend_coverage == 'true' }}
+    needs: impact-plan
     runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
     timeout-minutes: 30
     concurrency:
       group: projectfoundation-oracle-test-db
       cancel-in-progress: false
     environment: oracle-test
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
     env:
       DAILY_REPORT_DB_URL: ${{ secrets.DAILY_REPORT_DB_URL }}
       DAILY_REPORT_DB_USER: ${{ secrets.DAILY_REPORT_DB_USER }}
@@ -77,6 +150,11 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Download Oracle impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: oracle-impact-plan
+          path: .impact
       - name: Setup Java
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
@@ -90,29 +168,34 @@ jobs:
       - name: Prepare Maven dependencies
         shell: pwsh
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
-      - name: Run Oracle coverage
+      - name: Run impact Oracle coverage
+        id: impact
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask BackendCoverage
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask BackendCoverage -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/backend-coverage.json
       - name: Summarize backend coverage
-        if: always()
+        if: ${{ always() }}
         shell: pwsh
         run: pwsh -NoProfile -File scripts/write-coverage-summary.ps1 -BackendXmlPath backend/target/site/jacoco/jacoco.xml -AllowMissing
       - name: Upload backend coverage
-        if: always()
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-coverage
           path: backend/target/site/jacoco
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   oracle-e2e:
     name: Oracle / Real Backend E2E
+    if: ${{ needs.impact-plan.result == 'success' && needs.impact-plan.outputs.e2e_oracle == 'true' }}
+    needs: impact-plan
     runs-on: [self-hosted, Windows, X64, projectfoundation-oracle]
     timeout-minutes: 30
     concurrency:
       group: projectfoundation-oracle-test-db
       cancel-in-progress: false
     environment: oracle-test
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
     env:
       DAILY_REPORT_DB_URL: ${{ secrets.DAILY_REPORT_DB_URL }}
       DAILY_REPORT_DB_USER: ${{ secrets.DAILY_REPORT_DB_USER }}
@@ -128,6 +211,11 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Download Oracle impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: oracle-impact-plan
+          path: .impact
       - name: Preflight Oracle backend
         shell: pwsh
         run: pwsh -NoProfile -File scripts/doctor-backend-oracle.ps1
@@ -157,11 +245,12 @@ jobs:
       - name: Prepare Maven dependencies
         shell: pwsh
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
-      - name: Run real Backend and Oracle E2E
+      - name: Run impact real Backend and Oracle E2E
+        id: impact
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask E2EOracle
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask E2EOracle -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/e2e-oracle.json
       - name: Upload Oracle E2E artifacts
-        if: always()
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oracle-e2e-artifacts
@@ -169,4 +258,38 @@ jobs:
             backend/target/e2e
             frontend/playwright-report-oracle
             frontend/test-results-oracle
-          if-no-files-found: ignore
+          if-no-files-found: error
+
+  oracle-aggregate:
+    name: Oracle Impact / Aggregate
+    if: ${{ always() }}
+    needs:
+      - impact-plan
+      - oracle-integration
+      - oracle-coverage
+      - oracle-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Download Oracle impact plan
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: oracle-impact-plan
+          path: .impact
+      - name: Aggregate Oracle results
+        if: ${{ always() }}
+        env:
+          IMPACT_JOB_RESULTS: ${{ toJson(needs) }}
+          IMPACT_JOB_MAP: Oracle=oracle-integration,BackendCoverage=oracle-coverage,E2EOracle=oracle-e2e
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask Aggregate -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/oracle-aggregate.json -ImpactJobResultsJson $env:IMPACT_JOB_RESULTS -ImpactJobMap $env:IMPACT_JOB_MAP -AllowExcludedJobSkip
+      - name: Upload Oracle aggregate
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oracle-impact-aggregate
+          path: .impact/results/oracle-aggregate.json
+          if-no-files-found: error
