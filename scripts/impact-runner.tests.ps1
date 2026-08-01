@@ -19,6 +19,25 @@ function Assert-SetEquals {
     Assert-Condition ($actualValue -eq $expectedValue) "$Message Expected=[$expectedValue] Actual=[$actualValue]"
 }
 
+function Assert-Throws {
+    param(
+        [Parameter(Mandatory)][scriptblock]$Action,
+        [Parameter(Mandatory)][string]$Message,
+        [Parameter(Mandatory)][string]$ErrorPattern
+    )
+
+    $caught = $null
+    try {
+        & $Action
+    }
+    catch {
+        $caught = $_
+    }
+    Assert-Condition ($null -ne $caught) $Message
+    Assert-Condition ([string]$caught.Exception.Message -match $ErrorPattern) `
+        "$Message Expected error pattern '$ErrorPattern', actual '$($caught.Exception.Message)'."
+}
+
 $allLayers = @(
     'FullFrontend',
     'FullBackend',
@@ -30,6 +49,23 @@ $allLayers = @(
     'BackendCoverage',
     'E2EOracle'
 )
+
+$excludedLayerReasonPattern = '^Excluded because no changed file or direct consumer requires this layer\.$'
+$localUiSelectedReasonPattern = @(
+    '^Frontend change and direct consumers: frontend/src/dailyReport/DailyReportForm\.tsx$'
+    '^Repository directory secret scanning is mandatory for every impact plan\.$'
+) -join '|'
+$localApiSelectedReasonPattern = @(
+    '^Bounded API Controller change selects backend, frontend consumers, changed coverage, E2E, and Oracle contracts: backend/src/main/java/com/example/dailyreport/report/controller/DailyReportCommandController\.java$'
+    '^Repository directory secret scanning is mandatory for every impact plan\.$'
+) -join '|'
+$selectorFallbackReasonPattern = '^Full execution selected: IMPACT_SELECTOR_OR_GATE_CHANGED: .+$'
+$businessFallbackReasonPattern = '^Full execution selected: IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE: .+$'
+$authFallbackReasonPattern = '^Full execution selected: IMPACT_SCOPE_UNBOUNDED_AUTH_SECURITY: .+$'
+$databaseFallbackReasonPattern = '^Full execution selected: IMPACT_SCOPE_UNBOUNDED_DATABASE: .+$'
+$commonFallbackReasonPattern = '^Full execution selected: IMPACT_SCOPE_UNBOUNDED_COMMON_CONTRACT: .+$'
+$unknownFallbackReasonPattern = '^Full execution selected: IMPACT_SCOPE_UNKNOWN: .+$'
+$unavailableFallbackReasonPattern = '^Full execution selected: IMPACT_SCOPE_UNAVAILABLE: .+$'
 
 $localUiLayers = @('FullFrontend', 'FrontendCoverage', 'E2E', 'DirectorySecrets')
 $localUiExcludedLayers = @('FullBackend', 'BackendUnit', 'Oracle', 'BackendCoverage', 'E2EOracle')
@@ -53,6 +89,8 @@ $impactCases = @(
         Scope = 'Impact'
         Fallback = $false
         FallbackReason = '^$'
+        SelectedReasonPattern = $localUiSelectedReasonPattern
+        ExcludedReasonPattern = $excludedLayerReasonPattern
         Tracked = $true
     }
     [pscustomobject]@{
@@ -63,6 +101,8 @@ $impactCases = @(
         Scope = 'Impact'
         Fallback = $false
         FallbackReason = '^$'
+        SelectedReasonPattern = $localApiSelectedReasonPattern
+        ExcludedReasonPattern = $excludedLayerReasonPattern
         Tracked = $true
     }
     [pscustomobject]@{
@@ -73,6 +113,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE:'
+        SelectedReasonPattern = $businessFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -83,6 +125,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE:'
+        SelectedReasonPattern = $businessFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -93,6 +137,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE:'
+        SelectedReasonPattern = $businessFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -103,6 +149,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_AUTH_SECURITY:'
+        SelectedReasonPattern = $authFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -113,6 +161,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_AUTH_SECURITY:'
+        SelectedReasonPattern = $authFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -123,6 +173,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_COMMON_CONTRACT:'
+        SelectedReasonPattern = $commonFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -133,6 +185,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        SelectedReasonPattern = $databaseFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -143,6 +197,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        SelectedReasonPattern = $databaseFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -153,6 +209,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        SelectedReasonPattern = $databaseFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -163,6 +221,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        SelectedReasonPattern = $databaseFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -173,6 +233,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_COMMON_CONTRACT:'
+        SelectedReasonPattern = $commonFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -183,6 +245,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -193,6 +257,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -203,6 +269,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -213,6 +281,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -223,6 +293,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -233,6 +305,20 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'Maven dependency resolution settings'
+        Files = @('backend/local-maven-settings.xml')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -243,6 +329,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -253,6 +341,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        SelectedReasonPattern = $selectorFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $true
     }
     [pscustomobject]@{
@@ -263,6 +353,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNKNOWN:'
+        SelectedReasonPattern = $unknownFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $false
     }
     [pscustomobject]@{
@@ -273,6 +365,8 @@ $impactCases = @(
         Scope = 'Full'
         Fallback = $true
         FallbackReason = '^IMPACT_SCOPE_UNAVAILABLE:'
+        SelectedReasonPattern = $unavailableFallbackReasonPattern
+        ExcludedReasonPattern = '^$'
         Tracked = $false
     }
 )
@@ -285,6 +379,7 @@ foreach ($case in $impactCases) {
     }
 
     $plan = Get-ImpactPlan -ChangedFiles $case.Files
+    Assert-ImpactPlan -Plan $plan
     Assert-SetEquals -Actual $plan.SelectedLayers -Expected $case.Selected `
         -Message "Regression case '$($case.Name)' selected the wrong layers."
     Assert-SetEquals -Actual $plan.ExcludedLayers -Expected $case.Excluded `
@@ -295,9 +390,43 @@ foreach ($case in $impactCases) {
         "Regression case '$($case.Name)' expected FallbackUsed=$($case.Fallback)."
     Assert-Condition ([string]$plan.FallbackReason -match $case.FallbackReason) `
         "Regression case '$($case.Name)' fallback reason did not match '$($case.FallbackReason)': $($plan.FallbackReason)"
+    foreach ($layer in $allLayers) {
+        $isSelected = @($case.Selected) -contains $layer
+        $expectedReasonPattern = if ($isSelected) {
+            $case.SelectedReasonPattern
+        }
+        else {
+            $case.ExcludedReasonPattern
+        }
+        $actualReason = Get-ImpactLayerReason -Plan $plan -Layer $layer
+        Assert-Condition (-not [string]::IsNullOrWhiteSpace($actualReason)) `
+            "Regression case '$($case.Name)' layer '$layer' must have a non-blank reason."
+        Assert-Condition ($actualReason -ne 'No layer reason was recorded.') `
+            "Regression case '$($case.Name)' layer '$layer' must not use the generic reason placeholder."
+        Assert-Condition ($actualReason -match $expectedReasonPattern) `
+            "Regression case '$($case.Name)' layer '$layer' reason did not match '$expectedReasonPattern': $actualReason"
+    }
 }
 
 $frontendPlan = Get-ImpactPlan -ChangedFiles @('frontend/src/dailyReport/DailyReportForm.tsx')
+
+$missingReasonPlan = $frontendPlan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$missingReasonPlan.LayerReasons.PSObject.Properties.Remove('FullFrontend')
+Assert-Throws -Action { Assert-ImpactPlan -Plan $missingReasonPlan } `
+    -Message 'Impact plan validation must reject a missing selected-layer reason.' `
+    -ErrorPattern '^Impact plan layer reason is missing or blank: FullFrontend\.$'
+
+$blankReasonPlan = $frontendPlan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$blankReasonPlan.LayerReasons.Oracle = '   '
+Assert-Throws -Action { Assert-ImpactPlan -Plan $blankReasonPlan } `
+    -Message 'Impact plan validation must reject a blank excluded-layer reason.' `
+    -ErrorPattern '^Impact plan layer reason is missing or blank: Oracle\.$'
+
+$placeholderReasonPlan = $frontendPlan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$placeholderReasonPlan.LayerReasons.E2EOracle = 'No layer reason was recorded.'
+Assert-Throws -Action { Assert-ImpactPlan -Plan $placeholderReasonPlan } `
+    -Message 'Impact plan validation must reject the generic layer-reason placeholder.' `
+    -ErrorPattern '^Impact plan layer reason cannot use the generic placeholder: E2EOracle\.$'
 
 $forcedPlan = Get-ImpactPlan -ChangedFiles @('docs/quality.md') -ForceFullReason 'release-before'
 Assert-Condition (-not $forcedPlan.FallbackUsed) 'An intentional night/release full execution is not an analysis fallback.'

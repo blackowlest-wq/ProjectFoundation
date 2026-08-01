@@ -197,6 +197,7 @@ function Get-ImpactPlan {
         '^(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$'
         '^frontend/(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$'
         '^backend/(?:[^/]+/)*pom\.xml$'
+        '^backend/(?:[^/]+/)*(?:settings(?:[.-][^/]*)?|[^/]*maven[^/]*settings[^/]*)\.xml$'
         '^backend/(mvnw(\.cmd)?|\.mvn/)'
         '^frontend/(?:[^/]+/)*(vite|vitest|playwright|eslint)(?:[.-][^/]*)?\.(?:[cm]?[jt]s|json)$'
         '^frontend/(?:[^/]+/)*tsconfig(?:[.-][^/]*)?\.json$'
@@ -381,6 +382,26 @@ function Assert-ImpactPlan {
         throw 'Impact plan selected and excluded scopes overlap.'
     }
     if ($selected.Count -eq 0) { throw 'Impact plan cannot contain only excluded layers.' }
+    $layerReasonsProperty = $Plan.PSObject.Properties['LayerReasons']
+    foreach ($layer in $allLayers) {
+        $reasonProperty = if ($null -ne $layerReasonsProperty -and $null -ne $layerReasonsProperty.Value) {
+            $layerReasonsProperty.Value.PSObject.Properties[$layer]
+        }
+        else {
+            $null
+        }
+        $reason = if ($null -ne $reasonProperty) { [string]$reasonProperty.Value } else { '' }
+        if ([string]::IsNullOrWhiteSpace($reason)) {
+            throw "Impact plan layer reason is missing or blank: $layer."
+        }
+        if ([string]::Equals(
+                $reason.Trim(),
+                'No layer reason was recorded.',
+                [System.StringComparison]::OrdinalIgnoreCase
+            )) {
+            throw "Impact plan layer reason cannot use the generic placeholder: $layer."
+        }
+    }
     if ($Plan.FallbackUsed -and [string]::IsNullOrWhiteSpace([string]$Plan.FallbackReason)) {
         throw 'Impact fallback requires a reason.'
     }
