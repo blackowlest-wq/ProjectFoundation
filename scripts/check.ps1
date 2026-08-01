@@ -194,23 +194,61 @@ function Get-ImpactPlan {
         '^scripts/.*\.ps1$'
         '^lefthook\.yml$'
         '^\.gitleaks\.toml$'
-        '^(package(-lock)?\.json|frontend/package(-lock)?\.json|backend/pom\.xml)$'
+        '^(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$'
+        '^frontend/(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$'
+        '^backend/(?:[^/]+/)*pom\.xml$'
         '^backend/(mvnw(\.cmd)?|\.mvn/)'
-        '^frontend/(vite|vitest|playwright|eslint)\.config\.'
-        '^frontend/tsconfig.*\.json$'
+        '^frontend/(?:[^/]+/)*(vite|vitest|playwright|eslint)(?:[.-][^/]*)?\.(?:[cm]?[jt]s|json)$'
+        '^frontend/(?:[^/]+/)*tsconfig(?:[.-][^/]*)?\.json$'
         '^backend/scripts/'
-        '^backend/src/main/resources/application.*\.(yml|yaml|properties)$'
+        '^backend/config/'
+        '^backend/src/(main|test)/resources/application(?:[.-][^/]*)?\.(yml|yaml|properties)$'
+        '(^|/)[^/]*(coverage|jacoco)[^/]*\.(?:[cm]?[jt]s|ps1|xml|ya?ml|json|properties)$'
     ) -join '|'
     $documentationPattern = '^(docs/|\.agents/|\.superpowers/|AGENTS\.md$|README(?:\.[^/]+)?$)|\.md$'
     $frontendPattern = '^frontend/'
     $backendPattern = '^backend/'
-    $crossCuttingPattern = '(^|/)(shared|common|auth|security|csrf|exception|error|logic|rules?|master|support|fixtures?)(/|\.|$)'
-    $databasePattern = '(^|/)(db|sql|ddl|migration|migrations|schema|master)(/|\.|-)|\.(sql|ddl)$|Repository\.(java|kt)$|Entity\.(java|kt)$'
+    $apiControllerPattern = '^backend/src/main/(java|kotlin)/.+Controller\.(java|kt)$'
+    $authSecurityPattern = @(
+        '(^|/)(auth|security|csrf)(/|\.|$)'
+        '(^|/)[^/]*(Security|Authentication|Authorization|Csrf)[^/]*\.(java|kt|ts|tsx)$'
+        '(^|/)apiClient\.(ts|tsx)$'
+    ) -join '|'
+    $businessStatePattern = @(
+        '(^|/)(logic|rules?|workflow|state|transition)(/|\.|$)'
+        '(^|/)[^/]*(Service|Rules?|Policy|Workflow|State|Status|Transition)\.(java|kt)$'
+    ) -join '|'
+    $databasePattern = @(
+        '(^|/)(db|sql|ddl|migration|migrations|schema|master)(/|\.|-|$)'
+        '\.(sql|ddl)$'
+        '(^|/)[^/]*(Repository|Entity)\.(java|kt)$'
+        '(^|/)[^/]*(DataInitializer|Seeder)\.(java|kt)$'
+    ) -join '|'
+    $commonContractPattern = @(
+        '(^|/)(shared|common|exception|error|support|fixtures?)(/|\.|$)'
+        '(^|/)[^/]*(Exception|Error|Handler)\.(java|kt|ts|tsx)$'
+    ) -join '|'
 
     foreach ($file in $files) {
         if ($file -match $fullTriggerPattern) {
             return New-FullImpactPlan -ChangedFiles $files `
                 -FallbackReason "IMPACT_SELECTOR_OR_GATE_CHANGED: $file"
+        }
+        if ($file -match $authSecurityPattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_AUTH_SECURITY: $file"
+        }
+        if ($file -match $businessStatePattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE: $file"
+        }
+        if ($file -match $databasePattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_DATABASE: $file"
+        }
+        if ($file -match $commonContractPattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_COMMON_CONTRACT: $file"
         }
     }
 
@@ -227,24 +265,23 @@ function Get-ImpactPlan {
                 $null = $selected.Add($layer)
                 $layerReasons[$layer] = "Frontend change and direct consumers: $file"
             }
-            if ($file -match $crossCuttingPattern) {
-                foreach ($layer in (Get-ImpactLayerNames)) {
-                    $null = $selected.Add($layer)
-                    $layerReasons[$layer] = "Cross-cutting shared/auth/fixture change expands to consumers and contracts: $file"
-                }
-            }
             continue
         }
 
         if ($file -match $backendPattern) {
-            foreach ($layer in @('FullBackend', 'BackendUnit', 'E2E')) {
-                $null = $selected.Add($layer)
-                $layerReasons[$layer] = "Backend API change and direct consumers: $file"
+            $backendLayers = if ($file -match $apiControllerPattern) {
+                @('FullFrontend', 'FullBackend', 'BackendUnit', 'E2E', 'Oracle', 'BackendCoverage', 'E2EOracle')
             }
-            if ($file -match $crossCuttingPattern -or $file -match $databasePattern) {
-                foreach ($layer in (Get-ImpactLayerNames)) {
-                    $null = $selected.Add($layer)
-                    $layerReasons[$layer] = "Cross-cutting business/auth/DB change expands to consumers, coverage, E2E, and Oracle: $file"
+            else {
+                @('FullBackend', 'BackendUnit', 'E2E', 'BackendCoverage')
+            }
+            foreach ($layer in $backendLayers) {
+                $null = $selected.Add($layer)
+                $layerReasons[$layer] = if ($file -match $apiControllerPattern) {
+                    "Bounded API Controller change selects backend, frontend consumers, changed coverage, E2E, and Oracle contracts: $file"
+                }
+                else {
+                    "Bounded backend change selects backend checks, changed coverage, and direct E2E consumers: $file"
                 }
             }
             continue

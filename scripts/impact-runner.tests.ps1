@@ -9,8 +9,8 @@ function Assert-Condition {
 
 function Assert-SetEquals {
     param(
-        [Parameter(Mandatory)][string[]]$Actual,
-        [Parameter(Mandatory)][string[]]$Expected,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Actual,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Expected,
         [Parameter(Mandatory)][string]$Message
     )
 
@@ -31,51 +31,273 @@ $allLayers = @(
     'E2EOracle'
 )
 
-$frontendPlan = Get-ImpactPlan -ChangedFiles @('frontend/src/dailyReport/DailyReportForm.tsx')
-Assert-SetEquals -Actual $frontendPlan.SelectedLayers -Expected @(
-    'FullFrontend', 'FrontendCoverage', 'E2E', 'DirectorySecrets'
-) -Message 'A local frontend UI change must select its layer, coverage, direct E2E consumer, and directory secrets.'
-Assert-Condition (-not $frontendPlan.FallbackUsed) 'A known local frontend change must not use full fallback.'
-Assert-Condition ($frontendPlan.ExcludedLayers -contains 'Oracle') 'Unrelated Oracle integration must be explicitly excluded.'
-
-$frontendAssetPlan = Get-ImpactPlan -ChangedFiles @('frontend/public/brand.svg')
-Assert-SetEquals -Actual $frontendAssetPlan.SelectedLayers -Expected @(
-    'FullFrontend', 'FrontendCoverage', 'E2E', 'DirectorySecrets'
-) -Message 'A local frontend asset change must select the frontend layer and direct consumers.'
-Assert-Condition (-not $frontendAssetPlan.FallbackUsed) 'A known local frontend asset must not use unknown-scope fallback.'
-
-$backendPlan = Get-ImpactPlan -ChangedFiles @(
-    'backend/src/main/java/com/example/dailyreport/report/DailyReportSearchController.java'
+$localUiLayers = @('FullFrontend', 'FrontendCoverage', 'E2E', 'DirectorySecrets')
+$localUiExcludedLayers = @('FullBackend', 'BackendUnit', 'Oracle', 'BackendCoverage', 'E2EOracle')
+$localApiLayers = @(
+    'FullFrontend', 'FullBackend', 'BackendUnit', 'E2E', 'DirectorySecrets',
+    'Oracle', 'BackendCoverage', 'E2EOracle'
 )
-Assert-SetEquals -Actual $backendPlan.SelectedLayers -Expected @(
-    'FullBackend', 'BackendUnit', 'E2E', 'DirectorySecrets'
-) -Message 'A local backend API change must select backend quality/tests and its E2E contract consumer.'
+$localApiExcludedLayers = @('FrontendCoverage')
+$trackedFiles = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+git -C $repoRoot ls-files | ForEach-Object { $null = $trackedFiles.Add($_.Replace('\', '/')) }
+Assert-Condition ($LASTEXITCODE -eq 0) 'Impact regression setup must read tracked repository paths.'
 
-$authPlan = Get-ImpactPlan -ChangedFiles @('frontend/src/shared/apiClient.ts')
-foreach ($layer in @('FullFrontend', 'FrontendCoverage', 'E2E', 'Oracle', 'BackendCoverage', 'E2EOracle')) {
-    Assert-Condition ($authPlan.SelectedLayers -contains $layer) "Shared CSRF/auth code must expand to $layer."
-}
-Assert-Condition (-not $authPlan.FallbackUsed) 'A recognized cross-cutting auth change is an expanded impact plan, not an unknown fallback.'
+$impactCases = @(
+    [pscustomobject]@{
+        Name = 'bounded local UI'
+        Files = @('frontend/src/dailyReport/DailyReportForm.tsx')
+        Selected = $localUiLayers
+        Excluded = $localUiExcludedLayers
+        Scope = 'Impact'
+        Fallback = $false
+        FallbackReason = '^$'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'bounded API Controller with direct consumers and changed backend coverage'
+        Files = @('backend/src/main/java/com/example/dailyreport/report/controller/DailyReportCommandController.java')
+        Selected = $localApiLayers
+        Excluded = $localApiExcludedLayers
+        Scope = 'Impact'
+        Fallback = $false
+        FallbackReason = '^$'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'ordinary Service business workflow'
+        Files = @('backend/src/main/java/com/example/dailyreport/report/DailyReportCommandService.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'business rule'
+        Files = @('backend/src/main/java/com/example/dailyreport/report/logic/TimeRules.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'workflow state transition'
+        Files = @('backend/src/main/java/com/example/dailyreport/workflow/ApprovalStatus.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'auth CSRF security config'
+        Files = @('backend/src/main/java/com/example/dailyreport/config/SecurityConfig.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_AUTH_SECURITY:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'shared frontend auth and CSRF client'
+        Files = @('frontend/src/shared/apiClient.ts')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_AUTH_SECURITY:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'common exception contract'
+        Files = @('backend/src/main/java/com/example/dailyreport/common/ApiExceptionHandler.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_COMMON_CONTRACT:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'Repository DB contract'
+        Files = @('backend/src/main/java/com/example/dailyreport/report/entity/DailyReportRepository.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'Entity DB mapping'
+        Files = @('backend/src/main/java/com/example/dailyreport/report/entity/DailyReportEntity.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'SQL and DDL schema'
+        Files = @('backend/src/main/resources/db/oracle/schema-login.sql')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'shared master data'
+        Files = @('backend/src/main/java/com/example/dailyreport/master/MasterController.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_DATABASE:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'shared test fixture and support'
+        Files = @('backend/src/test/java/com/example/dailyreport/report/support/DailyReportTestSupport.java')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNBOUNDED_COMMON_CONTRACT:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'GitHub workflow config'
+        Files = @('.github/workflows/quality.yml')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'quality runner'
+        Files = @('scripts/check.ps1')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'qualified Oracle Playwright runner config'
+        Files = @('frontend/playwright.oracle.config.ts')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'backend Oracle runner config contract'
+        Files = @('backend/config/oracle-test.example.properties')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'backend test discovery config'
+        Files = @('backend/src/test/resources/application-test.yml')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'aggregate build and dependency config'
+        Files = @('backend/pom.xml')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'dependency lock config'
+        Files = @('frontend/package-lock.json')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'coverage gate config contract'
+        Files = @('frontend/test/coverageConfig.test.ts')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SELECTOR_OR_GATE_CHANGED:'
+        Tracked = $true
+    }
+    [pscustomobject]@{
+        Name = 'unknown repository area'
+        Files = @('unknown-area/undocumented.file')
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNKNOWN:'
+        Tracked = $false
+    }
+    [pscustomobject]@{
+        Name = 'unavailable empty scope'
+        Files = @()
+        Selected = $allLayers
+        Excluded = @()
+        Scope = 'Full'
+        Fallback = $true
+        FallbackReason = '^IMPACT_SCOPE_UNAVAILABLE:'
+        Tracked = $false
+    }
+)
 
-$databasePlan = Get-ImpactPlan -ChangedFiles @('backend/src/main/resources/db/oracle/schema-login.sql')
-foreach ($layer in @('FullBackend', 'BackendUnit', 'E2E', 'Oracle', 'BackendCoverage', 'E2EOracle')) {
-    Assert-Condition ($databasePlan.SelectedLayers -contains $layer) "Database/SQL changes must expand to $layer."
+foreach ($case in $impactCases) {
+    if ($case.Tracked) {
+        foreach ($file in $case.Files) {
+            Assert-Condition $trackedFiles.Contains($file) "Regression case '$($case.Name)' must use a tracked path: $file"
+        }
+    }
+
+    $plan = Get-ImpactPlan -ChangedFiles $case.Files
+    Assert-SetEquals -Actual $plan.SelectedLayers -Expected $case.Selected `
+        -Message "Regression case '$($case.Name)' selected the wrong layers."
+    Assert-SetEquals -Actual $plan.ExcludedLayers -Expected $case.Excluded `
+        -Message "Regression case '$($case.Name)' excluded the wrong layers."
+    Assert-Condition ($plan.ExecutionScope -eq $case.Scope) `
+        "Regression case '$($case.Name)' expected scope $($case.Scope), actual $($plan.ExecutionScope)."
+    Assert-Condition ($plan.FallbackUsed -eq $case.Fallback) `
+        "Regression case '$($case.Name)' expected FallbackUsed=$($case.Fallback)."
+    Assert-Condition ([string]$plan.FallbackReason -match $case.FallbackReason) `
+        "Regression case '$($case.Name)' fallback reason did not match '$($case.FallbackReason)': $($plan.FallbackReason)"
 }
 
-foreach ($fallbackCase in @(
-        @('scripts/check.ps1'),
-        @('.github/workflows/quality.yml'),
-        @('frontend/package-lock.json'),
-        @('unknown-area/undocumented.file'),
-        @()
-    )) {
-    $fallbackPlan = Get-ImpactPlan -ChangedFiles $fallbackCase
-    Assert-Condition $fallbackPlan.FallbackUsed 'Runner/workflow/dependency/unknown/empty scope must use full fallback.'
-    Assert-SetEquals -Actual $fallbackPlan.SelectedLayers -Expected $allLayers `
-        -Message 'Full fallback must select every quality and Oracle layer.'
-    Assert-Condition (-not [string]::IsNullOrWhiteSpace($fallbackPlan.FallbackReason)) `
-        'Full fallback must record a non-empty reason.'
-}
+$frontendPlan = Get-ImpactPlan -ChangedFiles @('frontend/src/dailyReport/DailyReportForm.tsx')
 
 $forcedPlan = Get-ImpactPlan -ChangedFiles @('docs/quality.md') -ForceFullReason 'release-before'
 Assert-Condition (-not $forcedPlan.FallbackUsed) 'An intentional night/release full execution is not an analysis fallback.'
@@ -157,14 +379,44 @@ try {
     Assert-Condition $aggregateResult.Succeeded `
         'Aggregate must accept a passed selected job and an explicitly planned excluded Oracle skip.'
 
-    $invalidJobResults = @{
-        'full-windows-frontend' = @{ result = 'skipped'; outputs = @{} }
-        'oracle-integration' = @{ result = 'skipped'; outputs = @{} }
+    $selectedAggregateFailureCases = @(
+        [pscustomobject]@{
+            Name = 'missing selected job'
+            JobResults = @{
+                'oracle-integration' = @{ result = 'skipped'; outputs = @{} }
+            }
+        }
+        [pscustomobject]@{
+            Name = 'skipped selected job'
+            JobResults = @{
+                'full-windows-frontend' = @{ result = 'skipped'; outputs = @{} }
+                'oracle-integration' = @{ result = 'skipped'; outputs = @{} }
+            }
+        }
+        [pscustomobject]@{
+            Name = 'failed selected job'
+            JobResults = @{
+                'full-windows-frontend' = @{ result = 'failure'; outputs = @{ state = 'failed' } }
+                'oracle-integration' = @{ result = 'skipped'; outputs = @{} }
+            }
+        }
+        [pscustomobject]@{
+            Name = 'selected job missing recorded state'
+            JobResults = @{
+                'full-windows-frontend' = @{ result = 'success'; outputs = @{} }
+                'oracle-integration' = @{ result = 'skipped'; outputs = @{} }
+            }
+        }
+    )
+    foreach ($case in $selectedAggregateFailureCases) {
+        $invalidAggregate = Test-ImpactAggregate -Plan $frontendPlan -Layers @('FullFrontend', 'Oracle') `
+            -JobMap $jobMap -JobResults $case.JobResults -AllowExcludedJobSkip
+        Assert-Condition (-not $invalidAggregate.Succeeded) `
+            "Aggregate must reject $($case.Name)."
+        $frontendRow = @($invalidAggregate.Jobs | Where-Object { $_.Layer -eq 'FullFrontend' })
+        Assert-Condition ($frontendRow.Count -eq 1 -and -not $frontendRow[0].Valid) `
+            "Aggregate must mark $($case.Name) invalid for the selected layer."
     }
-    $invalidAggregate = Test-ImpactAggregate -Plan $frontendPlan -Layers @('FullFrontend', 'Oracle') `
-        -JobMap $jobMap -JobResults $invalidJobResults -AllowExcludedJobSkip
-    Assert-Condition (-not $invalidAggregate.Succeeded) `
-        'Aggregate must fail when a selected job is skipped or has no passing result.'
 
     $aggregatePlanPath = Join-Path $resultDirectory 'aggregate-plan.json'
     $aggregateResultPath = Join-Path $resultDirectory 'aggregate-result.json'
