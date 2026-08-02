@@ -9,6 +9,32 @@ function Assert-Condition {
     if (-not $Condition) { throw $Message }
 }
 
+function Get-WorkflowStepBlocks {
+    param([Parameter(Mandatory)][string]$WorkflowText)
+
+    $stepBlocks = @()
+    $currentStep = @()
+    foreach ($line in ($WorkflowText -split "`r?`n")) {
+        if ($line -match '^\s+- name:') {
+            if ($currentStep.Count -gt 0) {
+                $stepBlocks += ($currentStep -join "`n")
+            }
+            $currentStep = @($line)
+            continue
+        }
+
+        if ($currentStep.Count -gt 0) {
+            $currentStep += $line
+        }
+    }
+
+    if ($currentStep.Count -gt 0) {
+        $stepBlocks += ($currentStep -join "`n")
+    }
+
+    return $stepBlocks
+}
+
 $requiredVariables = @(
     'DAILY_REPORT_DB_URL',
     'DAILY_REPORT_DB_USER',
@@ -96,9 +122,16 @@ DAILY_REPORT_ALLOW_DDL=false
             'Oracle wrapper must not fail with a CMD parenthesis parsing error.'
     }
 
-    Assert-Condition ($oracleWorkflowText -notmatch 'continue-on-error:\s*true') `
+    # Artifact downloads may be allowed to fail so the aggregate job can apply its
+    # exclusion policy; test and coverage run steps must still propagate failures.
+    $workflowSteps = @(Get-WorkflowStepBlocks -WorkflowText $oracleWorkflowText)
+    $runStepsWithIgnoredFailures = @($workflowSteps | Where-Object {
+        $_ -match '(?m)^\s+continue-on-error:\s*true\s*$' -and
+        $_ -match '(?m)^\s+run:\s'
+    })
+    Assert-Condition ($runStepsWithIgnoredFailures.Count -eq 0) `
         'Oracle workflow must not convert test or coverage failure into success.'
-    Assert-Condition ($oracleWorkflowText -match 'if:\s*always\(\)') `
+    Assert-Condition ($oracleWorkflowText -match 'if:\s*(?:\$\{\{\s*)?always\(\)(?:\s*\}\})?') `
         'Oracle workflow must preserve failure-time diagnostics.'
 
     $temporaryConfig = [IO.Path]::GetTempFileName()
