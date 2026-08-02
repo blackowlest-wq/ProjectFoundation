@@ -476,7 +476,7 @@ function Get-FullBackendCheckDefinitions {
         # How: Mavenを1回だけ起動し、test-compile後に静的解析ゴールを同じプロセスで実行する。
         # Why not: 個別起動するとMaven・POM・プラグイン初期化とtest-compileが重複するため。
         New-CheckDefinition -Name 'backend-quality' -Command $MavenCommand -Arguments (Get-MavenArguments -Offline:$Offline -Goals @(
-                'test-compile', 'spotless:check', 'checkstyle:check', 'spotbugs:check'
+                'test-compile', 'spotless:check', 'checkstyle:check', 'spotbugs:check', 'pmd:check'
             ))
     )
 }
@@ -502,6 +502,9 @@ function Get-FullContractCheckDefinitions {
         )
         New-CheckDefinition -Name 'impact-workflow-contract-test' -Command 'pwsh' -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/impact-workflow.tests.ps1')
+        )
+        New-CheckDefinition -Name 'pmd-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/pmd.tests.ps1')
         )
     )
 }
@@ -766,6 +769,9 @@ function Get-SimpleCheckDefinitions {
                 )))
         $definitions.Add((New-CheckDefinition -Name 'simple-backend-test-compile' -Command $MavenCommand -Arguments (
                     Get-MavenArguments -Offline:$Offline -Goals @('test-compile')
+                )))
+        $definitions.Add((New-CheckDefinition -Name 'simple-backend-pmd' -Command $MavenCommand -Arguments (
+                    Get-MavenArguments -Offline:$Offline -Goals @('pmd:check')
                 )))
     }
 
