@@ -9,7 +9,6 @@ import com.example.dailyreport.common.ApiException;
 import com.example.dailyreport.common.ApiExceptionHandler;
 import com.example.dailyreport.master.MasterDataRepository;
 import com.example.dailyreport.report.entity.DailyReportEntity;
-import com.example.dailyreport.report.entity.DailyReportWorkItemEntity;
 import com.example.dailyreport.report.dto.DailyReportRequest;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,90 +76,7 @@ public final class TimeRules {
      * 保存済み日報を現在のマスタ設定から再検証し、保存値との不整合を検出する。
      */
     public static void validateStoredReport(DailyReportEntity report, MasterDataRepository masterDataRepository) {
-        // How: 保存値を休日区分別に検証し、勤務実績がある場合は現在の勤務設定から再計算して保存値と照合する。
-        List<ApiExceptionHandler.ErrorDetail> errors = new ArrayList<>();
-        // How: 休日区分が欠けた保存値は区分判定できないため、最初にエラーとして終了する。
-        if (report.getHolidayType() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "休日区分を選択してください。"));
-            throw validation(errors);
-        }
-        MasterDataRepository.HolidayTypeOption holidayType = masterDataRepository.requireHolidayType(report.getHolidayType());
-
-        boolean hasWorkItems = !report.getWorkItems().isEmpty();
-        boolean hasWorkTimes = report.getStartTimeMinutes() != null || report.getEndTimeMinutes() != null;
-
-        // How: 勤務入力を持たない区分は明細・時刻の有無だけを確認し、勤務計算を行わず終了する。
-        if (!holidayType.requiresWorkTime() && !holidayType.allowsWorkItems()) {
-            // Why not: 有給休暇を通常勤務と同じ計算へ通すと勤務入力を要求してしまうため、勤務入力・明細を持たない区分としてここで完結させる。
-            // How: 勤務時刻または作業明細があれば、区分の入力条件違反としてエラーを追加する。
-            if (hasWorkTimes || hasWorkItems) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "有給休暇では勤務時刻と作業明細を入力できません。"));
-            }
-            throwIfInvalid(errors);
-            return;
-        }
-
-        // How: 作業なし休日は時刻の有無だけを確認し、勤務計算を行わず終了する。
-        if (!holidayType.requiresWorkTime() && holidayType.allowsWorkItems() && !hasWorkItems) {
-            // Why not: 作業のない休日に時刻だけを許すと勤務時間の根拠がなくなるため、勤務ゼロとして時刻入力を禁止する。
-            // How: 時刻が入力されている場合だけ、作業なし休日の入力エラーを追加する。
-            if (hasWorkTimes) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "休日で作業明細がない場合、勤務時刻は入力できません。"));
-            }
-            throwIfInvalid(errors);
-            return;
-        }
-
-        // How: 勤務開始・終了の両方が揃っているかを確認し、不足時は後続計算へ進めるためのエラーを追加する。
-        if (report.getStartTimeMinutes() == null || report.getEndTimeMinutes() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "勤務時刻を入力してください。"));
-        }
-        // How: 勤務計算に必要な作業明細があるかを確認し、不足時はエラーを追加する。
-        if (!hasWorkItems) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "作業明細を1件以上入力してください。"));
-        }
-        // How: 保存時点の勤務設定IDが揃っているかを確認し、不足時はエラーを追加する。
-        if (report.getBreakTypeId() == null || report.getWorkTimeTypeId() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workTimeTypeId", "利用者の勤務設定が未設定です。"));
-        }
-        throwIfInvalid(errors);
-        MasterDataRepository.WorkSettings workSettings =
-                masterDataRepository.requireWorkSettings(report.getBreakTypeId(), report.getWorkTimeTypeId());
-
-        // Why not: 保存済みの計算値だけを信頼すると外部更新による不整合を検出できないため、現在のマスタ設定から再計算して照合する。
-        int start = report.getStartTimeMinutes();
-        int end = report.getEndTimeMinutes();
-        // How: 終了時刻が開始時刻以前なら、勤務時間計算を不正値としてエラーにする。
-        if (end <= start) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("endTime", "勤務終了時刻は勤務開始時刻より後にしてください。"));
-        }
-        int expectedBreakMinutes = breakMinutes(workSettings, start, end);
-        int expectedWorkMinutes = end - start - expectedBreakMinutes;
-        // How: 休憩控除後の勤務時間が0分以下なら、勤務実績として成立しないためエラーにする。
-        if (expectedBreakMinutes >= end - start || expectedWorkMinutes <= 0) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workMinutes", "勤務時間は1分以上になるように入力してください。"));
-        }
-        // How: 保存済み休憩時間と現在設定からの計算結果を比較し、不一致をエラーにする。
-        if (!Integer.valueOf(expectedBreakMinutes).equals(report.getBreakMinutes())) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("breakMinutes", "保存済みの休憩時間が勤務設定と一致しません。"));
-        }
-        // How: 保存済み勤務時間と現在設定からの計算結果を比較し、不一致をエラーにする。
-        if (!Integer.valueOf(expectedWorkMinutes).equals(report.getWorkMinutes())) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workMinutes", "保存済みの勤務時間が勤務設定と一致しません。"));
-        }
-        int itemTotal = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkMinutes).sum();
-        // How: 作業明細の合計と計算済み勤務時間を比較し、不一致をエラーにする。
-        if (itemTotal != expectedWorkMinutes) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "作業時間の合計は実勤務時間と一致させてください。"));
-        }
-        int[] split = splitWork(workSettings, start, end);
-        // How: 勤務区分別の保存値と現在設定から再計算した内訳を比較し、不一致をエラーにする。
-        if (!Integer.valueOf(split[0]).equals(report.getRegularWorkMinutes())
-                || !Integer.valueOf(split[1]).equals(report.getOvertimeWorkMinutes())
-                || !Integer.valueOf(split[2]).equals(report.getNightWorkMinutes())) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workMinutes", "保存済みの勤務時間内訳が勤務設定と一致しません。"));
-        }
-        throwIfInvalid(errors);
+        StoredReportRules.validate(report, masterDataRepository);
     }
 
     /**

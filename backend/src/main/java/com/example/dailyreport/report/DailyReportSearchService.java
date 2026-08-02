@@ -14,7 +14,6 @@ import com.example.dailyreport.report.entity.DailyReportRepository;
 import com.example.dailyreport.workflow.ApprovalStatus;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Sort;
@@ -25,8 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DailyReportSearchService {
-    private static final long MAX_SEARCH_DAYS = 366;
-
     private final DailyReportRepository repository;
     private final MasterDataRepository masterDataRepository;
     private final DailyReportAccessPolicy accessPolicy;
@@ -81,28 +78,7 @@ public class DailyReportSearchService {
      * 検索開始日・終了日・最大366日の期間制限をまとめて検証する。
      */
     private void validateSearchDateRange(LocalDate dateFrom, LocalDate dateTo) {
-        List<com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail> details = new ArrayList<>();
-        // How: 開始日が未指定の場合は開始日項目のエラーを追加する。
-        if (dateFrom == null) {
-            details.add(new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail("dateFrom", "検索開始日を指定してください。"));
-        }
-        // How: 終了日が未指定の場合は終了日項目のエラーを追加する。
-        if (dateTo == null) {
-            details.add(new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail("dateTo", "検索終了日を指定してください。"));
-        }
-        // How: 両日付が揃い開始日が後の場合だけ、日付順のエラーを追加する。
-        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
-            details.add(new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail("dateTo", "検索終了日は検索開始日以降にしてください。"));
-        }
-        // How: 日付順が正しい場合だけ期間日数を計算し、366日を超えたときにエラーを追加する。
-        if (dateFrom != null && dateTo != null && !dateFrom.isAfter(dateTo)
-                && ChronoUnit.DAYS.between(dateFrom, dateTo) > MAX_SEARCH_DAYS) {
-            details.add(new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail("dateTo", "検索対象期間は366日以内で指定してください。"));
-        }
-        // How: 集約した検索条件エラーがある場合だけAPI例外を送出し、なければ検索条件の組み立てへ進む。
-        if (!details.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容に誤りがあります。", details);
-        }
+        DailyReportDateRangeValidator.validate(dateFrom, dateTo);
     }
 
     /**

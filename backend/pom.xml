@@ -135,7 +135,6 @@
                     <printFailingErrors>true</printFailingErrors>
                     <includeTests>true</includeTests>
                     <analysisCache>true</analysisCache>
-                    <sourceEncoding>UTF-8</sourceEncoding>
                     <targetJdk>21</targetJdk>
                 </configuration>
             </plugin>
