@@ -72,6 +72,21 @@ Assert-ImpactWorkflow -Workflow $quality -LayerJobs @{
     'gitleaks-directory' = 'DirectorySecrets'
 } -AggregateJob 'quality-aggregate'
 
+foreach ($jobId in @(
+        'impact-plan'
+        'full-windows-frontend'
+        'full-windows-backend'
+        'backend-unit'
+        'coverage-frontend'
+        'e2e'
+        'gitleaks-directory'
+        'quality-aggregate'
+    )) {
+    $qualityJob = Get-WorkflowJobBlock -Workflow $quality -JobId $jobId
+    Assert-Condition ($qualityJob -match '(?m)^    timeout-minutes:\s*10\s*$') `
+        "Quality workflow job $jobId must have a 10-minute timeout."
+}
+
 Assert-ImpactWorkflow -Workflow $oracle -LayerJobs @{
     'oracle-integration' = 'Oracle'
     'oracle-coverage' = 'BackendCoverage'

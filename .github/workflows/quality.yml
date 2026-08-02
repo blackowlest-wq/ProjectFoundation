@@ -29,6 +29,7 @@ jobs:
   impact-plan:
     name: Impact / Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       full_frontend: ${{ steps.plan.outputs.full_frontend }}
       full_backend: ${{ steps.plan.outputs.full_backend }}
@@ -92,6 +93,7 @@ jobs:
     if: ${{ always() }}
     needs: impact-plan
     runs-on: windows-latest
+    timeout-minutes: 10
     outputs:
       state: ${{ steps.impact.outputs.state }}
     steps:
@@ -135,6 +137,7 @@ jobs:
     if: ${{ always() }}
     needs: impact-plan
     runs-on: windows-latest
+    timeout-minutes: 10
     outputs:
       state: ${{ steps.impact.outputs.state }}
     steps:
@@ -177,6 +180,7 @@ jobs:
     if: ${{ always() }}
     needs: impact-plan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       state: ${{ steps.impact.outputs.state }}
     steps:
@@ -217,6 +221,7 @@ jobs:
     if: ${{ always() }}
     needs: impact-plan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       state: ${{ steps.impact.outputs.state }}
     steps:
@@ -268,6 +273,7 @@ jobs:
     if: ${{ always() }}
     needs: impact-plan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       state: ${{ steps.impact.outputs.state }}
     steps:
@@ -318,6 +324,7 @@ jobs:
     if: ${{ always() }}
     needs: impact-plan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       state: ${{ steps.impact.outputs.state }}
     steps:
@@ -357,6 +364,7 @@ jobs:
       - e2e
       - gitleaks-directory
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
