@@ -1,6 +1,6 @@
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All')]
+    [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All', 'Impact')]
     [string]$Mode = 'Quick',
     [string]$PushInput,
     [switch]$Offline,
@@ -17,7 +17,18 @@ param(
     [string]$FocusedUnitNotApplicableReason,
     [switch]$DisplayRequirement,
     [string]$BrowserCase,
-    [string]$BrowserManualReason
+    [string]$BrowserManualReason,
+    [ValidateSet('Plan', 'FullFrontend', 'FullBackend', 'BackendUnit', 'FrontendCoverage', 'E2E', 'DirectorySecrets', 'Oracle', 'BackendCoverage', 'E2EOracle', 'Aggregate')]
+    [string]$ImpactTask = 'Plan',
+    [string]$ChangedFilesPath,
+    [string]$BaseRef,
+    [string]$HeadRef,
+    [string]$ImpactPlanPath,
+    [string]$ImpactResultPath,
+    [string]$ImpactJobResultsJson,
+    [string]$ImpactJobMap,
+    [string]$ForceFullReason,
+    [switch]$AllowExcludedJobSkip
 )
 
 $ErrorActionPreference = 'Stop'
@@ -82,6 +93,360 @@ function Get-MavenArguments {
     $arguments + $Goals
 }
 
+function Get-ImpactLayerNames {
+    @(
+        'FullFrontend'
+        'FullBackend'
+        'BackendUnit'
+        'FrontendCoverage'
+        'E2E'
+        'DirectorySecrets'
+        'Oracle'
+        'BackendCoverage'
+        'E2EOracle'
+    )
+}
+
+function Get-ImpactOutputName {
+    param([Parameter(Mandatory)][string]$Layer)
+
+    switch ($Layer) {
+        'FullFrontend' { 'full_frontend' }
+        'FullBackend' { 'full_backend' }
+        'BackendUnit' { 'backend_unit' }
+        'FrontendCoverage' { 'frontend_coverage' }
+        'E2E' { 'e2e' }
+        'DirectorySecrets' { 'directory_secrets' }
+        'Oracle' { 'oracle' }
+        'BackendCoverage' { 'backend_coverage' }
+        'E2EOracle' { 'e2e_oracle' }
+        default { throw "Unknown impact layer: $Layer" }
+    }
+}
+
+function ConvertTo-NormalizedImpactFiles {
+    param([AllowEmptyCollection()][string[]]$ChangedFiles = @())
+
+    $normalized = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($file in $ChangedFiles) {
+        if ([string]::IsNullOrWhiteSpace($file)) { continue }
+        $path = $file.Trim().Replace('\', '/')
+        while ($path.StartsWith('./', [System.StringComparison]::Ordinal)) {
+            $path = $path.Substring(2)
+        }
+        if ($path -match '[\r\n]' -or $path -match '(^|/)\.\.(/|$)' -or [System.IO.Path]::IsPathRooted($path)) {
+            throw "Changed file is not a safe repository-relative path: $file"
+        }
+        $null = $normalized.Add($path)
+    }
+    @($normalized | Sort-Object)
+}
+
+function New-FullImpactPlan {
+    param(
+        [AllowEmptyCollection()][string[]]$ChangedFiles = @(),
+        [string]$FallbackReason,
+        [string]$FullReason
+    )
+
+    $layers = @(Get-ImpactLayerNames)
+    $isFallback = -not [string]::IsNullOrWhiteSpace($FallbackReason)
+    $reason = if ($isFallback) { $FallbackReason } else { $FullReason }
+    $layerReasons = [ordered]@{}
+    foreach ($layer in $layers) {
+        $layerReasons[$layer] = "Full execution selected: $reason"
+    }
+    [pscustomobject][ordered]@{
+        SchemaVersion = 1
+        ExecutionScope = 'Full'
+        ChangedFiles = @($ChangedFiles)
+        SelectedLayers = $layers
+        ExcludedLayers = @()
+        FallbackUsed = $isFallback
+        FallbackReason = if ($isFallback) { $FallbackReason } else { '' }
+        FullReason = if ($isFallback) { '' } else { $FullReason }
+        LayerReasons = [pscustomobject]$layerReasons
+    }
+}
+
+function Get-ImpactPlan {
+    param(
+        [AllowEmptyCollection()][string[]]$ChangedFiles = @(),
+        [string]$ForceFullReason
+    )
+
+    try {
+        $files = @(ConvertTo-NormalizedImpactFiles -ChangedFiles $ChangedFiles)
+    }
+    catch {
+        return New-FullImpactPlan -FallbackReason "IMPACT_SCOPE_INVALID: $($_.Exception.Message)"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($ForceFullReason)) {
+        return New-FullImpactPlan -ChangedFiles $files -FullReason $ForceFullReason
+    }
+    if ($files.Count -eq 0) {
+        return New-FullImpactPlan -ChangedFiles $files -FallbackReason 'IMPACT_SCOPE_UNAVAILABLE: no changed files were resolved.'
+    }
+
+    $fullTriggerPattern = @(
+        '^\.github/(workflows|actions)/'
+        '^scripts/.*\.ps1$'
+        '^lefthook\.yml$'
+        '^\.gitleaks\.toml$'
+        '^(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$'
+        '^frontend/(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock)$'
+        '^backend/(?:[^/]+/)*pom\.xml$'
+        '^backend/(?:[^/]+/)*(?:settings(?:[.-][^/]*)?|[^/]*maven[^/]*settings[^/]*)\.xml$'
+        '^backend/(mvnw(\.cmd)?|\.mvn/)'
+        '^frontend/(?:[^/]+/)*(vite|vitest|playwright|eslint)(?:[.-][^/]*)?\.(?:[cm]?[jt]s|json)$'
+        '^frontend/(?:[^/]+/)*tsconfig(?:[.-][^/]*)?\.json$'
+        '^backend/scripts/'
+        '^backend/config/'
+        '^backend/src/(main|test)/resources/application(?:[.-][^/]*)?\.(yml|yaml|properties)$'
+        '(^|/)[^/]*(coverage|jacoco)[^/]*\.(?:[cm]?[jt]s|ps1|xml|ya?ml|json|properties)$'
+    ) -join '|'
+    $documentationPattern = '^(docs/|\.agents/|\.superpowers/|AGENTS\.md$|README(?:\.[^/]+)?$)|\.md$'
+    $frontendPattern = '^frontend/'
+    $backendPattern = '^backend/'
+    $apiControllerPattern = '^backend/src/main/(java|kotlin)/.+Controller\.(java|kt)$'
+    $authSecurityPattern = @(
+        '(^|/)(auth|security|csrf)(/|\.|$)'
+        '(^|/)[^/]*(Security|Authentication|Authorization|Csrf)[^/]*\.(java|kt|ts|tsx)$'
+        '(^|/)apiClient\.(ts|tsx)$'
+    ) -join '|'
+    $businessStatePattern = @(
+        '(^|/)(logic|rules?|workflow|state|transition)(/|\.|$)'
+        '(^|/)[^/]*(Service|Rules?|Policy|Workflow|State|Status|Transition)\.(java|kt)$'
+    ) -join '|'
+    $databasePattern = @(
+        '(^|/)(db|sql|ddl|migration|migrations|schema|master)(/|\.|-|$)'
+        '\.(sql|ddl)$'
+        '(^|/)[^/]*(Repository|Entity)\.(java|kt)$'
+        '(^|/)[^/]*(DataInitializer|Seeder)\.(java|kt)$'
+    ) -join '|'
+    $commonContractPattern = @(
+        '(^|/)(shared|common|exception|error|support|fixtures?)(/|\.|$)'
+        '(^|/)[^/]*(Exception|Error|Handler)\.(java|kt|ts|tsx)$'
+    ) -join '|'
+
+    foreach ($file in $files) {
+        if ($file -match $fullTriggerPattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SELECTOR_OR_GATE_CHANGED: $file"
+        }
+        if ($file -match $authSecurityPattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_AUTH_SECURITY: $file"
+        }
+        if ($file -match $businessStatePattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_BUSINESS_STATE: $file"
+        }
+        if ($file -match $databasePattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_DATABASE: $file"
+        }
+        if ($file -match $commonContractPattern) {
+            return New-FullImpactPlan -ChangedFiles $files `
+                -FallbackReason "IMPACT_SCOPE_UNBOUNDED_COMMON_CONTRACT: $file"
+        }
+    }
+
+    $selected = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $layerReasons = [ordered]@{}
+    $null = $selected.Add('DirectorySecrets')
+    $layerReasons.DirectorySecrets = 'Repository directory secret scanning is mandatory for every impact plan.'
+
+    foreach ($file in $files) {
+        if ($file -match $documentationPattern) { continue }
+
+        if ($file -match $frontendPattern) {
+            foreach ($layer in @('FullFrontend', 'FrontendCoverage', 'E2E')) {
+                $null = $selected.Add($layer)
+                $layerReasons[$layer] = "Frontend change and direct consumers: $file"
+            }
+            continue
+        }
+
+        if ($file -match $backendPattern) {
+            $backendLayers = if ($file -match $apiControllerPattern) {
+                @('FullFrontend', 'FullBackend', 'BackendUnit', 'E2E', 'Oracle', 'BackendCoverage', 'E2EOracle')
+            }
+            else {
+                @('FullBackend', 'BackendUnit', 'E2E', 'BackendCoverage')
+            }
+            foreach ($layer in $backendLayers) {
+                $null = $selected.Add($layer)
+                $layerReasons[$layer] = if ($file -match $apiControllerPattern) {
+                    "Bounded API Controller change selects backend, frontend consumers, changed coverage, E2E, and Oracle contracts: $file"
+                }
+                else {
+                    "Bounded backend change selects backend checks, changed coverage, and direct E2E consumers: $file"
+                }
+            }
+            continue
+        }
+
+        return New-FullImpactPlan -ChangedFiles $files -FallbackReason "IMPACT_SCOPE_UNKNOWN: $file"
+    }
+
+    $allLayers = @(Get-ImpactLayerNames)
+    $selectedLayers = @($allLayers | Where-Object { $selected.Contains($_) })
+    $excludedLayers = @($allLayers | Where-Object { -not $selected.Contains($_) })
+    foreach ($layer in $excludedLayers) {
+        $layerReasons[$layer] = 'Excluded because no changed file or direct consumer requires this layer.'
+    }
+    [pscustomobject][ordered]@{
+        SchemaVersion = 1
+        ExecutionScope = 'Impact'
+        ChangedFiles = $files
+        SelectedLayers = $selectedLayers
+        ExcludedLayers = $excludedLayers
+        FallbackUsed = $false
+        FallbackReason = ''
+        FullReason = ''
+        LayerReasons = [pscustomobject]$layerReasons
+    }
+}
+
+function Get-ImpactChangedFiles {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [string]$ChangedFilesPath,
+        [string]$BaseRef,
+        [string]$HeadRef
+    )
+
+    $hasFile = -not [string]::IsNullOrWhiteSpace($ChangedFilesPath)
+    $hasBase = -not [string]::IsNullOrWhiteSpace($BaseRef)
+    $hasHead = -not [string]::IsNullOrWhiteSpace($HeadRef)
+    if ($hasFile -and ($hasBase -or $hasHead)) {
+        throw 'Use either ChangedFilesPath or BaseRef/HeadRef, not both.'
+    }
+    if ($hasFile) {
+        if (-not (Test-Path -LiteralPath $ChangedFilesPath -PathType Leaf)) {
+            throw "Changed-files input does not exist: $ChangedFilesPath"
+        }
+        return ConvertTo-NormalizedImpactFiles -ChangedFiles @(
+            Get-Content -Encoding UTF8 -LiteralPath $ChangedFilesPath
+        )
+    }
+    if ($hasBase -xor $hasHead) {
+        throw 'BaseRef and HeadRef must be supplied together.'
+    }
+    if (-not $hasBase) {
+        throw 'Impact scope requires ChangedFilesPath or BaseRef/HeadRef.'
+    }
+    if ($BaseRef -match '^0{40}$' -or $HeadRef -match '^0{40}$') {
+        throw 'Push diff contains an unavailable zero SHA.'
+    }
+    foreach ($ref in @($BaseRef, $HeadRef)) {
+        $null = git -C $RepoRoot rev-parse --verify --quiet "$ref^{commit}"
+        if ($LASTEXITCODE -ne 0) { throw "Git commit is unavailable for impact scope: $ref" }
+    }
+    $files = @(git -c core.quotePath=false -C $RepoRoot diff --name-only --diff-filter=ACMRD $BaseRef $HeadRef)
+    if ($LASTEXITCODE -ne 0) { throw "Unable to resolve impact diff between $BaseRef and $HeadRef." }
+    ConvertTo-NormalizedImpactFiles -ChangedFiles $files
+}
+
+function Write-ImpactJson {
+    param([Parameter(Mandatory)]$Value, [Parameter(Mandatory)][string]$Path)
+
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        $null = New-Item -ItemType Directory -Path $parent -Force
+    }
+    $Value | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $Path -Encoding utf8NoBOM
+}
+
+function Get-ImpactLayerReason {
+    param([Parameter(Mandatory)]$Plan, [Parameter(Mandatory)][string]$Layer)
+
+    $property = $Plan.LayerReasons.PSObject.Properties[$Layer]
+    if ($null -ne $property) { return [string]$property.Value }
+    'No layer reason was recorded.'
+}
+
+function Assert-ImpactPlan {
+    param([Parameter(Mandatory)]$Plan)
+
+    $allLayers = @(Get-ImpactLayerNames)
+    $selected = @($Plan.SelectedLayers)
+    $excluded = @($Plan.ExcludedLayers)
+    $combined = @($selected + $excluded | Sort-Object -Unique)
+    if ((@($combined) -join ',') -ne (@($allLayers | Sort-Object -Unique) -join ',')) {
+        throw 'Impact plan must partition every known layer into selected or excluded scope.'
+    }
+    if (@($selected | Where-Object { $excluded -contains $_ }).Count -gt 0) {
+        throw 'Impact plan selected and excluded scopes overlap.'
+    }
+    if ($selected.Count -eq 0) { throw 'Impact plan cannot contain only excluded layers.' }
+    $layerReasonsProperty = $Plan.PSObject.Properties['LayerReasons']
+    foreach ($layer in $allLayers) {
+        $reasonProperty = if ($null -ne $layerReasonsProperty -and $null -ne $layerReasonsProperty.Value) {
+            $layerReasonsProperty.Value.PSObject.Properties[$layer]
+        }
+        else {
+            $null
+        }
+        $reason = if ($null -ne $reasonProperty) { [string]$reasonProperty.Value } else { '' }
+        if ([string]::IsNullOrWhiteSpace($reason)) {
+            throw "Impact plan layer reason is missing or blank: $layer."
+        }
+        if ([string]::Equals(
+                $reason.Trim(),
+                'No layer reason was recorded.',
+                [System.StringComparison]::OrdinalIgnoreCase
+            )) {
+            throw "Impact plan layer reason cannot use the generic placeholder: $layer."
+        }
+    }
+    if ($Plan.FallbackUsed -and [string]::IsNullOrWhiteSpace([string]$Plan.FallbackReason)) {
+        throw 'Impact fallback requires a reason.'
+    }
+}
+
+function Write-ImpactPlanOutputs {
+    param([Parameter(Mandatory)]$Plan)
+
+    Assert-ImpactPlan -Plan $Plan
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
+        foreach ($layer in (Get-ImpactLayerNames)) {
+            $selected = if (@($Plan.SelectedLayers) -contains $layer) { 'true' } else { 'false' }
+            "$(Get-ImpactOutputName -Layer $layer)=$selected" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+        }
+        "fallback=$($Plan.FallbackUsed.ToString().ToLowerInvariant())" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+        "execution_scope=$($Plan.ExecutionScope)" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+    }
+}
+
+function Write-ImpactSummary {
+    param([Parameter(Mandatory)][AllowEmptyString()][string[]]$Lines)
+
+    $Lines | ForEach-Object { Write-Host $_ }
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+        $Lines | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8NoBOM
+    }
+}
+
+function Write-ImpactPlanSummary {
+    param([Parameter(Mandatory)]$Plan)
+
+    $fallback = if ($Plan.FallbackUsed) { "yes — $($Plan.FallbackReason)" } else { 'no' }
+    $fullReason = if ([string]::IsNullOrWhiteSpace([string]$Plan.FullReason)) { 'N/A' } else { [string]$Plan.FullReason }
+    Write-ImpactSummary -Lines @(
+        '## Impact test plan'
+        ''
+        "- Execution scope: $($Plan.ExecutionScope)"
+        "- Selected layers: $(@($Plan.SelectedLayers) -join ', ')"
+        "- Excluded layers: $(@($Plan.ExcludedLayers) -join ', ')"
+        "- Fallback: $fallback"
+        "- Intentional full reason: $fullReason"
+        "- Changed files: $(@($Plan.ChangedFiles).Count)"
+    )
+}
+
 function Get-FullFrontendCheckDefinitions {
     param(
         [Parameter(Mandatory)]
@@ -131,6 +496,12 @@ function Get-FullContractCheckDefinitions {
         )
         New-CheckDefinition -Name 'coverage-gate-contract-test' -Command 'pwsh' -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-gate.tests.ps1')
+        )
+        New-CheckDefinition -Name 'impact-runner-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/impact-runner.tests.ps1')
+        )
+        New-CheckDefinition -Name 'impact-workflow-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/impact-workflow.tests.ps1')
         )
     )
 }
@@ -754,6 +1125,217 @@ function Get-OracleCheckDefinitions {
     }
 }
 
+function Get-ImpactLayerCheckDefinitions {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('FullFrontend', 'FullBackend', 'BackendUnit', 'FrontendCoverage', 'E2E', 'DirectorySecrets', 'Oracle', 'BackendCoverage', 'E2EOracle')]
+        [string]$Layer,
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$NpmCommand,
+        [Parameter(Mandatory)][string]$MavenCommand,
+        [Parameter(Mandatory)][string]$GitleaksCommand,
+        [string]$OracleConfigPath,
+        [switch]$Offline
+    )
+
+    if ($Layer -eq 'Oracle') {
+        return Get-OracleCheckDefinitions -RepoRoot $RepoRoot -OracleConfigPath $OracleConfigPath
+    }
+    if ($Layer -eq 'BackendUnit') {
+        # The existing BackendUnit CiTask remains the curated fast contract. Impact/full paths use Maven's
+        # standard test discovery so a changed controller or service cannot be reported as covered by a fixed list.
+        return New-CheckDefinition -Name 'impact-backend-unit-test' -Command $MavenCommand -Arguments (
+            Get-MavenArguments -Offline:$Offline -Goals @('test')
+        )
+    }
+    Get-CiTaskDefinitions -CiTask $Layer -RepoRoot $RepoRoot -NpmCommand $NpmCommand `
+        -MavenCommand $MavenCommand -OracleScript (Join-Path $RepoRoot 'backend/scripts/test-oracle.ps1') `
+        -OracleConfigPath $OracleConfigPath -GitleaksCommand $GitleaksCommand -Offline:$Offline
+}
+
+function Write-ImpactLayerOutput {
+    param([Parameter(Mandatory)][string]$State, [Parameter(Mandatory)][bool]$Selected)
+
+    if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
+        "state=$($State.ToLowerInvariant())" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+        "selected=$($Selected.ToString().ToLowerInvariant())" | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8NoBOM
+    }
+}
+
+function Invoke-ImpactLayer {
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)]
+        [ValidateSet('FullFrontend', 'FullBackend', 'BackendUnit', 'FrontendCoverage', 'E2E', 'DirectorySecrets', 'Oracle', 'BackendCoverage', 'E2EOracle')]
+        [string]$Layer,
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$ResultPath,
+        [string]$NpmCommand = 'npm',
+        [string]$MavenCommand = 'mvnw',
+        [string]$GitleaksCommand = 'gitleaks',
+        [string]$OracleConfigPath,
+        [switch]$Offline,
+        [scriptblock]$CommandInvoker
+    )
+
+    Assert-ImpactPlan -Plan $Plan
+    $selected = @($Plan.SelectedLayers) -contains $Layer
+    $reason = Get-ImpactLayerReason -Plan $Plan -Layer $Layer
+    if (-not $selected) {
+        $result = [pscustomobject][ordered]@{
+            SchemaVersion = 1
+            Layer = $Layer
+            Selected = $false
+            State = 'Excluded'
+            Reason = $reason
+            Checks = @()
+        }
+        Write-ImpactJson -Value $result -Path $ResultPath
+        Write-ImpactLayerOutput -State 'Excluded' -Selected $false
+        Write-ImpactSummary -Lines @('## Impact layer result', '', "- Layer: $Layer", '- State: Excluded', "- Reason: $reason")
+        return 0
+    }
+
+    $failures = [System.Collections.Generic.List[string]]::new()
+    $checkResults = [System.Collections.Generic.List[object]]::new()
+    try {
+        $definitions = @(Get-ImpactLayerCheckDefinitions -Layer $Layer -RepoRoot $RepoRoot `
+            -NpmCommand $NpmCommand -MavenCommand $MavenCommand -GitleaksCommand $GitleaksCommand `
+            -OracleConfigPath $OracleConfigPath -Offline:$Offline)
+        if ($definitions.Count -eq 0) { throw "Selected impact layer has no checks: $Layer" }
+        if ($PSBoundParameters.ContainsKey('CommandInvoker')) {
+            Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $checkResults `
+                -CommandInvoker $CommandInvoker
+        }
+        else {
+            Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $checkResults
+        }
+    }
+    catch {
+        $failures.Add("impact-$($Layer.ToLowerInvariant())-definition")
+        $checkResults.Add([pscustomobject][ordered]@{
+                Name = 'impact-layer-definition'
+                State = 'Failed'
+                Detail = $_.Exception.Message
+            })
+        Write-Warning "FAIL impact layer ${Layer}: $($_.Exception.Message)"
+    }
+
+    $state = if ($failures.Count -eq 0) { 'Passed' } else { 'Failed' }
+    $result = [pscustomobject][ordered]@{
+        SchemaVersion = 1
+        Layer = $Layer
+        Selected = $true
+        State = $state
+        Reason = $reason
+        Checks = @($checkResults)
+    }
+    Write-ImpactJson -Value $result -Path $ResultPath
+    Write-ImpactLayerOutput -State $state -Selected $true
+    Write-ImpactSummary -Lines @(
+        '## Impact layer result'
+        ''
+        "- Layer: $Layer"
+        "- State: $state"
+        "- Reason: $reason"
+        "- Failed checks: $($failures.Count)"
+    )
+    if ($failures.Count -gt 0) { return 1 }
+    0
+}
+
+function ConvertFrom-ImpactJobMap {
+    param([Parameter(Mandatory)][string]$Value)
+
+    $map = @{}
+    foreach ($entry in ($Value -split ',')) {
+        $pair = @($entry.Trim() -split '=', 2)
+        if ($pair.Count -ne 2 -or [string]::IsNullOrWhiteSpace($pair[0]) -or [string]::IsNullOrWhiteSpace($pair[1])) {
+            throw "Invalid impact job map entry: $entry"
+        }
+        $map[$pair[0]] = $pair[1]
+    }
+    $map
+}
+
+function Test-ImpactAggregate {
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)][string[]]$Layers,
+        [Parameter(Mandatory)][hashtable]$JobMap,
+        [Parameter(Mandatory)][hashtable]$JobResults,
+        [switch]$AllowExcludedJobSkip
+    )
+
+    Assert-ImpactPlan -Plan $Plan
+    $rows = [System.Collections.Generic.List[object]]::new()
+    $succeeded = $true
+    foreach ($layer in $Layers) {
+        if (@(Get-ImpactLayerNames) -notcontains $layer) { throw "Unknown aggregate layer: $layer" }
+        if (-not $JobMap.ContainsKey($layer)) { throw "Impact job map is missing layer: $layer" }
+        $jobId = [string]$JobMap[$layer]
+        $selected = @($Plan.SelectedLayers) -contains $layer
+        $job = if ($JobResults.ContainsKey($jobId)) { $JobResults[$jobId] } else { $null }
+        $jobResult = if ($null -ne $job) { [string]$job.result } else { 'missing' }
+        $state = if ($null -ne $job -and $job.ContainsKey('outputs') -and $job.outputs.ContainsKey('state')) {
+            [string]$job.outputs.state
+        }
+        else { '' }
+
+        if ($selected) {
+            $valid = $jobResult -eq 'success' -and $state -eq 'passed'
+            $expected = 'Passed'
+        }
+        else {
+            $validExplicit = $jobResult -eq 'success' -and $state -eq 'excluded'
+            $validSkip = $AllowExcludedJobSkip -and $jobResult -eq 'skipped'
+            $valid = $validExplicit -or $validSkip
+            $expected = 'Excluded'
+        }
+        if (-not $valid) { $succeeded = $false }
+        $rows.Add([pscustomobject][ordered]@{
+                Layer = $layer
+                Job = $jobId
+                Selected = $selected
+                Expected = $expected
+                JobResult = $jobResult
+                State = if ([string]::IsNullOrWhiteSpace($state)) { 'missing' } else { $state }
+                Valid = $valid
+            })
+    }
+    [pscustomobject][ordered]@{ Succeeded = $succeeded; Jobs = @($rows) }
+}
+
+function Invoke-ImpactAggregate {
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)][string]$JobResultsJson,
+        [Parameter(Mandatory)][string]$JobMap,
+        [Parameter(Mandatory)][string]$ResultPath,
+        [switch]$AllowExcludedJobSkip
+    )
+
+    $map = ConvertFrom-ImpactJobMap -Value $JobMap
+    $jobResults = $JobResultsJson | ConvertFrom-Json -AsHashtable
+    $layers = @($map.Keys)
+    $aggregate = Test-ImpactAggregate -Plan $Plan -Layers $layers -JobMap $map -JobResults $jobResults `
+        -AllowExcludedJobSkip:$AllowExcludedJobSkip
+    Write-ImpactJson -Value $aggregate -Path $ResultPath
+
+    $summary = [System.Collections.Generic.List[string]]::new()
+    $summary.Add('## Impact aggregate')
+    $summary.Add('')
+    $summary.Add('| Layer | Expected | Job result | Recorded state | Valid |')
+    $summary.Add('| --- | --- | --- | --- | --- |')
+    foreach ($row in $aggregate.Jobs) {
+        $summary.Add("| $($row.Layer) | $($row.Expected) | $($row.JobResult) | $($row.State) | $($row.Valid) |")
+    }
+    Write-ImpactSummary -Lines @($summary)
+    Write-ImpactLayerOutput -State $(if ($aggregate.Succeeded) { 'Passed' } else { 'Failed' }) -Selected $true
+    if ($aggregate.Succeeded) { return 0 }
+    1
+}
+
 function Invoke-QualityChecks {
     param(
         [object[]]$Definitions,
@@ -775,7 +1357,8 @@ function Invoke-QualityChecks {
                     Pop-Location
                 }
             }
-        }
+        },
+        [System.Collections.Generic.List[object]]$Results
     )
 
     foreach ($definition in $Definitions) {
@@ -783,6 +1366,13 @@ function Invoke-QualityChecks {
         $failedDependencies = @($definition.DependsOn | Where-Object { $Failures -contains $_ })
         if ($failedDependencies.Count -gt 0) {
             Write-Warning "SKIP $($definition.Name): dependency failed: $($failedDependencies -join ', ')"
+            if ($null -ne $Results) {
+                $Results.Add([pscustomobject][ordered]@{
+                        Name = $definition.Name
+                        State = 'Skipped'
+                        Detail = "Dependency failed: $($failedDependencies -join ', ')"
+                    })
+            }
             continue
         }
         Write-Host "==> $($definition.Name)"
@@ -799,10 +1389,20 @@ function Invoke-QualityChecks {
                 throw "Command exited with code $exitCode."
             }
             Write-Host "PASS $($definition.Name) ($([math]::Round($stopwatch.Elapsed.TotalSeconds, 2))s)"
+            if ($null -ne $Results) {
+                $Results.Add([pscustomobject][ordered]@{ Name = $definition.Name; State = 'Passed'; Detail = '' })
+            }
         }
         catch {
             $Failures.Add($definition.Name)
             Write-Warning "FAIL $($definition.Name) ($([math]::Round($stopwatch.Elapsed.TotalSeconds, 2))s): $($_.Exception.Message)"
+            if ($null -ne $Results) {
+                $Results.Add([pscustomobject][ordered]@{
+                        Name = $definition.Name
+                        State = 'Failed'
+                        Detail = $_.Exception.Message
+                    })
+            }
         }
         finally {
             $stopwatch.Stop()
@@ -837,7 +1437,7 @@ function Invoke-QualityRunner {
     param(
         [Parameter(Mandatory)]
         [string]$RepoRoot,
-        [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All')]
+        [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All', 'Impact')]
         [string]$Mode = 'Quick',
         [string]$PushInput,
         [switch]$Offline,
@@ -852,7 +1452,18 @@ function Invoke-QualityRunner {
         [string]$FocusedUnitNotApplicableReason,
         [switch]$DisplayRequirement,
         [string]$BrowserCase,
-        [string]$BrowserManualReason
+        [string]$BrowserManualReason,
+        [ValidateSet('Plan', 'FullFrontend', 'FullBackend', 'BackendUnit', 'FrontendCoverage', 'E2E', 'DirectorySecrets', 'Oracle', 'BackendCoverage', 'E2EOracle', 'Aggregate')]
+        [string]$ImpactTask = 'Plan',
+        [string]$ChangedFilesPath,
+        [string]$BaseRef,
+        [string]$HeadRef,
+        [string]$ImpactPlanPath,
+        [string]$ImpactResultPath,
+        [string]$ImpactJobResultsJson,
+        [string]$ImpactJobMap,
+        [string]$ForceFullReason,
+        [switch]$AllowExcludedJobSkip
     )
 
     $failures = [System.Collections.Generic.List[string]]::new()
@@ -867,7 +1478,64 @@ function Invoke-QualityRunner {
 
     Push-Location $RepoRoot
     try {
-        if ($Mode -eq 'Simple' -and $CiTask -ne 'None') {
+        if ($Mode -eq 'Impact' -and $CiTask -ne 'None') {
+            $failures.Add('impact-definition')
+            Write-Warning 'Impact Mode cannot be combined with -CiTask.'
+        }
+        elseif ($Mode -eq 'Impact') {
+            try {
+                if ([string]::IsNullOrWhiteSpace($ImpactPlanPath)) {
+                    throw 'Impact Mode requires -ImpactPlanPath.'
+                }
+                if ($ImpactTask -eq 'Plan') {
+                    if (-not [string]::IsNullOrWhiteSpace($ForceFullReason)) {
+                        $plan = Get-ImpactPlan -ForceFullReason $ForceFullReason
+                    }
+                    else {
+                        try {
+                            $changedFiles = @(Get-ImpactChangedFiles -RepoRoot $RepoRoot `
+                                -ChangedFilesPath $ChangedFilesPath -BaseRef $BaseRef -HeadRef $HeadRef)
+                            $plan = Get-ImpactPlan -ChangedFiles $changedFiles
+                        }
+                        catch {
+                            $plan = New-FullImpactPlan -FallbackReason "IMPACT_SCOPE_UNAVAILABLE: $($_.Exception.Message)"
+                        }
+                    }
+                    Assert-ImpactPlan -Plan $plan
+                    Write-ImpactJson -Value $plan -Path $ImpactPlanPath
+                    Write-ImpactPlanOutputs -Plan $plan
+                    Write-ImpactPlanSummary -Plan $plan
+                }
+                elseif ($ImpactTask -eq 'Aggregate') {
+                    if ([string]::IsNullOrWhiteSpace($ImpactResultPath)) {
+                        throw 'Impact Aggregate requires -ImpactResultPath.'
+                    }
+                    if ([string]::IsNullOrWhiteSpace($ImpactJobResultsJson) -or [string]::IsNullOrWhiteSpace($ImpactJobMap)) {
+                        throw 'Impact Aggregate requires -ImpactJobResultsJson and -ImpactJobMap.'
+                    }
+                    $plan = Get-Content -Raw -Encoding UTF8 -LiteralPath $ImpactPlanPath | ConvertFrom-Json
+                    $aggregateExit = Invoke-ImpactAggregate -Plan $plan -JobResultsJson $ImpactJobResultsJson `
+                        -JobMap $ImpactJobMap -ResultPath $ImpactResultPath `
+                        -AllowExcludedJobSkip:$AllowExcludedJobSkip
+                    if ($aggregateExit -ne 0) { $failures.Add('impact-aggregate') }
+                }
+                else {
+                    if ([string]::IsNullOrWhiteSpace($ImpactResultPath)) {
+                        throw 'Impact layer execution requires -ImpactResultPath.'
+                    }
+                    $plan = Get-Content -Raw -Encoding UTF8 -LiteralPath $ImpactPlanPath | ConvertFrom-Json
+                    $layerExit = Invoke-ImpactLayer -Plan $plan -Layer $ImpactTask -RepoRoot $RepoRoot `
+                        -ResultPath $ImpactResultPath -NpmCommand $npmCommand -MavenCommand $mavenCommand `
+                        -GitleaksCommand $gitleaksCommand -OracleConfigPath $OracleConfigPath -Offline:$Offline
+                    if ($layerExit -ne 0) { $failures.Add("impact-$($ImpactTask.ToLowerInvariant())") }
+                }
+            }
+            catch {
+                $failures.Add('impact-definition')
+                Write-Warning "FAIL impact-definition: $($_.Exception.Message)"
+            }
+        }
+        elseif ($Mode -eq 'Simple' -and $CiTask -ne 'None') {
             $failures.Add('simple-definition')
             Write-Warning 'Simple Mode cannot be combined with -CiTask.'
         }
@@ -967,5 +1635,9 @@ if ($MyInvocation.InvocationName -ne '.') {
         -CiTask $CiTask -AllowDdl:$AllowDdl -DdlScript $DdlScript -OracleConfigPath $OracleConfigPath `
         -Scope $Scope -FocusedUnitScope $FocusedUnitScope -FocusedUnitTarget $FocusedUnitTarget `
         -FocusedUnitNotApplicableReason $FocusedUnitNotApplicableReason `
-        -DisplayRequirement:$DisplayRequirement -BrowserCase $BrowserCase -BrowserManualReason $BrowserManualReason)
+        -DisplayRequirement:$DisplayRequirement -BrowserCase $BrowserCase -BrowserManualReason $BrowserManualReason `
+        -ImpactTask $ImpactTask -ChangedFilesPath $ChangedFilesPath -BaseRef $BaseRef -HeadRef $HeadRef `
+        -ImpactPlanPath $ImpactPlanPath -ImpactResultPath $ImpactResultPath `
+        -ImpactJobResultsJson $ImpactJobResultsJson -ImpactJobMap $ImpactJobMap `
+        -ForceFullReason $ForceFullReason -AllowExcludedJobSkip:$AllowExcludedJobSkip)
 }

@@ -4,25 +4,108 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
+  schedule:
+    - cron: '17 18 * * *'
   workflow_dispatch:
+    inputs:
+      execution_scope:
+        description: Release-before gate scope
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
 
 permissions:
   contents: read
 
 concurrency:
-  group: quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: quality-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
-  full-windows-frontend:
-    name: Full / Windows / Frontend
-    runs-on: windows-latest
+  impact-plan:
+    name: Impact / Plan
+    runs-on: ubuntu-latest
+    outputs:
+      full_frontend: ${{ steps.plan.outputs.full_frontend }}
+      full_backend: ${{ steps.plan.outputs.full_backend }}
+      backend_unit: ${{ steps.plan.outputs.backend_unit }}
+      frontend_coverage: ${{ steps.plan.outputs.frontend_coverage }}
+      e2e: ${{ steps.plan.outputs.e2e }}
+      directory_secrets: ${{ steps.plan.outputs.directory_secrets }}
+      fallback: ${{ steps.plan.outputs.fallback }}
+      execution_scope: ${{ steps.plan.outputs.execution_scope }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Resolve full-gate reason
+        id: scope
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GIT_REF: ${{ github.ref }}
+        run: |
+          $reason = switch ($env:EVENT_NAME) {
+            'schedule' { 'nightly' }
+            'workflow_dispatch' { 'release-before' }
+            'push' {
+              if ($env:GIT_REF.StartsWith('refs/tags/')) { 'release-tag' } else { '' }
+            }
+            default { 'unsupported-event' }
+          }
+          "force_full_reason=$reason" >> $env:GITHUB_OUTPUT
+      - name: Select impact scope
+        id: plan
+        shell: pwsh
+        env:
+          IMPACT_BASE_REF: ${{ github.event.before }}
+          IMPACT_HEAD_REF: ${{ github.sha }}
+          FORCE_FULL_REASON: ${{ steps.scope.outputs.force_full_reason }}
+        run: |
+          $parameters = @{
+            Mode = 'Impact'
+            ImpactTask = 'Plan'
+            ImpactPlanPath = '.impact/plan.json'
+          }
+          if (-not [string]::IsNullOrWhiteSpace($env:FORCE_FULL_REASON)) {
+            $parameters.ForceFullReason = $env:FORCE_FULL_REASON
+          }
+          else {
+            $parameters.BaseRef = $env:IMPACT_BASE_REF
+            $parameters.HeadRef = $env:IMPACT_HEAD_REF
+          }
+          & ./scripts/check.ps1 @parameters
+      - name: Upload impact plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact/plan.json
+          if-no-files-found: error
+
+  full-windows-frontend:
+    name: Full / Windows / Frontend
+    if: ${{ always() }}
+    needs: impact-plan
+    runs-on: windows-latest
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Download impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact
       - name: Setup Node.js
+        if: ${{ needs.impact-plan.outputs.full_frontend == 'true' }}
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.18.0
@@ -31,21 +114,41 @@ jobs:
             package-lock.json
             frontend/package-lock.json
       - name: Install Node dependencies
+        if: ${{ needs.impact-plan.outputs.full_frontend == 'true' }}
         shell: pwsh
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
-      - name: Run Full Frontend
+      - name: Run impact Frontend
+        id: impact
+        if: ${{ always() }}
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask FullFrontend
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask FullFrontend -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/full-frontend.json
+      - name: Upload Frontend impact result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-full-frontend-result
+          path: .impact/results/full-frontend.json
+          if-no-files-found: error
 
   full-windows-backend:
     name: Full / Windows / Backend
+    if: ${{ always() }}
+    needs: impact-plan
     runs-on: windows-latest
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Download impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact
       - name: Setup Java
+        if: ${{ needs.impact-plan.outputs.full_backend == 'true' }}
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
@@ -53,21 +156,41 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Prepare Maven dependencies
+        if: ${{ needs.impact-plan.outputs.full_backend == 'true' }}
         shell: pwsh
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
-      - name: Run Full Backend
+      - name: Run impact Backend
+        id: impact
+        if: ${{ always() }}
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask FullBackend
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask FullBackend -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/full-backend.json
+      - name: Upload Backend impact result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-full-backend-result
+          path: .impact/results/full-backend.json
+          if-no-files-found: error
 
   backend-unit:
     name: Backend / Unit
+    if: ${{ always() }}
+    needs: impact-plan
     runs-on: ubuntu-latest
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Download impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact
       - name: Setup Java
+        if: ${{ needs.impact-plan.outputs.backend_unit == 'true' }}
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
@@ -75,19 +198,39 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Prepare Maven dependencies
+        if: ${{ needs.impact-plan.outputs.backend_unit == 'true' }}
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Maven
-      - name: Run Backend unit tests
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask BackendUnit
+      - name: Run impact Backend unit tests
+        id: impact
+        if: ${{ always() }}
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask BackendUnit -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/backend-unit.json
+      - name: Upload Backend unit impact result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-backend-unit-result
+          path: .impact/results/backend-unit.json
+          if-no-files-found: error
 
   coverage-frontend:
     name: Coverage / Frontend
+    if: ${{ always() }}
+    needs: impact-plan
     runs-on: ubuntu-latest
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Download impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact
       - name: Setup Node.js
+        if: ${{ needs.impact-plan.outputs.frontend_coverage == 'true' }}
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.18.0
@@ -96,29 +239,49 @@ jobs:
             package-lock.json
             frontend/package-lock.json
       - name: Install Node dependencies
+        if: ${{ needs.impact-plan.outputs.frontend_coverage == 'true' }}
         run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
-      - name: Run frontend coverage
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask FrontendCoverage
+      - name: Run impact Frontend coverage
+        id: impact
+        if: ${{ always() }}
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask FrontendCoverage -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/frontend-coverage.json
       - name: Summarize frontend coverage
-        if: always()
+        if: ${{ always() && needs.impact-plan.outputs.frontend_coverage == 'true' }}
         run: pwsh -NoProfile -File scripts/write-coverage-summary.ps1 -FrontendSummaryPath frontend/coverage/coverage-summary.json -AllowMissing
       - name: Upload frontend coverage
-        if: always()
+        if: ${{ always() && needs.impact-plan.outputs.frontend_coverage == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: frontend-coverage
           path: frontend/coverage
-          if-no-files-found: ignore
+          if-no-files-found: error
+      - name: Upload Frontend coverage impact result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-frontend-coverage-result
+          path: .impact/results/frontend-coverage.json
+          if-no-files-found: error
 
   e2e:
     name: E2E
+    if: ${{ always() }}
+    needs: impact-plan
     runs-on: ubuntu-latest
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+      - name: Download impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact
       - name: Setup Node.js
+        if: ${{ needs.impact-plan.outputs.e2e == 'true' }}
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24.18.0
@@ -127,29 +290,94 @@ jobs:
             package-lock.json
             frontend/package-lock.json
       - name: Install Node dependencies and browser
+        if: ${{ needs.impact-plan.outputs.e2e == 'true' }}
         run: |
           pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Node
           pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Playwright
-      - name: Run E2E (including E2E TypeScript gate)
-        # check.ps1 -CiTask E2E runs the blocking E2E TypeScript gate before Playwright.
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask E2E
+      - name: Run impact E2E
+        id: impact
+        if: ${{ always() }}
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask E2E -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/e2e.json
       - name: Upload Playwright report
-        if: always()
+        if: ${{ always() && needs.impact-plan.outputs.e2e == 'true' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-report
           path: frontend/playwright-report
-          if-no-files-found: ignore
+          if-no-files-found: error
+      - name: Upload E2E impact result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-e2e-result
+          path: .impact/results/e2e.json
+          if-no-files-found: error
 
   gitleaks-directory:
     name: Gitleaks / Directory
+    if: ${{ always() }}
+    needs: impact-plan
+    runs-on: ubuntu-latest
+    outputs:
+      state: ${{ steps.impact.outputs.state }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Download impact plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact
+      - name: Install pinned Gitleaks
+        if: ${{ needs.impact-plan.outputs.directory_secrets == 'true' }}
+        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Gitleaks
+      - name: Scan repository directory
+        id: impact
+        if: ${{ always() }}
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask DirectorySecrets -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/directory-secrets.json
+      - name: Upload directory-secret impact result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-directory-secrets-result
+          path: .impact/results/directory-secrets.json
+          if-no-files-found: error
+
+  quality-aggregate:
+    name: Impact / Aggregate
+    if: ${{ always() }}
+    needs:
+      - impact-plan
+      - full-windows-frontend
+      - full-windows-backend
+      - backend-unit
+      - coverage-frontend
+      - e2e
+      - gitleaks-directory
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      - name: Install pinned Gitleaks
-        run: pwsh -NoProfile -File scripts/bootstrap.ps1 -Component Gitleaks
-      - name: Scan repository directory
-        run: pwsh -NoProfile -File scripts/check.ps1 -CiTask DirectorySecrets
+      - name: Download impact plan
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: quality-impact-plan
+          path: .impact
+      - name: Aggregate quality results
+        if: ${{ always() }}
+        env:
+          IMPACT_JOB_RESULTS: ${{ toJson(needs) }}
+          IMPACT_JOB_MAP: FullFrontend=full-windows-frontend,FullBackend=full-windows-backend,BackendUnit=backend-unit,FrontendCoverage=coverage-frontend,E2E=e2e,DirectorySecrets=gitleaks-directory
+        run: pwsh -NoProfile -File scripts/check.ps1 -Mode Impact -ImpactTask Aggregate -ImpactPlanPath .impact/plan.json -ImpactResultPath .impact/results/quality-aggregate.json -ImpactJobResultsJson $env:IMPACT_JOB_RESULTS -ImpactJobMap $env:IMPACT_JOB_MAP
+      - name: Upload quality aggregate
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-impact-aggregate
+          path: .impact/results/quality-aggregate.json
+          if-no-files-found: error
