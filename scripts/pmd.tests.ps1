@@ -38,7 +38,10 @@ Assert-Condition (Test-Path -LiteralPath $rulesetPath) `
     'PMD ruleset file is missing.'
 
 $rulesetText = Get-Content -Raw -Encoding UTF8 $rulesetPath
-foreach ($rule in @('CognitiveComplexity', 'CyclomaticComplexity', 'NPathComplexity')) {
+foreach ($rule in @(
+        'CognitiveComplexity', 'CyclomaticComplexity', 'NPathComplexity',
+        'ControlStatementBraces', 'SimplifyBooleanExpressions',
+        'SimplifyBooleanReturns', 'MissingOverride')) {
     Assert-Condition ($rulesetText -match [regex]::Escape($rule)) "PMD rule is missing: $rule"
 }
 Assert-Condition ($rulesetText -match 'property name="reportLevel" value="15"') `

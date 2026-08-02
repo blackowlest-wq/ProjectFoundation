@@ -1,12 +1,16 @@
-# PMD複雑度ルール適用 設計書
+# PMD複雑度・可読性ルール適用 設計書
 
 ## 目的
 
-Backend Javaコードの複雑度を品質ゲートで検出し、次のPMDルールに違反する実装を受け入れない。
+Backend Javaコードの複雑度と可読性を品質ゲートで検出し、次のPMDルールに違反する実装を受け入れない。
 
 - `CognitiveComplexity`
 - `CyclomaticComplexity`
 - `NPathComplexity`
+- `ControlStatementBraces`
+- `SimplifyBooleanExpressions`
+- `SimplifyBooleanReturns`
+- `MissingOverride`
 
 既存Backendコードも解析対象とし、既存違反・新規違反を問わずPMD違反があれば品質ゲートを失敗させる。
 
@@ -19,7 +23,7 @@ Backend Javaコードの複雑度を品質ゲートで検出し、次のPMDル�
 ### 実装対象
 
 - `backend/pom.xml`へMaven PMD Pluginを追加する。
-- `backend/config/pmd.xml`へ3ルールの専用rulesetを追加する。
+- `backend/config/pmd.xml`へ複雑度3ルールと可読性4ルールの専用rulesetを追加する。
 - `scripts/check.ps1`のBackend品質検査へ`pmd:check`を追加する。
 - PMD設定とrunnerの契約テストを追加し、Fullの契約テストから実行する。
 - 品質ゲート運用資料、テスト・静的解析チェック表、作業記録を更新する。
@@ -29,7 +33,7 @@ Backend Javaコードの複雑度を品質ゲートで検出し、次のPMDル�
 - 既存Javaコードの複雑度を下げるリファクタリング。ただし、品質ゲート実行で違反が検出された場合は、品質ゲートを通すために必要な最小修正を別途行う。
 - Checkstyle、Spotless、SpotBugsの既存ルール変更。
 - Quick / PrePush hookへのPMD追加。
-- PMDの3ルール以外のルール追加。
+- 今回指定した4つ以外のPMDルール追加。
 - PMDの警告をベースラインで抑制する仕組み。
 
 ## ルールとしきい値
@@ -43,11 +47,20 @@ PMD公式のJava Designルールに従い、しきい値は明示的にruleset�
 | `CyclomaticComplexity` | `classReportLevel` | 80 | クラス全体の循環的複雑度 |
 | `NPathComplexity` | `reportLevel` | 200 | メソッドの実行経路数 |
 
+可読性ルールは閾値を持たず、違反を検出した場合は品質ゲートを失敗させる。
+
+| ルール | カテゴリ | 目的 |
+| --- | --- | --- |
+| `ControlStatementBraces` | Code Style | 制御文の波括弧を統一する |
+| `SimplifyBooleanExpressions` | Design | 冗長なboolean比較を除く |
+| `SimplifyBooleanReturns` | Design | 不要なboolean分岐returnを除く |
+| `MissingOverride` | Best Practices | `@Override`漏れを防ぐ |
+
 ## 実装方針
 
 ### PMD設定
 
-`backend/config/pmd.xml`を専用rulesetとし、`category/java/design.xml`から対象3ルールだけを参照する。
+`backend/config/pmd.xml`を専用rulesetとし、Javaのdesign / codestyle / bestpracticesカテゴリから対象7ルールだけを参照する。
 
 Maven PMD Pluginは`3.23.0`を固定し、PMD解析結果でビルドを失敗させる。違反内容をCIログで確認できるよう、失敗詳細を出力する。Backendのmain/test Javaを解析対象とする。
 
@@ -69,7 +82,7 @@ PMDが品質ゲートから抜け落ちないことを、PowerShell契約テス�
 
 - POMにPMD Pluginと`config/pmd.xml`参照がある。
 - POMで失敗時ゲートが有効である。
-- rulesetに対象3ルールとしきい値がある。
+- rulesetに対象7ルールと複雑度のしきい値がある。
 - `FullBackend`のMavenゴールに`pmd:check`が含まれる。
 - `Simple` BackendのMavenゴールに`pmd:check`が含まれる。
 - 契約テスト自体がFull Backendの契約テスト集合から実行される。
@@ -113,6 +126,8 @@ Oracle接続、Frontend、E2E、coverageは今回の変更対象外とし、通�
 
 - PMD Maven Plugin: https://pmd.github.io/pmd/pmd_userdocs_tools_maven.html
 - PMD Java Design Rules: https://pmd.github.io/pmd/pmd_rules_java_design.html
+- PMD Java Code Style Rules: https://pmd.github.io/pmd/pmd_rules_java_codestyle.html
+- PMD Java Best Practices Rules: https://pmd.github.io/pmd/pmd_rules_java_bestpractices.html
 - PMD Rule Configuration: https://pmd.github.io/pmd/pmd_userdocs_configuring_rules.html
 
 ## リスクと対応
@@ -124,3 +139,5 @@ Oracle接続、Frontend、E2E、coverageは今回の変更対象外とし、通�
 ## 設計承認
 
 2026-08-02、利用者が簡易修正モード、全Backendコード対象、既存・新規違反でゲート失敗、公式デフォルトしきい値（Cyclomatic classReportLevel 80）を承認した。
+
+2026-08-02追記、利用者が`ControlStatementBraces`、`SimplifyBooleanExpressions`、`SimplifyBooleanReturns`、`MissingOverride`の追加を指定した。Checkstyleの既存設定は変更せず、PMD rulesetへ追加する。
