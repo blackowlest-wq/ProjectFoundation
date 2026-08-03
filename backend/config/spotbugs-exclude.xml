@@ -32,6 +32,11 @@
         <Class name="com.example.dailyreport.report.dto.DailyReportResponse"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+    <!-- DailyReportRequest makes a defensive unmodifiable copy; the record accessor still looks like a mutable List to SpotBugs. -->
+    <Match>
+        <Class name="com.example.dailyreport.report.dto.DailyReportRequest"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
     <Match>
         <Class name="com.example.dailyreport.report.entity.DailyReportEntity"/>
         <Bug pattern="EI_EXPOSE_REP"/>

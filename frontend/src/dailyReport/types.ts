@@ -3,7 +3,8 @@
  * API DTOとフォーム入力値の形を揃え、画面・API・テスト間で同じ型を使えるようにする。
  */
 export type ApprovalStatus = 'DRAFT' | 'PENDING' | 'REJECTED' | 'APPROVED';
-export type HolidayType = 'WORKDAY' | 'HOLIDAY' | 'PAID_LEAVE' | 'AM_OFF' | 'PM_OFF';
+/** 休日区分はDBマスタで拡張されるため、画面では固定コードに限定しない。 */
+export type HolidayType = string;
 
 export type ProjectOption = {
   projectId: string;

@@ -203,6 +203,25 @@ class DailyReportCommandControllerTest {
     }
 
     @Test
+    void createRejectsNullWorkItemAsValidationError() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("reportDate", LocalDate.of(2026, 6, 30).plusDays(1).toString());
+        request.put("holidayType", "WORKDAY");
+        request.put("startTime", "09:00");
+        request.put("endTime", "18:00");
+        request.put("workItems", java.util.Collections.singletonList(null));
+
+        mockMvc.perform(post("/api/daily-reports")
+                        .with(csrf())
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", equalTo("VALIDATION_ERROR")));
+    }
+
+    @Test
     void createRejectsInvalidTimeFormat() throws Exception {
         MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
 

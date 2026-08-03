@@ -45,7 +45,7 @@ export const fallbackUser: CurrentUser = {
 
 const holidayTypes: HolidayTypeOption[] = [
   { holidayType: 'WORKDAY', holidayTypeName: '通常勤務', requiresWorkTime: true, allowsWorkItems: true },
-  { holidayType: 'HOLIDAY', holidayTypeName: '休日', requiresWorkTime: false, allowsWorkItems: false },
+  { holidayType: 'HOLIDAY', holidayTypeName: '休日', requiresWorkTime: false, allowsWorkItems: true },
   { holidayType: 'PAID_LEAVE', holidayTypeName: '有給休暇', requiresWorkTime: false, allowsWorkItems: false },
   { holidayType: 'AM_OFF', holidayTypeName: '午前休', requiresWorkTime: true, allowsWorkItems: true },
   { holidayType: 'PM_OFF', holidayTypeName: '午後休', requiresWorkTime: true, allowsWorkItems: true },
@@ -124,7 +124,7 @@ export function buildReportDetail(reportId: string, overrides: Partial<DailyRepo
     regularWorkMinutes: 480,
     overtimeWorkMinutes: 0,
     nightWorkMinutes: 0,
-    workTimeDisplay: '09:00-18:00',
+    workTimeDisplay: '8:00',
     regularWorkTimeDisplay: '8:00',
     overtimeWorkTimeDisplay: '0:00',
     nightWorkTimeDisplay: '0:00',

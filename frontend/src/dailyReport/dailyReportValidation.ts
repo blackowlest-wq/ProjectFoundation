@@ -2,7 +2,7 @@
  * 日報フォームの利用者補助用バリデーション。
  * バックエンドのTimeRulesを正としつつ、画面上で即時に分かる入力不備を先に返す。
  */
-import type { DailyReportRequest } from './types';
+import type { DailyReportRequest, HolidayTypeOption } from './types';
 
 const timePattern = /^\d{2}:\d{2}$/;
 
@@ -31,7 +31,7 @@ export function totalWorkItemMinutes(request: DailyReportRequest): number {
 }
 
 /** 休日区分に応じた時刻・作業明細・勤務時間の入力条件を順番に検証する。 */
-export function validateDailyReportInput(request: DailyReportRequest): string | null {
+export function validateDailyReportInput(request: DailyReportRequest, holidayTypeOption?: HolidayTypeOption): string | null {
   // How: 日付がない場合は休日区分や勤務内容を検証せず、日付エラーを先に返す。
   if (!request.reportDate) {
     return '日付を入力してください。';
@@ -40,22 +40,25 @@ export function validateDailyReportInput(request: DailyReportRequest): string | 
   if (!request.holidayType) {
     return '休日区分を選択してください。';
   }
+  if (!holidayTypeOption || holidayTypeOption.holidayType !== request.holidayType) {
+    return '休日区分マスタを読み込んでください。';
+  }
   const hasTimes = Boolean(request.startTime || request.endTime);
   const hasItems = request.workItems.length > 0;
-  // How: 有給休暇は勤務時刻・明細の有無を確認して、この区分の検証を完了する。
-  if (request.holidayType === 'PAID_LEAVE') {
-    // Why not: 有給休暇を勤務実績として保存すると勤務集計と矛盾するため、時刻と作業明細を同時に受け付けない。
-    // How: 禁止入力が一つでもあれば有給休暇のエラーを返し、通常勤務の検証へ進めない。
+  // How: 勤務時間も作業明細も許可しないマスタ区分は、禁止入力だけを確認して検証を完了する。
+  if (!holidayTypeOption.requiresWorkTime && !holidayTypeOption.allowsWorkItems) {
+    // Why not: 勤務実績を持たない区分へ勤務入力を保存すると勤務集計と矛盾するため、時刻と作業明細を受け付けない。
+    // How: 禁止入力が一つでもあれば対象区分のエラーを返し、通常勤務の検証へ進めない。
     if (hasTimes || hasItems) {
-      return '有給休暇では勤務時刻と作業明細を入力できません。';
+      return `${holidayTypeOption.holidayTypeName}では勤務時刻と作業明細を入力できません。`;
     }
     return null;
   }
-  // How: 作業明細のない休日は時刻入力の有無だけを確認し、勤務日の検証へ進めない。
-  if (request.holidayType === 'HOLIDAY' && !hasItems) {
+  // How: 勤務時刻が不要で作業明細を許可する区分は、明細なしなら時刻入力だけを確認する。
+  if (!holidayTypeOption.requiresWorkTime && holidayTypeOption.allowsWorkItems && !hasItems) {
     // Why not: 作業しない休日に時刻だけを許すと勤務時間の根拠がなくなるため、勤務ゼロとして時刻入力を拒否する。
     // How: 時刻が入力されている場合だけエラーを返し、未入力なら休日として正常終了する。
-    return hasTimes ? '休日で作業明細がない場合、勤務時刻は入力できません。' : null;
+    return hasTimes ? `${holidayTypeOption.holidayTypeName}で作業明細がない場合、勤務時刻は入力できません。` : null;
   }
   // How: 通常勤務または作業する休日では、時刻と明細が揃わなければ計算へ進めない。
   if (!request.startTime || !request.endTime || !hasItems) {

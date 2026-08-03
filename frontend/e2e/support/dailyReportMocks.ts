@@ -44,6 +44,7 @@ export const baseDailyReport = {
 export async function mockDailyReportApis(page: Page, options: Parameters<typeof mockAuthApis>[1] = {}) {
   await mockAuthApis(page, options);
   let draftApprovalStatus: 'DRAFT' | 'PENDING' = 'DRAFT';
+  let newReportApprovalStatus: 'DRAFT' | 'PENDING' = 'DRAFT';
   await page.route('**/api/master/projects', async (route) => {
     await route.fulfill({ json: [{ projectId: 'P001', projectName: 'プロジェクトA' }] });
   });
@@ -53,9 +54,9 @@ export async function mockDailyReportApis(page: Page, options: Parameters<typeof
   await page.route('**/api/master/holiday-types', async (route) => {
     await route.fulfill({
       json: [
-        { holidayType: 'WORKDAY', holidayTypeName: '通常勤務' },
-        { holidayType: 'HOLIDAY', holidayTypeName: '休日' },
-        { holidayType: 'PAID_LEAVE', holidayTypeName: '有給休暇' },
+        { holidayType: 'WORKDAY', holidayTypeName: '通常勤務', requiresWorkTime: true, allowsWorkItems: true },
+        { holidayType: 'HOLIDAY', holidayTypeName: '休日', requiresWorkTime: false, allowsWorkItems: true },
+        { holidayType: 'PAID_LEAVE', holidayTypeName: '有給休暇', requiresWorkTime: false, allowsWorkItems: false },
       ],
     });
   });
@@ -75,6 +76,13 @@ export async function mockDailyReportApis(page: Page, options: Parameters<typeof
       status: 201,
       json: { reportId: 'R-E2E-001', approvalStatus: 'DRAFT' },
     });
+  });
+  await page.route('**/api/daily-reports/R-E2E-001', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { ...baseDailyReport, reportId: 'R-E2E-001', reportDate: '2026-06-28', approvalStatus: newReportApprovalStatus } });
+      return;
+    }
+    await route.fallback();
   });
   await page.route('**/api/daily-reports/R-DRAFT-001', async (route) => {
     if (route.request().method() === 'GET') {
@@ -135,6 +143,7 @@ export async function mockDailyReportApis(page: Page, options: Parameters<typeof
     await route.fallback();
   });
   await page.route('**/api/daily-reports/R-E2E-001/submit', async (route) => {
+    newReportApprovalStatus = 'PENDING';
     await route.fulfill({
       json: {
         reportId: 'R-E2E-001',

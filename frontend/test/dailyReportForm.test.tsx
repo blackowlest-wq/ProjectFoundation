@@ -65,6 +65,31 @@ describe('DailyReportForm behavior from task-owned tests', () => {
     expect(document.body.textContent).toContain('合計: 0 分');
   });
 
+  it('uses the local business date at the midnight boundary', async () => {
+    vi.setSystemTime(new Date('2026-07-17T00:30:00+09:00'));
+    installFrontendFetch();
+
+    await renderUi(<DailyReportForm user={currentUser} />);
+
+    expect(controlByLabel<HTMLInputElement>('日付').value).toBe('2026-07-17');
+  });
+
+  it('uses holiday master flags instead of fixed holiday codes for input control', async () => {
+    installFrontendFetch({
+      holidayTypes: respondJson([
+        { holidayType: 'WORKDAY', holidayTypeName: '通常勤務', requiresWorkTime: true, allowsWorkItems: true },
+        { holidayType: 'SPECIAL_OFF', holidayTypeName: '特別休暇', requiresWorkTime: false, allowsWorkItems: false },
+      ]),
+    });
+
+    await renderUi(<DailyReportForm user={currentUser} />);
+    setControlValue(controlByLabel<HTMLSelectElement>('休日区分'), 'SPECIAL_OFF');
+
+    expect(controlByLabel<HTMLInputElement>('勤務開始').disabled).toBe(true);
+    expect(controlByLabel<HTMLInputElement>('勤務終了').disabled).toBe(true);
+    expect(buttonByText('追加').disabled).toBe(true);
+  });
+
   it('clears work inputs for paid leave and keeps holiday-without-items time fields disabled', async () => {
     installFrontendFetch();
 
@@ -265,6 +290,33 @@ describe('DailyReportForm behavior from task-owned tests', () => {
     expect(document.querySelector('[role="status"]')?.textContent).toBe('保存しました。');
     expect(window.location.pathname).toBe('/daily-reports/R900/edit');
     expect(document.body.textContent).toContain('日報編集');
+    expect(document.body.textContent).toContain('自動算出休憩時間1:00');
+    expect(document.body.textContent).toContain('実勤務時間8:00');
+    expect(document.body.textContent).toContain('通常勤務時間8:00');
+    expect(document.body.textContent).toContain('残業時間0:00');
+    expect(document.body.textContent).toContain('深夜時間0:00');
+    expect(document.body.textContent).toContain('作業時間合計8:00');
+  });
+
+  it('disables save actions and suppresses a second request while saving', async () => {
+    let resolveCreate!: (response: Response) => void;
+    const createResponse = new Promise<Response>((resolve) => {
+      resolveCreate = resolve;
+    });
+    const { calls } = installFrontendFetch({ create: createResponse });
+
+    await renderUi(<DailyReportForm user={currentUser} />);
+    const saveButton = buttonByText('下書き保存');
+    await click(saveButton);
+
+    expect(saveButton.disabled).toBe(true);
+    expect(countRequests(calls, 'POST', '/api/daily-reports')).toBe(1);
+
+    await click(saveButton);
+    expect(countRequests(calls, 'POST', '/api/daily-reports')).toBe(1);
+
+    resolveCreate(jsonResponse({ reportId: 'R-SAVE-ONCE', approvalStatus: 'DRAFT' }, { status: 201 }));
+    await flushEffects();
   });
 
   it('creates and submits a new report through the submit path', async () => {
@@ -370,25 +422,16 @@ describe('DailyReportForm behavior from task-owned tests', () => {
     expect(document.querySelector('[role="alert"]')?.textContent).toBe('保存に失敗しました。');
   });
 
-  it('uses fallback project and category ids when adding work items before masters are available', async () => {
+  it('does not create a work item or save fixed ids when masters are unavailable', async () => {
     const { calls } = installFrontendFetch({
       projects: respondJson([]),
       categories: respondJson([]),
-      create: respondJson({ reportId: 'RFALL', approvalStatus: 'DRAFT' }, { status: 201 }),
-      reportDetails: {
-        RFALL: respondJson(buildReportDetail('RFALL')),
-      },
     });
 
     await renderUi(<DailyReportForm user={currentUser} />);
-    await click(buttonByText('追加'));
-    await click(buttonByText('下書き保存'));
 
-    const createCall = calls.find((call) => call.method === 'POST' && call.url.pathname === '/api/daily-reports');
-    expect(createCall).toBeDefined();
-    const body = JSON.parse(createCall?.body ?? '{}') as {
-      workItems: Array<{ projectId: string; workCategoryId: string; workMinutes: number }>;
-    };
-    expect(body.workItems[1]).toEqual({ projectId: 'P001', workCategoryId: 'WC001', workMinutes: 60 });
+    expect(buttonByText('追加').disabled).toBe(true);
+    expect(document.querySelectorAll('.work-row')).toHaveLength(0);
+    expect(countRequests(calls, 'POST', '/api/daily-reports')).toBe(0);
   });
 });

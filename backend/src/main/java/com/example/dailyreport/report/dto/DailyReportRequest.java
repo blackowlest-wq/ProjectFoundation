@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public record DailyReportRequest(
@@ -16,14 +18,15 @@ public record DailyReportRequest(
         String startTime,
         String endTime,
         @Size(max = 1000) String remarks,
-        @Valid List<WorkItemRequest> workItems
+        @Valid List<@NotNull WorkItemRequest> workItems
 ) {
     /**
      * 作業明細がnullの場合も業務ルールが扱える空リストへ正規化する。
      */
     public DailyReportRequest {
         // Why not: nullと空リストを業務ルール側で分岐すると入力判定が二重になるため、空リストへ正規化する。
-        workItems = workItems == null ? List.of() : List.copyOf(workItems);
+        // Why not: List.copyOf() rejects null elements before Bean Validation can return the common field error for that element.
+        workItems = workItems == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(workItems));
     }
 
     public record WorkItemRequest(

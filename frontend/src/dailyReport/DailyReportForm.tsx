@@ -2,7 +2,7 @@
  * 日報登録・編集画面のメインコンポーネント。
  * マスタ読み込み、既存日報の編集、下書き保存、提出、作業明細編集を1画面で扱う。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createDailyReport,
   fetchDailyReport,
@@ -40,7 +40,9 @@ type RejectionDetails = Pick<DailyReportResponse, 'rejectComment' | 'rejectorNam
 
 /** 実行環境の今日を日報入力用のYYYY-MM-DD形式で返す。 */
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  const current = new Date();
+  // Why not: toISOString() converts the value to UTC and can return the previous date during the local midnight boundary.
+  return `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
 }
 
 /** 新規登録画面で使用する初期日報を生成する。 */
@@ -51,7 +53,7 @@ function emptyReport(): DailyReportRequest {
     startTime: '09:00',
     endTime: '18:00',
     remarks: '',
-    workItems: [{ projectId: 'P001', workCategoryId: 'WC001', workMinutes: 480 }],
+    workItems: [],
   };
 }
 
@@ -64,6 +66,14 @@ function reportIdFromPath(): string | null {
 /** 編集中の作業明細の合計分数を返す。 */
 function totalMinutes(items: DailyReportWorkItemInput[]): number {
   return items.reduce((total, item) => total + Number(item.workMinutes || 0), 0);
+}
+
+/** 分単位の勤務時間を画面表示用のH:mmへ変換する。 */
+function formatDuration(minutes: number | null | undefined): string {
+  if (minutes == null) {
+    return '0:00';
+  }
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
 /** 詳細APIレスポンスから、画面編集に必要な入力DTO部分だけを抽出する。 */
@@ -94,6 +104,23 @@ function useDailyReportEditor() {
   const [holidayTypes, setHolidayTypes] = useState<HolidayTypeOption[]>([]);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [calculation, setCalculation] = useState<DailyReportResponse | null>(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const initialReportIdRef = useRef(reportId);
+
+  /** 詳細APIの結果をフォーム、状態、計算結果へ反映する。 */
+  function applyDetail(report: DailyReportResponse) {
+    setStatus(report.approvalStatus);
+    setRejectionDetails({
+      rejectComment: report.rejectComment,
+      rejectorName: report.rejectorName,
+      rejectedAt: report.rejectedAt,
+    });
+    setForm(toEditableReport(report));
+    setCalculation(report);
+    setDetailLoadState('loaded');
+  }
 
   useEffect(() => {
     // How: 3種類のマスタを並列取得し、完了後に各選択肢を同じフォーム状態へ設定する。
@@ -103,6 +130,18 @@ function useDailyReportEditor() {
         setProjects(projectOptions);
         setCategories(categoryOptions);
         setHolidayTypes(holidayOptions);
+        if (!initialReportIdRef.current) {
+          setForm((current) => {
+            const holidayOption = holidayOptions.find((option) => option.holidayType === current.holidayType);
+            if (current.workItems.length > 0 || !holidayOption?.allowsWorkItems || !projectOptions[0] || !categoryOptions[0]) {
+              return current;
+            }
+            return {
+              ...current,
+              workItems: [{ projectId: projectOptions[0].projectId, workCategoryId: categoryOptions[0].workCategoryId, workMinutes: 480 }],
+            };
+          });
+        }
       })
       .catch((e) => setError((e as ApiError).message ?? 'マスタデータの読み込みに失敗しました。'));
   }, []);
@@ -116,39 +155,44 @@ function useDailyReportEditor() {
     }
     setDetailLoadState('loading');
     fetchDailyReport(reportId)
-      .then((report) => {
-        setStatus(report.approvalStatus);
-        setRejectionDetails({
-          rejectComment: report.rejectComment,
-          rejectorName: report.rejectorName,
-          rejectedAt: report.rejectedAt,
-        });
-        setForm(toEditableReport(report));
-        setDetailLoadState('loaded');
-      })
+      .then(applyDetail)
       .catch((e) => {
         setDetailLoadState('failed');
         setError((e as ApiError).message ?? '日報の読み込みに失敗しました。');
       });
   }, [reportId]);
 
-  const mutationDisabled = Boolean(reportId)
+  const selectedHolidayType = holidayTypes.find((option) => option.holidayType === form.holidayType);
+  const canEnterWorkTime = Boolean(selectedHolidayType)
+    && (selectedHolidayType?.requiresWorkTime === true
+      || (selectedHolidayType?.allowsWorkItems === true && form.workItems.length > 0));
+  const mutationDisabled = saving || Boolean(reportId)
     && (detailLoadState === 'loading' || detailLoadState === 'failed' || status === 'PENDING' || status === 'APPROVED');
+  const workItemsDisabled = mutationDisabled
+    || !selectedHolidayType?.allowsWorkItems || projects.length === 0 || categories.length === 0;
+  const workTimeDisabled = mutationDisabled || !canEnterWorkTime;
 
   /** 入力フォームの指定フィールドだけを更新する。 */
   function setField<K extends keyof DailyReportRequest>(key: K, value: DailyReportRequest[K]) {
+    setCalculation(null);
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  /** 休日区分を変更し、有給休暇への変更時は勤務入力を同時に消去する。 */
+  /** 休日区分マスタに応じて勤務入力と作業明細の状態を整合させる。 */
   function changeHolidayType(value: HolidayType) {
-    // How: 有給休暇へ変更する場合は、勤務時刻と明細を消去して区分変更と同時に入力状態を整合させる。
-    if (value === 'PAID_LEAVE') {
-      // Why not: 区分変更前の勤務入力を残すと保存時に有給休暇の業務ルール違反になるため、関連入力を即時クリアする。
-      setForm((current) => ({ ...current, holidayType: value, startTime: null, endTime: null, workItems: [] }));
-      return;
-    }
-    setField('holidayType', value);
+    const holidayOption = holidayTypes.find((option) => option.holidayType === value);
+    setCalculation(null);
+    setForm((current) => ({
+      ...current,
+      holidayType: value,
+      startTime: holidayOption?.requiresWorkTime || (holidayOption?.allowsWorkItems && current.workItems.length > 0)
+        ? current.startTime
+        : null,
+      endTime: holidayOption?.requiresWorkTime || (holidayOption?.allowsWorkItems && current.workItems.length > 0)
+        ? current.endTime
+        : null,
+      workItems: holidayOption?.allowsWorkItems ? current.workItems : [],
+    }));
   }
 
   /** 現在の入力を保存し、提出は行わない。 */
@@ -165,23 +209,34 @@ function useDailyReportEditor() {
   async function save(thenSubmit: boolean) {
     // How: 既存詳細の未確定・取得失敗・編集不可状態では検証とAPI呼び出しの前に終了し、画面操作以外からの変更も防ぐ。
     // Why not: disabled属性だけに依存すると、イベント経由の呼び出しで状態不整合な更新要求を送れるため、保存処理でも同じ条件を確認する。
-    if (mutationDisabled) {
+    if (mutationDisabled || savingRef.current) {
       return;
     }
     // How: 画面入力を検証し、reportIdの有無で登録/更新を選び、提出時は差戻しだけ再提出APIへ分岐する。
     setError('');
     setMessage('');
-    const validationError = validateDailyReportInput(form);
+    const validationError = validateDailyReportInput(form, selectedHolidayType);
     // How: 入力エラーがあればAPI保存へ進まず、最初の検証結果を画面へ表示する。
     if (validationError) {
       setError(validationError);
       return;
     }
+    savingRef.current = true;
+    setSaving(true);
     try {
       const resubmit = status === 'REJECTED';
       const saved = reportId ? await updateDailyReport(reportId, form) : await createDailyReport(form);
-      setReportId(saved.reportId);
+      if (reportId) {
+        setReportId(saved.reportId);
+      }
       setStatus(saved.approvalStatus);
+      if (reportId) {
+        try {
+          applyDetail(await fetchDailyReport(saved.reportId));
+        } catch {
+          setError('保存は完了しましたが、計算結果の再取得に失敗しました。');
+        }
+      }
       // How: 提出指定時だけ、保存開始前に判定した状態に応じて差戻しは再提出、それ以外は初回提出へ分岐する。
       if (thenSubmit) {
         // Why not: 差戻し日報を通常提出APIへ送ると状態遷移の入口を分けられないため、再提出APIへ限定する。
@@ -193,26 +248,45 @@ function useDailyReportEditor() {
       } else {
         setMessage('保存しました。');
       }
+      if (!reportId) {
+        try {
+          // Why not: 登録APIの概要レスポンスだけではBackend計算結果を表示できないため、新規登録でも詳細を再取得する。
+          applyDetail(await fetchDailyReport(saved.reportId));
+        } catch {
+          setError('保存は完了しましたが、計算結果の再取得に失敗しました。');
+        }
+        setReportId(saved.reportId);
+      }
       // Why not: 登録後に新規URLを残すと再読込時に新規作成として扱われるため、編集URLへ置き換える。
       window.history.replaceState(null, '', `/daily-reports/${encodeURIComponent(saved.reportId)}/edit`);
     } catch (e) {
       const apiError = e as ApiError;
       // Why not: API全体のメッセージだけを表示すると入力箇所を特定できないため、field別エラーを優先する。
       setError(apiError.details?.[0]?.message ?? apiError.message ?? '保存に失敗しました。');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   }
 
-  /** マスタの先頭値または既定値を使って作業明細を末尾へ追加する。 */
+  /** マスタの先頭値を使って作業明細を末尾へ追加する。 */
   function addItem() {
-    // How: 現在のマスタ先頭値を選び、未取得時は既定IDを使って明細を末尾へ追加する。
-    // Why not: マスタ取得完了まで追加操作を止めると入力を開始できないため、先頭値または既定IDで行を作成する。
+    const project = projects[0];
+    const category = categories[0];
+    if (!project || !category) {
+      setError('案件と作業分類の読み込みが完了していません。');
+      return;
+    }
+    // How: 取得済みマスタの先頭値を使って明細を末尾へ追加する。
+    // Why not: 未取得時に固定IDを作ると、利用者に見えない無効な入力を保存要求へ混入させるため、マスタがない場合は追加しない。
+    setCalculation(null);
     setForm((current) => ({
       ...current,
       workItems: [
         ...current.workItems,
         {
-          projectId: projects[0]?.projectId ?? 'P001',
-          workCategoryId: categories[0]?.workCategoryId ?? 'WC001',
+          projectId: project.projectId,
+          workCategoryId: category.workCategoryId,
           workMinutes: 60,
         },
       ],
@@ -221,6 +295,7 @@ function useDailyReportEditor() {
 
   /** 指定された作業明細だけを新しい入力値へ置き換える。 */
   function updateItem(index: number, item: DailyReportWorkItemInput) {
+    setCalculation(null);
     setForm((current) => ({
       ...current,
       workItems: current.workItems.map((currentItem, itemIndex) => (itemIndex === index ? item : currentItem)),
@@ -230,6 +305,7 @@ function useDailyReportEditor() {
   /** 指定された作業明細をフォームから削除する。 */
   function deleteItem(index: number) {
     // Why not: 明細ごとの差分APIを持つと画面とバックエンドで削除状態がずれるため、保存時に入力配列を全差し替えする。
+    setCalculation(null);
     setForm((current) => ({
       ...current,
       workItems: current.workItems.filter((_, itemIndex) => itemIndex !== index),
@@ -253,6 +329,10 @@ function useDailyReportEditor() {
     setField,
     status,
     mutationDisabled,
+    calculation,
+    saving,
+    workItemsDisabled,
+    workTimeDisabled,
     updateItem,
   };
 }
@@ -307,9 +387,6 @@ function WorkItemsEditor({
 /** 日報の登録・編集フォームを表示し、社員の入力・保存・提出を受け付ける。 */
 export function DailyReportForm({ user }: { user: CurrentUser }) {
   const editor = useDailyReportEditor();
-  const workDisabled = editor.mutationDisabled || editor.form.holidayType === 'PAID_LEAVE'
-    || (editor.form.holidayType === 'HOLIDAY' && editor.form.workItems.length === 0);
-  // Why not: 画面で勤務時刻を入力可能にするとバックエンド検証まで業務ルール違反を保持できるため、対象区分では入力を無効にする。
 
   return (
     <section className="report-panel">
@@ -327,6 +404,17 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
           <div><dt>休憩区分</dt><dd>{user.breakTypeName ?? '-'}</dd></div>
           <div><dt>勤務区分</dt><dd>{user.workTimeTypeName ?? '-'}</dd></div>
         </dl>
+      </div>
+      <div className="summary compact" aria-label="自動計算結果">
+        <dl>
+          <div><dt>自動算出休憩時間</dt><dd>{editor.calculation ? formatDuration(editor.calculation.breakMinutes) : '-'}</dd></div>
+          <div><dt>実勤務時間</dt><dd>{editor.calculation ? editor.calculation.workTimeDisplay : '-'}</dd></div>
+          <div><dt>通常勤務時間</dt><dd>{editor.calculation ? editor.calculation.regularWorkTimeDisplay : '-'}</dd></div>
+          <div><dt>残業時間</dt><dd>{editor.calculation ? editor.calculation.overtimeWorkTimeDisplay : '-'}</dd></div>
+          <div><dt>深夜時間</dt><dd>{editor.calculation ? editor.calculation.nightWorkTimeDisplay : '-'}</dd></div>
+          <div><dt>作業時間合計</dt><dd>{editor.calculation ? formatDuration(editor.calculation.totalWorkItemMinutes) : '-'}</dd></div>
+        </dl>
+        {!editor.calculation && <p className="hint">保存後にBackendの計算結果を表示します。</p>}
       </div>
       {(editor.status === 'PENDING' || editor.status === 'APPROVED') && (
         <p className="hint">この状態の日報は編集できません。</p>
@@ -346,16 +434,16 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
         </label>
         <label>
           勤務開始
-          <input type="time" value={editor.form.startTime ?? ''} disabled={workDisabled} onChange={(event) => editor.setField('startTime', event.target.value || null)} />
+          <input type="time" value={editor.form.startTime ?? ''} disabled={editor.workTimeDisabled} onChange={(event) => editor.setField('startTime', event.target.value || null)} />
         </label>
         <label>
           勤務終了
-          <input type="time" value={editor.form.endTime ?? ''} disabled={workDisabled} onChange={(event) => editor.setField('endTime', event.target.value || null)} />
+          <input type="time" value={editor.form.endTime ?? ''} disabled={editor.workTimeDisabled} onChange={(event) => editor.setField('endTime', event.target.value || null)} />
         </label>
       </div>
       <WorkItemsEditor
         categories={editor.categories}
-        disabled={editor.mutationDisabled || editor.form.holidayType === 'PAID_LEAVE'}
+        disabled={editor.workItemsDisabled}
         items={editor.form.workItems}
         onAdd={editor.addItem}
         onDelete={editor.deleteItem}
@@ -381,6 +469,7 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
         <button type="button" disabled={editor.mutationDisabled} onClick={editor.saveDraft}>下書き保存</button>
         <button type="button" disabled={editor.mutationDisabled} onClick={editor.saveAndSubmit}>保存して提出</button>
       </div>
+      {editor.saving && <p className="hint" role="status">保存中...</p>}
     </section>
   );
 }

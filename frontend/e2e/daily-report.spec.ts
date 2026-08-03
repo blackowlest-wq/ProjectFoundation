@@ -208,6 +208,8 @@ test('employee can save and submit a daily report from the screen', async ({ pag
 
   await expect(page.getByText('保存して提出しました。')).toBeVisible();
   await expect(page.locator('.status-pill')).toHaveText('承認待ち');
+  await expect(page.getByText('自動算出休憩時間')).toBeVisible();
+  await expect(page.getByText('通常勤務時間')).toBeVisible();
   await expect(page).toHaveURL(/\/daily-reports\/R-E2E-001\/edit$/);
 });
 
