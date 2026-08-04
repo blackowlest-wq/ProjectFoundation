@@ -124,6 +124,56 @@ function Get-ImpactOutputName {
     }
 }
 
+function Get-QualityTimeoutBudgetSeconds {
+    param(
+        [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All', 'Impact')]
+        [string]$Mode = 'Quick',
+        [ValidateSet('None', 'FullFrontend', 'FullBackend', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [string]$CiTask = 'None',
+        [ValidateSet('Plan', 'FullFrontend', 'FullBackend', 'BackendUnit', 'FrontendCoverage', 'E2E', 'DirectorySecrets', 'Oracle', 'BackendCoverage', 'E2EOracle', 'Aggregate')]
+        [string]$ImpactTask = 'Plan'
+    )
+
+    $executionType = if ($CiTask -ne 'None') {
+        $CiTask
+    }
+    elseif ($Mode -eq 'Impact') {
+        $ImpactTask
+    }
+    else {
+        $Mode
+    }
+
+    switch ($executionType) {
+        'Quick' { return 180 }
+        'PrePush' { return 180 }
+        'DirectorySecrets' { return 180 }
+        'Plan' { return 180 }
+        'Aggregate' { return 180 }
+        'Oracle' { return 1800 }
+        'BackendCoverage' { return 1800 }
+        'E2EOracle' { return 1800 }
+        'All' { return 1800 }
+        'DependencyAudit' { return 1800 }
+        default { return 600 }
+    }
+}
+
+function Get-QualityTimeoutGuidance {
+    param(
+        [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All', 'Impact')]
+        [string]$Mode = 'Quick',
+        [ValidateSet('None', 'FullFrontend', 'FullBackend', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
+        [string]$CiTask = 'None',
+        [ValidateSet('Plan', 'FullFrontend', 'FullBackend', 'BackendUnit', 'FrontendCoverage', 'E2E', 'DirectorySecrets', 'Oracle', 'BackendCoverage', 'E2EOracle', 'Aggregate')]
+        [string]$ImpactTask = 'Plan'
+    )
+
+    $seconds = Get-QualityTimeoutBudgetSeconds -Mode $Mode -CiTask $CiTask -ImpactTask $ImpactTask
+    $minutes = [math]::Ceiling($seconds / 60)
+    "Quality gate outer timeout guidance: at least ${seconds}s (${minutes}min) for Mode=$Mode, CiTask=$CiTask, ImpactTask=$ImpactTask."
+}
+
 function ConvertTo-NormalizedImpactFiles {
     param([AllowEmptyCollection()][string[]]$ChangedFiles = @())
 
@@ -505,6 +555,9 @@ function Get-FullContractCheckDefinitions {
         )
         New-CheckDefinition -Name 'pmd-contract-test' -Command 'pwsh' -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/pmd.tests.ps1')
+        )
+        New-CheckDefinition -Name 'quality-timeout-contract-test' -Command 'pwsh' -Arguments @(
+            '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/quality-timeout.tests.ps1')
         )
     )
 }
@@ -1481,6 +1534,7 @@ function Invoke-QualityRunner {
     else {
         Join-Path $RepoRoot 'backend/mvnw'
     }
+    Write-Host (Get-QualityTimeoutGuidance -Mode $Mode -CiTask $CiTask -ImpactTask $ImpactTask)
 
     Push-Location $RepoRoot
     try {
