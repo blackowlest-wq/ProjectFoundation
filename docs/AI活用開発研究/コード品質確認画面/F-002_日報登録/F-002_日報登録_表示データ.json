@@ -15,8 +15,8 @@
     ],
     "reviewMode": "品質重視モード",
     "snapshot": {
-      "capturedOn": "2026-07-28",
-    "sourceCommit": "dcc2625",
+      "capturedOn": "2026-08-05",
+    "sourceCommit": "9db80bd",
       "description": "F-002日報登録の受入条件、正本テストケース、レビュー記録、実装後の実行記録から作成した表示用スナップショット。F-003日報編集、F-006日報提出、F-009日報再提出の固有判定は対象外とし、日報登録画面から実行される関連画面確認だけを含める。"
     }
   },
@@ -42,9 +42,9 @@
     { "id": "F-002-AC-019", "text": "API確認と画面確認が完了している", "reviewStatus": "不足", "caseDesignStatus": "不足", "executionStatus": "完了", "blockingReason": "API、Frontend Unit、Mock E2Eの実行記録あり。受入条件レビューの入力状態は一部不足のまま保持", "testCaseIds": ["TC-F002-FE-001", "TC-F002-E2E-001", "TC-F002-E2E-002", "TC-F002-E2E-003"] }
   ],
   "qualityGates": [
-    { "id": "QG-F002-API", "name": "日報登録APIの主要境界確認", "status": "通過", "blocking": false, "reason": "F-002の既存Backendケースと追加した複数明細、1分境界、休日作業あり、AM_OFF/PM_OFF、別社員データ、残業・深夜レスポンスのケースをBackendUnit・Oracleで実行し、全件成功", "testCaseIds": ["TC-F002-BE-001", "TC-F002-BE-002", "TC-F002-BE-003", "TC-F002-BE-006", "TC-F002-BE-008", "TC-F002-BE-009", "TC-F002-BE-010", "TC-F002-BE-011", "TC-F002-BE-012", "TC-F002-BE-013", "TC-F002-BE-014", "TC-F002-BE-015", "TC-F002-BE-017", "TC-F002-BE-018", "TC-F002-BE-019", "TC-F002-BE-020", "TC-F002-BE-021", "TC-F002-BE-022", "TC-F002-BE-023", "TC-F002-BE-024", "TC-F002-BE-025", "TC-F002-BE-026", "TC-F002-BE-027", "TC-F002-BE-028", "TC-F002-BE-029", "TC-F002-BE-030"] },
+    { "id": "QG-F002-API", "name": "日報登録APIの主要境界確認", "status": "通過", "blocking": false, "reason": "F-002の既存Backendケースと追加した複数明細、1分境界、休日作業あり、AM_OFF/PM_OFF、別社員データ、残業・深夜レスポンスのケースをBackendUnit・Oracleで実行し、全件成功。最新のOracle統合は154件でFailures/Errors/Skipped 0件", "testCaseIds": ["TC-F002-BE-001", "TC-F002-BE-002", "TC-F002-BE-003", "TC-F002-BE-006", "TC-F002-BE-008", "TC-F002-BE-009", "TC-F002-BE-010", "TC-F002-BE-011", "TC-F002-BE-012", "TC-F002-BE-013", "TC-F002-BE-014", "TC-F002-BE-015", "TC-F002-BE-017", "TC-F002-BE-018", "TC-F002-BE-019", "TC-F002-BE-020", "TC-F002-BE-021", "TC-F002-BE-022", "TC-F002-BE-023", "TC-F002-BE-024", "TC-F002-BE-025", "TC-F002-BE-026", "TC-F002-BE-027", "TC-F002-BE-028", "TC-F002-BE-029", "TC-F002-BE-030"] },
     { "id": "QG-F002-SCREEN", "name": "日報登録画面のAPI・画面確認", "status": "保留", "blocking": true, "reason": "画面操作のMock E2Eは成功。受入条件レビューに画面確認一部不足の記録が残っているため、記録同期と範囲確認を保留", "testCaseIds": ["TC-F002-FE-001", "TC-F002-E2E-001", "TC-F002-E2E-002", "TC-F002-E2E-003"] },
-    { "id": "QG-F002-BACKEND-COVERAGE", "name": "Backendカバレッジ再生成", "status": "通過", "blocking": false, "reason": "BackendCoverageをOracle接続で再実行し、JaCoCoの命令96.65%、分岐85.95%、行95.96%、メソッド97.12%を確認。全指標85%以上", "testCaseIds": ["TC-F002-BE-001", "TC-F002-BE-018", "TC-F002-BE-019", "TC-F002-BE-020", "TC-F002-BE-021", "TC-F002-BE-022", "TC-F002-BE-023", "TC-F002-BE-024", "TC-F002-BE-025", "TC-F002-BE-026", "TC-F002-BE-027", "TC-F002-BE-028", "TC-F002-BE-029", "TC-F002-BE-030"] }
+    { "id": "QG-F002-BACKEND-COVERAGE", "name": "Backendカバレッジ再生成", "status": "通過", "blocking": false, "reason": "2026-08-05にBackendCoverageをOracle接続で再実行し、JaCoCoの命令96.93%、分岐85.00%、行96.25%、メソッド97.06%を確認。全指標85%以上", "testCaseIds": ["TC-F002-BE-001", "TC-F002-BE-018", "TC-F002-BE-019", "TC-F002-BE-020", "TC-F002-BE-021", "TC-F002-BE-022", "TC-F002-BE-023", "TC-F002-BE-024", "TC-F002-BE-025", "TC-F002-BE-026", "TC-F002-BE-027", "TC-F002-BE-028", "TC-F002-BE-029", "TC-F002-BE-030"] }
   ],
   "rootCauses": [
     { "id": "RC-F002-CASES", "name": "F-002不足ケースの追加確認待ち", "reason": "受入条件レビューで複数明細、1分境界、休日作業あり、AM_OFF/PM_OFF、別社員認可の登録ケース不足を記録", "status": "解消", "blocking": false, "match": { "layer": "Backend", "executionNoteContains": "追加ケース" } }
@@ -131,7 +131,7 @@
     { "id": "EVD-F002-SEC", "type": "セキュリティレビュー", "path": "../../../../docs/AI活用開発研究/作業記録/日報登録編集_セキュリティレビュー.md", "available": true, "note": "認証、認可、CSRF、Cookie属性の確認・保留を参照" },
     { "id": "EVD-F002-FRONT-TEST", "type": "Frontendテストソース", "path": "../../../../frontend/test/dailyReportForm.test.tsx", "available": true, "note": "日報登録・編集フォームのUnitテストソース" },
     { "id": "EVD-F002-FRONT-COV", "type": "Frontendカバレッジ生成物", "path": "../../../../frontend/coverage/index.html", "summaryPath": "../../../../frontend/coverage/coverage-summary.json", "available": true, "note": "Frontend全体の取得済みカバレッジ生成物。F-002単独抽出値ではない" },
-    { "id": "EVD-F002-BACK-COV", "type": "Backendカバレッジ生成物", "path": "../../../../backend/target/site/jacoco/index.html", "summaryPath": "../../../../backend/target/site/jacoco/jacoco.xml", "available": true, "note": "BackendCoverageでOracle接続・JaCoCo再生成済み。全指標85%以上" },
+    { "id": "EVD-F002-BACK-COV", "type": "Backendカバレッジ生成物", "path": "../../../../backend/target/site/jacoco/index.html", "summaryPath": "../../../../backend/target/site/jacoco/jacoco.xml", "available": true, "note": "2026-08-05のBackendCoverageでOracle接続・JaCoCoを再生成。命令96.93%、分岐85.00%、行96.25%、メソッド97.06%" },
     { "id": "EVD-F002-BE-COMPLETION", "type": "Backend完成実行記録", "path": "../../../../docs/AI活用開発研究/作業記録/日報登録編集_作業記録.md", "available": true, "note": "F-002 Backend追加ケース、BackendUnit、BackendCoverage、Oracle実行結果を同期する証跡" }
   ],
   "findings": [
@@ -155,7 +155,7 @@
       "status": "通過",
       "reportPath": "../../../../backend/target/site/jacoco/index.html",
       "summaryPath": "../../../../backend/target/site/jacoco/jacoco.xml",
-      "metrics": { "instruction": 96.65, "branch": 85.95, "line": 95.96, "method": 97.12 },
+      "metrics": { "instruction": 96.93, "branch": 85.00, "line": 96.25, "method": 97.06 },
       "uncoveredBranches": [],
       "reason": "BackendCoverageをOracle接続で実行しJaCoCoを再生成。全指標85%以上を確認。Windows日本語パスではOracle runnerが一時ASCIIドライブへマッピングしてagent出力を安定化"
     }
