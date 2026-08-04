@@ -16,7 +16,7 @@ worktree: `.worktrees/master-message-db`
 | Frontend E2E typecheck | `frontend/npm run typecheck:e2e` | 成功 |
 | Mock E2E | `frontend/npm run e2e` | 17 tests 成功 |
 | Frontend coverage | `frontend/npm run coverage` | Statements 95.87%、Branches 92.38%、Functions 97.48%、Lines 95.71%。85%超 |
-| Backend focused Unit | `MasterControllerUnitTest`、`MessageCatalogControllerTest`、`MasterDataRepositoryTest`、`MessageCatalogServiceTest`、`ApiExceptionHandlerTest`、日報ルール | 56 tests 成功 |
+| Backend focused Unit | `MasterControllerUnitTest`、`MessageCatalogControllerTest`、`MasterDataRepositoryTest`、`MessageCatalogServiceTest`、`ApiExceptionHandlerTest`、日報ルール | 64 tests 成功 |
 | Backend static | Maven `test-compile spotless:check checkstyle:check spotbugs:check pmd:check` | Spotless/Checkstyle/SpotBugs/PMD成功。PMD依存解析の警告はあるがゲート非失敗 |
 | Markdown | `npm run lint:markdown` | 105 files / 0 errors |
 | Test layout | `scripts/check-test-layout.ps1` | 成功 |
@@ -32,9 +32,18 @@ worktree: `.worktrees/master-message-db`
 
 ## 品質ゲート判定
 
-- Oracleを除くローカル品質ゲート: 合格。
-- Backend Oracle integration / coverage: 保留（環境ブロッカー）。
+- Frontend、Backend、Oracleを含む今回のローカル品質ゲート: 合格。
+- Backend Oracle integration / coverage / E2EOracle: 合格。
 - mainへのpush、CI、branch protection: この隔離作業では未実施。mainへの統合はユーザー判断後に行う。
+
+## 2026-08-05 Oracle適用後の再実行
+
+- Oracle safety guard / test-compile: 成功。
+- 初回Oracle integration: `MessageCatalogService` の複数コンストラクタに対するSpring選択不備で`No default constructor found`となった。これは修正前の検出結果である。
+- 修正: `MessageCatalogService`の本番用コンストラクタへ`@Autowired`を付与し、Spring構築テストを追加した。TTL、null/空値、キャッシュ、DB障害時フォールバックの境界テストも追加した。
+- Oracle integration: 154件、Failures/Errors/Skipped 0件で成功。
+- Backend coverage: 161件、JaCoCoの全品質ゲート85%以上で成功。coverage reportを生成した。
+- Oracle E2E: 接続先確認、固定データの実行前後掃除、日報永続化確認を含め成功。
 
 ## 記録の正本
 

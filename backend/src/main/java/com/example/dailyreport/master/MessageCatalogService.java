@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,7 @@ public class MessageCatalogService {
     private final Map<String, String> defaults;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
+    @Autowired
     public MessageCatalogService(MessageCatalogRepository repository) {
         this(repository, Clock.systemUTC(), Duration.ofMinutes(5), MessageCatalogDefaults.defaults());
     }
