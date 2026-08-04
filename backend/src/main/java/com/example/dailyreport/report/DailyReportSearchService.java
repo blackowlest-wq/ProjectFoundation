@@ -65,11 +65,11 @@ public class DailyReportSearchService {
      */
     public DailyReportResponse get(String reportId, AuthenticatedUser principal) {
         DailyReportEntity report = repository.findById(reportId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Daily report was not found."));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "report.not_found", "Daily report was not found."));
         AppUser user = principal.user();
         // How: 参照権限がない場合はDTO変換や詳細情報の返却を行わず、403で終了する。
         if (!accessPolicy.canReadReport(user, report)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden.");
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.forbidden", "Access is forbidden.");
         }
         return DailyReportResponse.from(report, masterDataRepository);
     }

@@ -37,11 +37,11 @@ public class DailyReportSubmissionService {
     public SubmitResponse submit(String reportId, AuthenticatedUser principal) {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
-                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
+                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.forbidden", "Access is forbidden."));
         // Why not: 初回提出と再提出を同じ入口にすると許可する状態を区別しにくいため、初回は下書き、差戻し後は専用APIに限定する。
         // How: 下書き以外は初回提出の状態遷移へ進めず、状態エラーを返す。
         if (report.getApprovalStatus() != ApprovalStatus.DRAFT) {
-            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Only draft reports can be submitted.");
+            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "report.submit_draft_only", "Only draft reports can be submitted.");
         }
         // Why not: 保存後にマスタやデータが変わる可能性があるため、保存時の検証結果だけを信頼せず提出直前にも再検証する。
         TimeRules.validateStoredReport(report, masterDataRepository);
@@ -56,11 +56,11 @@ public class DailyReportSubmissionService {
     public SubmitResponse resubmit(String reportId, AuthenticatedUser principal) {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
-                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
+                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.forbidden", "Access is forbidden."));
         // Why not: 下書きや承認済みを再提出可能にすると状態遷移が崩れるため、再提出元をREJECTEDだけに限定する。
         // How: 差戻し以外は再提出の状態遷移へ進めず、状態エラーを返す。
         if (report.getApprovalStatus() != ApprovalStatus.REJECTED) {
-            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Only rejected reports can be resubmitted.");
+            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "report.resubmit_rejected_only", "Only rejected reports can be resubmitted.");
         }
         TimeRules.validateStoredReport(report, masterDataRepository);
         report.submit(OffsetDateTime.now());

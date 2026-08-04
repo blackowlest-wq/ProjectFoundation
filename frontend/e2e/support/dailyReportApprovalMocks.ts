@@ -80,6 +80,20 @@ export async function mockApprovalApis(page: Page, options: ApprovalMockOptions 
     authenticated = true;
     await route.fulfill({ json: currentUser });
   });
+  await page.route('**/api/master/messages?*', async (route) => {
+    await route.fulfill({
+      json: {
+        locale: 'ja-JP',
+        messages: {
+          'status.draft': '未提出',
+          'status.draft_editor': '下書き',
+          'status.pending': '承認待ち',
+          'status.rejected': '差戻し',
+          'status.approved': '承認済み',
+        },
+      },
+    });
+  });
   await page.route('**/api/master/projects', async (route) => {
     await route.fulfill({ json: [{ projectId: 'P001', projectName: 'プロジェクトA' }] });
   });
@@ -87,7 +101,9 @@ export async function mockApprovalApis(page: Page, options: ApprovalMockOptions 
     await route.fulfill({ json: [{ workCategoryId: 'WC001', workCategoryName: '実装' }] });
   });
   await page.route('**/api/master/holiday-types', async (route) => {
-    await route.fulfill({ json: [{ holidayType: 'WORKDAY', holidayTypeName: '通常勤務' }] });
+    await route.fulfill({
+      json: [{ holidayType: 'WORKDAY', holidayTypeName: '通常勤務', requiresWorkTime: true, allowsWorkItems: true }],
+    });
   });
   await page.route('**/api/daily-reports/pending-approvals?**', async (route) => {
     await route.fulfill({

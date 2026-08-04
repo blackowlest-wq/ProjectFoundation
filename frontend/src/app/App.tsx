@@ -9,20 +9,9 @@ import { DailyReportCalendarList } from '../dailyReport/DailyReportCalendarList'
 import { DailyReportDetail } from '../dailyReport/DailyReportDetail';
 import { DailyReportForm } from '../dailyReport/DailyReportForm';
 import { DailyReportPendingApprovalList } from '../dailyReport/DailyReportPendingApprovalList';
-import type { CurrentUser, Role } from '../auth/types';
+import type { CurrentUser } from '../auth/types';
+import { useMessage, useMessageCatalogActions } from '../shared/messageCatalog';
 import '../styles.css';
-
-const pageTitleByRole: Record<Role, string> = {
-  EMPLOYEE: '日報カレンダー・一覧',
-  MANAGER: '日報カレンダー・一覧',
-  ADMIN: '日報カレンダー・一覧',
-};
-
-const roleLabelByRole: Record<Role, string> = {
-  EMPLOYEE: '社員',
-  MANAGER: '上長',
-  ADMIN: '管理者',
-};
 
 /** 詳細画面URLから日報IDを安全に取り出し、不正なエンコードは詳細画面として扱わない。 */
 function detailReportIdFromPath(): string | null {
@@ -51,16 +40,20 @@ function AuthenticatedHome({
   onUnauthorized: () => void;
   logoutError: string;
 }) {
+  const pageTitle = useMessage('ui.page_title', '日報カレンダー・一覧');
+  const brand = useMessage('ui.brand', '日報管理');
+  const logoutLabel = useMessage('ui.logout', 'ログアウト');
+  const roleLabel = useMessage(`ui.role.${user.role.toLowerCase()}`, user.role);
   const detailReportId = detailReportIdFromPath();
   return (
     <main className="shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">日報管理</p>
-          <h1>{pageTitleByRole[user.role]}</h1>
+          <p className="eyebrow">{brand}</p>
+          <h1>{pageTitle}</h1>
         </div>
         <button className="secondary" onClick={onLogout}>
-          ログアウト
+          {logoutLabel}
         </button>
       </header>
       <section className="summary">
@@ -71,7 +64,7 @@ function AuthenticatedHome({
           </div>
           <div>
             <dt>ロール</dt>
-            <dd>{roleLabelByRole[user.role]}</dd>
+            <dd>{roleLabel}</dd>
           </div>
           <div>
             <dt>所属</dt>
@@ -97,6 +90,10 @@ function AuthenticatedHome({
  * 起動時のセッション確認と、ログイン済み・未ログイン画面の切り替えを管理する。
  */
 function App() {
+  const loginRequiredMessage = useMessage('ui.login_required', 'ログインが必要です。');
+  const logoutFailedMessage = useMessage('ui.logout_failed', 'ログアウトに失敗しました。時間をおいて再度お試しください。');
+  const loadingMessage = useMessage('ui.loading', '読み込み中...');
+  const { refresh } = useMessageCatalogActions();
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionMessage, setSessionMessage] = useState('');
@@ -108,6 +105,12 @@ function App() {
       .then(setUser)
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      void refresh();
+    }
+  }, [refresh, user]);
 
   /**
    * ログイン成功時の利用者状態とロール別初期URLを更新する。
@@ -133,7 +136,7 @@ function App() {
       // Why not: ログアウト後に保護画面URLを残すと再表示時の誤認を招くため、ログイン画面へ戻す。
       window.history.replaceState(null, '', '/login');
     } catch {
-      setLogoutError('ログアウトに失敗しました。時間をおいて再度お試しください。');
+      setLogoutError(logoutFailedMessage);
     }
   }
 
@@ -142,14 +145,14 @@ function App() {
    */
   function handleUnauthorized() {
     setUser(null);
-    setSessionMessage('ログインが必要です。');
+    setSessionMessage(loginRequiredMessage);
     setLogoutError('');
     window.history.replaceState(null, '', '/login');
   }
 
   // How: セッション確認が終わるまで画面を確定せず、読み込み中表示だけを返す。
   if (loading) {
-    return <main className="shell">読み込み中...</main>;
+    return <main className="shell">{loadingMessage}</main>;
   }
 
   // How: 未認証なら保護画面を表示せず、セッションメッセージ付きのログイン画面へ切り替える。

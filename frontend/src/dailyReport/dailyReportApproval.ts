@@ -3,6 +3,7 @@
  * API呼び出しは持たず、UIが送信可否と当月の検索範囲を決めるための純粋ロジックだけを公開する。
  */
 import { currentMonth, monthRange } from './dailyReportSearch';
+import { resolveMessage } from '../shared/messageCatalog';
 
 export type PendingApprovalCriteria = {
   targetMonth: string;
@@ -17,11 +18,11 @@ export function validateRejectComment(rejectComment: string): string {
   const trimmedComment = rejectComment.trim();
   // How: 前後空白を除いた値が空なら、文字数上限の判定より先に必須エラーを返す。
   if (!trimmedComment) {
-    return '差し戻しコメントを入力してください。';
+    return resolveMessage('validation.reject_comment_required', '差し戻しコメントを入力してください。');
   }
   // How: trim後の文字数だけを画面で補助検証し、最終的な受理判定はバックエンドへ委譲する。
   if (trimmedComment.length > 1000) {
-    return '差し戻しコメントは1000文字以内で入力してください。';
+    return resolveMessage('validation.reject_comment_max_length', '差し戻しコメントは1000文字以内で入力してください。');
   }
   return '';
 }

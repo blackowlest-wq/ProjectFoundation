@@ -5,16 +5,39 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.dailyreport.common.ApiException;
 import com.example.dailyreport.common.ApiExceptionHandler;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 class MasterDataRepositoryTest {
+    @Test
+    void groupsReturnsEnabledOptionsInDisplayOrderAndGroupIdOrder() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        when(jdbcTemplate.query(anyString(), rowMapper()))
+                .thenReturn(List.of(
+                        new MasterDataRepository.GroupOption("G001", "第1開発グループ"),
+                        new MasterDataRepository.GroupOption("G002", "第2開発グループ")));
+        MasterDataRepository repository = new MasterDataRepository(jdbcTemplate);
+
+        assertThat(repository.groups()).containsExactly(
+                new MasterDataRepository.GroupOption("G001", "第1開発グループ"),
+                new MasterDataRepository.GroupOption("G002", "第2開発グループ"));
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sql.capture(), rowMapper());
+        assertThat(sql.getValue())
+                .contains("FROM groups")
+                .contains("WHERE enabled = 1")
+                .contains("ORDER BY display_order, group_id");
+    }
+
     @Test
     void requireHolidayTypeRejectsMissingHolidayTypeMaster() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
@@ -27,7 +50,7 @@ class MasterDataRepositoryTest {
 
         assertThat(exception.code()).isEqualTo("VALIDATION_ERROR");
         assertThat(exception.details()).containsExactly(
-                new ApiExceptionHandler.ErrorDetail("holidayType", "休日区分が存在しません。"));
+                ApiExceptionHandler.ErrorDetail.keyed("holidayType", "validation.holiday_type_not_found", "休日区分が存在しません。"));
     }
 
     @Test
@@ -42,7 +65,7 @@ class MasterDataRepositoryTest {
 
         assertThat(exception.code()).isEqualTo("VALIDATION_ERROR");
         assertThat(exception.details()).containsExactly(
-                new ApiExceptionHandler.ErrorDetail("breakTypeId", "休憩区分が存在しません。"));
+                ApiExceptionHandler.ErrorDetail.keyed("breakTypeId", "validation.break_type_not_found", "休憩区分が存在しません。"));
     }
 
     @Test
@@ -61,7 +84,7 @@ class MasterDataRepositoryTest {
 
         assertThat(exception.code()).isEqualTo("VALIDATION_ERROR");
         assertThat(exception.details()).containsExactly(
-                new ApiExceptionHandler.ErrorDetail("workTimeTypeId", "勤務区分が存在しません。"));
+                ApiExceptionHandler.ErrorDetail.keyed("workTimeTypeId", "validation.work_time_type_not_found", "勤務区分が存在しません。"));
     }
 
     @Test
@@ -80,6 +103,19 @@ class MasterDataRepositoryTest {
         MasterDataRepository repository = new MasterDataRepository(jdbcTemplate);
 
         assertThat(repository.workCategoryName("WC404")).isEqualTo("WC404");
+    }
+
+    @Test
+    void groupNameUsesCurrentMasterAndFallsBackForLegacyUserData() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        when(jdbcTemplate.query(anyString(), rowMapper(), eq("G001")))
+                .thenReturn(List.of("第1開発グループ_更新"));
+        when(jdbcTemplate.query(anyString(), rowMapper(), eq("G404")))
+                .thenReturn(List.of());
+        MasterDataRepository repository = new MasterDataRepository(jdbcTemplate);
+
+        assertThat(repository.groupName("G001", "旧グループ名")).isEqualTo("第1開発グループ_更新");
+        assertThat(repository.groupName("G404", "旧グループ名")).isEqualTo("旧グループ名");
     }
 
     @Test

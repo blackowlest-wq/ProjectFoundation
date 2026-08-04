@@ -58,6 +58,21 @@ class DailyReportCommandControllerTest {
     }
 
     @Test
+    void newReportSnapshotsCurrentGroupMasterName() throws Exception {
+        jdbcTemplate.update("UPDATE groups SET group_name = ? WHERE group_id = ?", "第1開発グループ_更新", "G001");
+        try {
+            MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+            String reportId = createReportId(mockMvc, objectMapper, session, LocalDate.of(2026, 6, 1), 480);
+
+            mockMvc.perform(get("/api/daily-reports/" + reportId).session(session))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.groupName", equalTo("第1開発グループ_更新")));
+        } finally {
+            jdbcTemplate.update("UPDATE groups SET group_name = ? WHERE group_id = ?", "第1開発グループ", "G001");
+        }
+    }
+
+    @Test
     void createWorkdayReportReturnsOvertimeAndNightMinutes() throws Exception {
         MockHttpSession session = loginAs(mockMvc, objectMapper, "employee002");
 

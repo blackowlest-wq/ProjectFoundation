@@ -17,6 +17,7 @@ import { validateDailyReportInput } from './dailyReportValidation';
 import { formatDateTime } from './dateTimeFormat';
 import type { CurrentUser } from '../auth/types';
 import type { ApiError } from '../shared/apiClient';
+import { resolveMessage, useMessage } from '../shared/messageCatalog';
 import type {
   ApprovalStatus,
   DailyReportRequest,
@@ -27,13 +28,6 @@ import type {
   ProjectOption,
   WorkCategoryOption,
 } from './types';
-
-const statusLabelByStatus: Record<ApprovalStatus, string> = {
-  DRAFT: '下書き',
-  PENDING: '承認待ち',
-  REJECTED: '差戻し',
-  APPROVED: '承認済み',
-};
 
 type DetailLoadState = 'idle' | 'loading' | 'loaded' | 'failed';
 type RejectionDetails = Pick<DailyReportResponse, 'rejectComment' | 'rejectorName' | 'rejectedAt'>;
@@ -143,7 +137,7 @@ function useDailyReportEditor() {
           });
         }
       })
-      .catch((e) => setError((e as ApiError).message ?? 'マスタデータの読み込みに失敗しました。'));
+      .catch((e) => setError((e as ApiError).message ?? resolveMessage('error.master_load', 'マスタデータの読み込みに失敗しました。')));
   }, []);
 
   useEffect(() => {
@@ -158,7 +152,7 @@ function useDailyReportEditor() {
       .then(applyDetail)
       .catch((e) => {
         setDetailLoadState('failed');
-        setError((e as ApiError).message ?? '日報の読み込みに失敗しました。');
+        setError((e as ApiError).message ?? resolveMessage('error.daily_report_load', '日報の読み込みに失敗しました。'));
       });
   }, [reportId]);
 
@@ -234,7 +228,7 @@ function useDailyReportEditor() {
         try {
           applyDetail(await fetchDailyReport(saved.reportId));
         } catch {
-          setError('保存は完了しましたが、計算結果の再取得に失敗しました。');
+          setError(resolveMessage('error.calculation_reload', '保存は完了しましたが、計算結果の再取得に失敗しました。'));
         }
       }
       // How: 提出指定時だけ、保存開始前に判定した状態に応じて差戻しは再提出、それ以外は初回提出へ分岐する。
@@ -244,16 +238,16 @@ function useDailyReportEditor() {
           ? await resubmitDailyReport(saved.reportId)
           : await submitDailyReport(saved.reportId);
         setStatus(submitted.approvalStatus);
-        setMessage('保存して提出しました。');
+        setMessage(resolveMessage('success.saved_and_submitted', '保存して提出しました。'));
       } else {
-        setMessage('保存しました。');
+        setMessage(resolveMessage('success.saved', '保存しました。'));
       }
       if (!reportId) {
         try {
           // Why not: 登録APIの概要レスポンスだけではBackend計算結果を表示できないため、新規登録でも詳細を再取得する。
           applyDetail(await fetchDailyReport(saved.reportId));
         } catch {
-          setError('保存は完了しましたが、計算結果の再取得に失敗しました。');
+          setError(resolveMessage('error.calculation_reload', '保存は完了しましたが、計算結果の再取得に失敗しました。'));
         }
         setReportId(saved.reportId);
       }
@@ -262,7 +256,7 @@ function useDailyReportEditor() {
     } catch (e) {
       const apiError = e as ApiError;
       // Why not: API全体のメッセージだけを表示すると入力箇所を特定できないため、field別エラーを優先する。
-      setError(apiError.details?.[0]?.message ?? apiError.message ?? '保存に失敗しました。');
+      setError(apiError.details?.[0]?.message ?? apiError.message ?? resolveMessage('error.save_failed', '保存に失敗しました。'));
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -274,7 +268,7 @@ function useDailyReportEditor() {
     const project = projects[0];
     const category = categories[0];
     if (!project || !category) {
-      setError('案件と作業分類の読み込みが完了していません。');
+      setError(resolveMessage('error.master_not_ready', '案件と作業分類の読み込みが完了していません。'));
       return;
     }
     // How: 取得済みマスタの先頭値を使って明細を末尾へ追加する。
@@ -387,6 +381,12 @@ function WorkItemsEditor({
 /** 日報の登録・編集フォームを表示し、社員の入力・保存・提出を受け付ける。 */
 export function DailyReportForm({ user }: { user: CurrentUser }) {
   const editor = useDailyReportEditor();
+  const statusLabelByStatus: Record<ApprovalStatus, string> = {
+    DRAFT: useMessage('status.draft_editor', '下書き'),
+    PENDING: useMessage('status.pending', '承認待ち'),
+    REJECTED: useMessage('status.rejected', '差戻し'),
+    APPROVED: useMessage('status.approved', '承認済み'),
+  };
 
   return (
     <section className="report-panel">

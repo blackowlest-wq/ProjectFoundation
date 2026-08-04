@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 public class ApiException extends RuntimeException {
     private final HttpStatus status;
     private final String code;
+    private final String messageKey;
     private final List<ApiExceptionHandler.ErrorDetail> details;
 
     /**
@@ -20,13 +21,29 @@ public class ApiException extends RuntimeException {
     }
 
     /**
+     * 安定したメッセージキーと、DB利用不能時のフォールバック文言を持つAPI例外を生成する。
+     */
+    public ApiException(HttpStatus status, String code, String messageKey, String fallbackMessage) {
+        this(status, code, messageKey, fallbackMessage, List.of());
+    }
+
+    /**
      * HTTPステータス、エラーコード、画面表示文言、項目別詳細を持つAPI例外を生成する。
      */
     public ApiException(HttpStatus status, String code, String message,
                         List<ApiExceptionHandler.ErrorDetail> details) {
-        super(message);
+        this(status, code, null, message, details);
+    }
+
+    /**
+     * 安定したメッセージキー、フォールバック文言、項目別詳細を持つAPI例外を生成する。
+     */
+    public ApiException(HttpStatus status, String code, String messageKey, String fallbackMessage,
+                        List<ApiExceptionHandler.ErrorDetail> details) {
+        super(fallbackMessage);
         this.status = status;
         this.code = code;
+        this.messageKey = messageKey;
         this.details = details;
     }
 
@@ -34,6 +51,8 @@ public class ApiException extends RuntimeException {
     public HttpStatus status() { return status; }
     /** APIレスポンスへ設定するエラーコードを返す。 */
     public String code() { return code; }
+    /** APIレスポンスの表示文言を解決するための安定キーを返す。 */
+    public String messageKey() { return messageKey; }
     /** APIレスポンスへ設定する項目別詳細を返す。 */
     public List<ApiExceptionHandler.ErrorDetail> details() { return details; }
 }

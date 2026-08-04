@@ -48,12 +48,12 @@ public class DailyReportApprovalService {
 
     private DailyReportEntity reportForApproval(String reportId, AppUser user) {
         DailyReportEntity report = repository.findById(reportId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Daily report was not found."));
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "report.not_found", "Daily report was not found."));
         if (!accessPolicy.canReadReport(user, report)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden.");
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.forbidden", "Access is forbidden.");
         }
         if (report.getApprovalStatus() != ApprovalStatus.PENDING) {
-            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Only pending reports can be processed.");
+            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "report.approve_pending_only", "Only pending reports can be processed.");
         }
         return report;
     }

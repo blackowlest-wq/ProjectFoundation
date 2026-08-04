@@ -19,7 +19,7 @@ final class StoredReportRules {
     static void validate(DailyReportEntity report, MasterDataRepository masterDataRepository) {
         List<ApiExceptionHandler.ErrorDetail> errors = new ArrayList<>();
         if (report.getHolidayType() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "休日区分を選択してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("holidayType", "validation.holiday_type_required", "休日区分を選択してください。"));
             throw validation(errors);
         }
         MasterDataRepository.HolidayTypeOption holidayType = masterDataRepository.requireHolidayType(report.getHolidayType());
@@ -44,7 +44,7 @@ final class StoredReportRules {
         }
         if (!holidayType.allowsWorkItems()) {
             if (hasWorkTimes || hasWorkItems) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "有給休暇では勤務時刻と作業明細を入力できません。"));
+                errors.add(ApiExceptionHandler.ErrorDetail.keyed("holidayType", "validation.stored_paid_leave_invalid", "有給休暇では勤務時刻と作業明細を入力できません。"));
             }
             throwIfInvalid(errors);
             return true;
@@ -53,7 +53,7 @@ final class StoredReportRules {
             return false;
         }
         if (hasWorkTimes) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "休日で作業明細がない場合、勤務時刻は入力できません。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("startTime", "validation.holiday_work_time_forbidden", "休日で作業明細がない場合、勤務時刻は入力できません。"));
         }
         throwIfInvalid(errors);
         return true;
@@ -62,13 +62,13 @@ final class StoredReportRules {
     private static void validateRequiredInputs(DailyReportEntity report,
                                                List<ApiExceptionHandler.ErrorDetail> errors) {
         if (report.getStartTimeMinutes() == null || report.getEndTimeMinutes() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "勤務時刻を入力してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("startTime", "validation.stored_work_time_required", "勤務時刻を入力してください。"));
         }
         if (report.getWorkItems().isEmpty()) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "作業明細を1件以上入力してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.work_items_required", "作業明細を1件以上入力してください。"));
         }
         if (report.getBreakTypeId() == null || report.getWorkTimeTypeId() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workTimeTypeId", "利用者の勤務設定が未設定です。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workTimeTypeId", "validation.work_time_type_required", "利用者の勤務設定が未設定です。"));
         }
     }
 
@@ -88,16 +88,16 @@ final class StoredReportRules {
                                                    int expectedBreakMinutes, int expectedWorkMinutes,
                                                    List<ApiExceptionHandler.ErrorDetail> errors) {
         if (end <= start) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("endTime", "勤務終了時刻は勤務開始時刻より後にしてください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("endTime", "validation.end_time_after_start", "勤務終了時刻は勤務開始時刻より後にしてください。"));
         }
         if (expectedBreakMinutes >= end - start || expectedWorkMinutes <= 0) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workMinutes", "勤務時間は1分以上になるように入力してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workMinutes", "validation.work_minutes_positive", "勤務時間は1分以上になるように入力してください。"));
         }
         if (!Integer.valueOf(expectedBreakMinutes).equals(report.getBreakMinutes())) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("breakMinutes", "保存済みの休憩時間が勤務設定と一致しません。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("breakMinutes", "validation.stored_break_minutes_mismatch", "保存済みの休憩時間が勤務設定と一致しません。"));
         }
         if (!Integer.valueOf(expectedWorkMinutes).equals(report.getWorkMinutes())) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workMinutes", "保存済みの勤務時間が勤務設定と一致しません。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workMinutes", "validation.stored_work_minutes_mismatch", "保存済みの勤務時間が勤務設定と一致しません。"));
         }
     }
 
@@ -105,7 +105,7 @@ final class StoredReportRules {
                                                     List<ApiExceptionHandler.ErrorDetail> errors) {
         int itemTotal = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkMinutes).sum();
         if (itemTotal != expectedWorkMinutes) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "作業時間の合計は実勤務時間と一致させてください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.work_items_minutes_match", "作業時間の合計は実勤務時間と一致させてください。"));
         }
     }
 
@@ -117,7 +117,7 @@ final class StoredReportRules {
         if (!Integer.valueOf(split[0]).equals(report.getRegularWorkMinutes())
                 || !Integer.valueOf(split[1]).equals(report.getOvertimeWorkMinutes())
                 || !Integer.valueOf(split[2]).equals(report.getNightWorkMinutes())) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workMinutes", "保存済みの勤務時間内訳が勤務設定と一致しません。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workMinutes", "validation.stored_work_item_minutes_mismatch", "保存済みの勤務時間内訳が勤務設定と一致しません。"));
         }
     }
 
@@ -163,6 +163,6 @@ final class StoredReportRules {
     }
 
     private static ApiException validation(List<ApiExceptionHandler.ErrorDetail> errors) {
-        return new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容が不正です。", errors);
+        return new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid", "入力内容が不正です。", errors);
     }
 }

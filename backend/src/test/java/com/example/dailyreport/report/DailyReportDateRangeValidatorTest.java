@@ -23,10 +23,10 @@ class DailyReportDateRangeValidatorTest {
                     ApiException apiException = (ApiException) exception;
                     org.assertj.core.api.Assertions.assertThat(apiException.details())
                             .containsExactly(
-                                    new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail(
-                                            "dateFrom", "検索開始日を指定してください。"),
-                                    new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail(
-                                            "dateTo", "検索終了日を指定してください。"));
+                                    com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail.keyed(
+                                            "dateFrom", "validation.date_from_required", "検索開始日を指定してください。"),
+                                    com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail.keyed(
+                                            "dateTo", "validation.date_to_required", "検索終了日を指定してください。"));
                 });
     }
 

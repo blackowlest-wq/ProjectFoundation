@@ -7,6 +7,7 @@ package com.example.dailyreport.config;
 import com.example.dailyreport.auth.AppUser;
 import com.example.dailyreport.auth.Role;
 import com.example.dailyreport.auth.UserRepository;
+import com.example.dailyreport.master.MessageCatalogDefaults;
 import java.sql.SQLException;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -107,6 +108,18 @@ public class DataInitializer {
     private void createMasterTablesIfNeeded(JdbcTemplate jdbcTemplate) {
         // Why not: 既存Oracle環境で再実行可能にしつつ、存在済み以外のDDLエラーは見逃さないため、ORA-00955だけを無視する。
         executeIgnoringAlreadyExists(jdbcTemplate, """
+                CREATE TABLE groups (
+                    group_id VARCHAR2(20 CHAR) NOT NULL,
+                    group_name VARCHAR2(120 CHAR) NOT NULL,
+                    display_order NUMBER(5) NOT NULL,
+                    enabled NUMBER(1) DEFAULT 1 NOT NULL,
+                    created_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+                    CONSTRAINT pk_groups PRIMARY KEY (group_id),
+                    CONSTRAINT uq_groups_name UNIQUE (group_name)
+                )
+                """);
+        executeIgnoringAlreadyExists(jdbcTemplate, """
                 CREATE TABLE projects (
                     project_id VARCHAR2(20 CHAR) NOT NULL,
                     project_name VARCHAR2(120 CHAR) NOT NULL,
@@ -166,6 +179,17 @@ public class DataInitializer {
                     CONSTRAINT pk_work_time_types PRIMARY KEY (work_time_type_id)
                 )
                 """);
+        executeIgnoringAlreadyExists(jdbcTemplate, """
+                CREATE TABLE message_catalog (
+                    message_key VARCHAR2(200 CHAR) NOT NULL,
+                    locale VARCHAR2(20 CHAR) NOT NULL,
+                    message_text VARCHAR2(1000 CHAR) NOT NULL,
+                    enabled NUMBER(1) DEFAULT 1 NOT NULL,
+                    created_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+                    CONSTRAINT pk_message_catalog PRIMARY KEY (message_key, locale)
+                )
+                """);
     }
 
     /**
@@ -177,7 +201,8 @@ public class DataInitializer {
                     manager_user_id VARCHAR2(20 CHAR) NOT NULL,
                     group_id VARCHAR2(20 CHAR) NOT NULL,
                     CONSTRAINT pk_manager_group_permissions PRIMARY KEY (manager_user_id, group_id),
-                    CONSTRAINT fk_manager_group_permissions_user FOREIGN KEY (manager_user_id) REFERENCES users(user_id)
+                    CONSTRAINT fk_manager_group_permissions_user FOREIGN KEY (manager_user_id) REFERENCES users(user_id),
+                    CONSTRAINT fk_manager_group_permissions_group FOREIGN KEY (group_id) REFERENCES groups(group_id)
                 )
                 """);
     }
@@ -222,6 +247,10 @@ public class DataInitializer {
      */
     private void seedMasterData(JdbcTemplate jdbcTemplate) {
         // Why not: INSERTだけにすると既存テスト環境の名称・表示順を更新できないため、マスタはMERGEで同期する。
+        mergeGroup(jdbcTemplate, "G001", "第1開発グループ", 1);
+        mergeGroup(jdbcTemplate, "G002", "第2開発グループ", 2);
+        mergeGroup(jdbcTemplate, "G099", "他部署グループ", 99, 0);
+        mergeGroup(jdbcTemplate, "G900", "管理グループ", 900);
         mergeProject(jdbcTemplate, "P001", "プロジェクトA", 1);
         mergeProject(jdbcTemplate, "P002", "プロジェクトB", 2);
         mergeWorkCategory(jdbcTemplate, "WC001", "設計", 1);
@@ -242,6 +271,8 @@ public class DataInitializer {
         insertBreakPeriod(jdbcTemplate, "BT002", 1050, 1065, 2);
         mergeWorkTimeType(jdbcTemplate, "WT001", "通常勤務", 540, 1080, 1320, 300, 1);
         mergeWorkTimeType(jdbcTemplate, "WT002", "短時間勤務", 540, 1050, 1320, 300, 2);
+        MessageCatalogDefaults.defaults().forEach((key, text) ->
+                mergeMessage(jdbcTemplate, key, MessageCatalogDefaults.DEFAULT_LOCALE, text));
     }
 
     /**
@@ -255,6 +286,41 @@ public class DataInitializer {
                 WHEN NOT MATCHED THEN INSERT (manager_user_id, group_id)
                 VALUES (source.manager_user_id, source.group_id)
                 """);
+    }
+
+    /**
+     * グループマスタをID単位で追加または更新する。
+     */
+    private void mergeGroup(JdbcTemplate jdbcTemplate, String id, String name, int order) {
+        mergeGroup(jdbcTemplate, id, name, order, 1);
+    }
+
+    /**
+     * グループマスタを有効フラグ付きでID単位に追加または更新する。
+     */
+    private void mergeGroup(JdbcTemplate jdbcTemplate, String id, String name, int order, int enabled) {
+        jdbcTemplate.update("""
+                MERGE INTO groups target
+                USING (SELECT ? group_id, ? group_name, ? display_order, ? enabled FROM dual) source
+                ON (target.group_id = source.group_id)
+                WHEN MATCHED THEN UPDATE SET target.group_name = source.group_name, target.display_order = source.display_order, target.enabled = source.enabled
+                WHEN NOT MATCHED THEN INSERT (group_id, group_name, display_order, enabled)
+                VALUES (source.group_id, source.group_name, source.display_order, source.enabled)
+                """, id, name, order, enabled);
+    }
+
+    /**
+     * 指定ロケールのメッセージをキー単位で追加または更新する。
+     */
+    private void mergeMessage(JdbcTemplate jdbcTemplate, String key, String locale, String text) {
+        jdbcTemplate.update("""
+                MERGE INTO message_catalog target
+                USING (SELECT ? message_key, ? locale, ? message_text FROM dual) source
+                ON (target.message_key = source.message_key AND target.locale = source.locale)
+                WHEN MATCHED THEN UPDATE SET target.message_text = source.message_text, target.enabled = 1
+                WHEN NOT MATCHED THEN INSERT (message_key, locale, message_text, enabled)
+                VALUES (source.message_key, source.locale, source.message_text, 1)
+                """, key, locale, text);
     }
 
     /**

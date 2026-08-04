@@ -102,6 +102,7 @@ test('employee sees list columns empty state and status colored calendar cell', 
   await mockStaticFrontend(page);
   await loginAsEmployee(page);
 
+  await page.getByLabel('対象年月').fill('2026-07');
   await expect(page.getByLabel('グループID')).not.toBeVisible();
   await expect(page.getByRole('columnheader', { name: '日付' })).toBeVisible();
   await expect(page.getByRole('cell', { name: '承認待ち' })).toBeVisible();

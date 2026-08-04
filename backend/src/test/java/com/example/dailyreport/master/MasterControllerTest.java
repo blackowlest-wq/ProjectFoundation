@@ -43,4 +43,33 @@ class MasterControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].holidayType", equalTo("WORKDAY")));
     }
+
+    @Test
+    void employeeCannotUseGroupSelectionApi() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "employee001");
+
+        mockMvc.perform(get("/api/master/groups").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void managerReceivesOnlyPermittedGroups() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "manager001");
+
+        mockMvc.perform(get("/api/master/groups").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].groupId", equalTo("G001")))
+                .andExpect(jsonPath("$[1]").doesNotExist());
+    }
+
+    @Test
+    void adminReceivesAllEnabledGroups() throws Exception {
+        MockHttpSession session = loginAs(mockMvc, objectMapper, "admin001");
+
+        mockMvc.perform(get("/api/master/groups").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].groupId", equalTo("G001")))
+                .andExpect(jsonPath("$[1].groupId", equalTo("G002")));
+    }
 }

@@ -43,6 +43,18 @@ public class MasterDataRepository {
     }
 
     /**
+     * 有効なグループマスタを表示順、グループID順で取得する。
+     */
+    public List<GroupOption> groups() {
+        return jdbcTemplate.query("""
+                SELECT group_id, group_name
+                FROM groups
+                WHERE enabled = 1
+                ORDER BY display_order, group_id
+                """, (rs, rowNum) -> new GroupOption(rs.getString("group_id"), rs.getString("group_name")));
+    }
+
+    /**
      * 有効な休日区分と、その区分が要求する勤務時刻・作業明細のルールを取得する。
      */
     public List<HolidayTypeOption> holidayTypes() {
@@ -76,9 +88,10 @@ public class MasterDataRepository {
                 holidayType)
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容が不正です。",
-                        List.of(new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail(
-                                "holidayType", "休日区分が存在しません。"))));
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid",
+                        "入力内容が不正です。",
+                        List.of(com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail.keyed(
+                                "holidayType", "validation.holiday_type_not_found", "休日区分が存在しません。"))));
     }
 
     /**
@@ -96,9 +109,10 @@ public class MasterDataRepository {
                 breakTypeId)
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容が不正です。",
-                        List.of(new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail(
-                                "breakTypeId", "休憩区分が存在しません。"))));
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid",
+                        "入力内容が不正です。",
+                        List.of(com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail.keyed(
+                                "breakTypeId", "validation.break_type_not_found", "休憩区分が存在しません。"))));
 
         WorkTimeTypeOption workTimeType = jdbcTemplate.query("""
                         SELECT work_time_type_id, work_time_type_name, regular_start_minutes, regular_end_minutes,
@@ -116,9 +130,10 @@ public class MasterDataRepository {
                 workTimeTypeId)
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容が不正です。",
-                        List.of(new com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail(
-                                "workTimeTypeId", "勤務区分が存在しません。"))));
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid",
+                        "入力内容が不正です。",
+                        List.of(com.example.dailyreport.common.ApiExceptionHandler.ErrorDetail.keyed(
+                                "workTimeTypeId", "validation.work_time_type_not_found", "勤務区分が存在しません。"))));
 
         List<TimePeriod> breakPeriods = jdbcTemplate.query("""
                         SELECT start_minutes, end_minutes
@@ -175,10 +190,29 @@ public class MasterDataRepository {
                 .orElse(workCategoryId);
     }
 
+    /**
+     * 新規日報のスナップショット用に現在のグループ名を取得し、旧データの利用者名へ安全にフォールバックする。
+     */
+    public String groupName(String groupId, String fallback) {
+        return jdbcTemplate.query("""
+                        SELECT group_name
+                        FROM groups
+                        WHERE group_id = ?
+                        """,
+                (rs, rowNum) -> rs.getString("group_name"),
+                groupId)
+                .stream()
+                .findFirst()
+                .orElse(fallback);
+    }
+
     public record ProjectOption(String projectId, String projectName) {
     }
 
     public record WorkCategoryOption(String workCategoryId, String workCategoryName) {
+    }
+
+    public record GroupOption(String groupId, String groupName) {
     }
 
     public record HolidayTypeOption(String holidayType, String holidayTypeName,

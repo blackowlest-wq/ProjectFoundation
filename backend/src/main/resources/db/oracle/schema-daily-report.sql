@@ -1,6 +1,17 @@
 -- Daily report schema extension for Oracle Database.
 -- Connect as the application schema user after users table is created.
 
+CREATE TABLE groups (
+    group_id VARCHAR2(20 CHAR) NOT NULL,
+    group_name VARCHAR2(120 CHAR) NOT NULL,
+    display_order NUMBER(5) NOT NULL,
+    enabled NUMBER(1) DEFAULT 1 NOT NULL,
+    created_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+    CONSTRAINT pk_groups PRIMARY KEY (group_id),
+    CONSTRAINT uq_groups_name UNIQUE (group_name)
+);
+
 CREATE TABLE projects (
     project_id VARCHAR2(20 CHAR) NOT NULL,
     project_name VARCHAR2(120 CHAR) NOT NULL,
@@ -55,6 +66,16 @@ CREATE TABLE work_time_types (
     CONSTRAINT pk_work_time_types PRIMARY KEY (work_time_type_id)
 );
 
+CREATE TABLE message_catalog (
+    message_key VARCHAR2(200 CHAR) NOT NULL,
+    locale VARCHAR2(20 CHAR) NOT NULL,
+    message_text VARCHAR2(1000 CHAR) NOT NULL,
+    enabled NUMBER(1) DEFAULT 1 NOT NULL,
+    created_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
+    CONSTRAINT pk_message_catalog PRIMARY KEY (message_key, locale)
+);
+
 CREATE TABLE daily_reports (
     report_id VARCHAR2(40 CHAR) NOT NULL,
     employee_user_id VARCHAR2(20 CHAR) NOT NULL,
@@ -87,6 +108,7 @@ CREATE TABLE daily_reports (
     reject_comment VARCHAR2(1000 CHAR),
     CONSTRAINT pk_daily_reports PRIMARY KEY (report_id),
     CONSTRAINT fk_daily_reports_employee FOREIGN KEY (employee_user_id) REFERENCES users(user_id),
+    CONSTRAINT fk_daily_reports_group FOREIGN KEY (group_id) REFERENCES groups(group_id),
     CONSTRAINT uq_daily_reports_employee_date UNIQUE (employee_user_id, report_date),
     CONSTRAINT fk_daily_reports_holiday_type FOREIGN KEY (holiday_type) REFERENCES holiday_types(holiday_type),
     CONSTRAINT fk_daily_reports_break_type FOREIGN KEY (break_type_id) REFERENCES break_types(break_type_id),
@@ -119,5 +141,6 @@ CREATE TABLE manager_group_permissions (
     manager_user_id VARCHAR2(20 CHAR) NOT NULL,
     group_id VARCHAR2(20 CHAR) NOT NULL,
     CONSTRAINT pk_manager_group_permissions PRIMARY KEY (manager_user_id, group_id),
-    CONSTRAINT fk_manager_group_permissions_user FOREIGN KEY (manager_user_id) REFERENCES users(user_id)
+    CONSTRAINT fk_manager_group_permissions_user FOREIGN KEY (manager_user_id) REFERENCES users(user_id),
+    CONSTRAINT fk_manager_group_permissions_group FOREIGN KEY (group_id) REFERENCES groups(group_id)
 );

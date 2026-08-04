@@ -4,10 +4,14 @@
  */
 package com.example.dailyreport.common;
 
+import com.example.dailyreport.master.MessageCatalogService;
+import com.example.dailyreport.master.MessageCatalogDefaults;
 import com.example.dailyreport.observability.ExceptionLog;
 import com.example.dailyreport.observability.RequestContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -25,10 +29,34 @@ import org.slf4j.LoggerFactory;
 public class ApiExceptionHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    public record ErrorDetail(String field, String message) {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ErrorDetail(String field, String message, String messageKey) {
+        public ErrorDetail(String field, String message) {
+            this(field, message, null);
+        }
+
+        public static ErrorDetail keyed(String field, String messageKey, String fallbackMessage) {
+            return new ErrorDetail(field, fallbackMessage, messageKey);
+        }
     }
 
-    public record ErrorResponse(String code, String message, List<ErrorDetail> details, String requestId) {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ErrorResponse(String code, String message, List<ErrorDetail> details, String requestId,
+                                String messageKey) {
+        public ErrorResponse(String code, String message, List<ErrorDetail> details, String requestId) {
+            this(code, message, details, requestId, null);
+        }
+    }
+
+    private final MessageCatalogService messageCatalogService;
+
+    public ApiExceptionHandler() {
+        this.messageCatalogService = null;
+    }
+
+    @Autowired
+    public ApiExceptionHandler(MessageCatalogService messageCatalogService) {
+        this.messageCatalogService = messageCatalogService;
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -41,7 +69,7 @@ public class ApiExceptionHandler {
                 requestId, RequestContext.feature(request), RequestContext.useCase(request),
                 HttpStatus.UNAUTHORIZED.value(), "AUTHENTICATION_FAILED");
         return errorResponse(HttpStatus.UNAUTHORIZED, "AUTHENTICATION_FAILED",
-                "ログインIDまたはパスワードが正しくありません。", List.of(), requestId);
+                "auth.invalid_credentials", "ログインIDまたはパスワードが正しくありません。", List.of(), requestId);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -51,13 +79,14 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> validation(MethodArgumentNotValidException exception,
                                                      HttpServletRequest request) {
         List<ErrorDetail> details = exception.getBindingResult().getFieldErrors().stream()
-                .map(error -> new ErrorDetail(error.getField(), error.getDefaultMessage()))
+                .map(error -> new ErrorDetail(error.getField(), resolve(error.getDefaultMessage(), error.getDefaultMessage()),
+                        messageKey(error.getDefaultMessage())))
                 .toList();
         String requestId = requestId(request);
         LOGGER.warn("event=business.error requestId={} feature={} useCase={} status={} code={} detailCount={}",
                 requestId, RequestContext.feature(request), RequestContext.useCase(request),
                 HttpStatus.BAD_REQUEST.value(), "VALIDATION_ERROR", details.size());
-        return errorResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容に誤りがあります。", details,
+        return errorResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid", "入力内容に誤りがあります。", details,
                 requestId);
     }
 
@@ -69,11 +98,11 @@ public class ApiExceptionHandler {
                                                                HttpServletRequest request) {
         String fieldName = exception.getName() != null ? exception.getName() : "request";
         String requestId = requestId(request);
-        List<ErrorDetail> details = List.of(new ErrorDetail(fieldName, "形式が正しくありません。"));
+        List<ErrorDetail> details = List.of(ErrorDetail.keyed(fieldName, "validation.invalid_format", "形式が正しくありません。"));
         LOGGER.warn("event=business.error requestId={} feature={} useCase={} status={} code={} detailCount={}",
                 requestId, RequestContext.feature(request), RequestContext.useCase(request),
                 HttpStatus.BAD_REQUEST.value(), "VALIDATION_ERROR", details.size());
-        return errorResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容に誤りがあります。", details,
+        return errorResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid", "入力内容に誤りがあります。", details,
                 requestId);
     }
 
@@ -86,7 +115,11 @@ public class ApiExceptionHandler {
         LOGGER.warn("event=business.error requestId={} feature={} useCase={} status={} code={} detailCount={}",
                 requestId, RequestContext.feature(request), RequestContext.useCase(request),
                 exception.status().value(), exception.code(), exception.details().size());
-        return errorResponse(exception.status(), exception.code(), exception.getMessage(), exception.details(), requestId);
+        List<ErrorDetail> details = exception.details().stream()
+                .map(detail -> new ErrorDetail(detail.field(), resolve(detail.messageKey(), detail.message()), detail.messageKey()))
+                .toList();
+        return errorResponse(exception.status(), exception.code(), exception.messageKey(),
+                exception.getMessage(), details, requestId);
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
@@ -99,7 +132,7 @@ public class ApiExceptionHandler {
         LOGGER.warn("event=business.error requestId={} feature={} useCase={} status={} code={} detailCount={}",
                 requestId, RequestContext.feature(request), RequestContext.useCase(request),
                 HttpStatus.BAD_REQUEST.value(), "INVALID_REQUEST", 0);
-        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "入力内容に誤りがあります。", List.of(), requestId);
+        return errorResponse(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "validation.invalid", "入力内容に誤りがあります。", List.of(), requestId);
     }
 
     @ExceptionHandler(Exception.class)
@@ -112,13 +145,28 @@ public class ApiExceptionHandler {
                 requestId, RequestContext.feature(request), RequestContext.useCase(request),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(), "INTERNAL_SERVER_ERROR", ExceptionLog.type(exception),
                 ExceptionLog.stack(exception));
-        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR",
+        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "system.unexpected",
                 "システムエラーが発生しました。", List.of(), requestId);
     }
 
-    private ResponseEntity<ErrorResponse> errorResponse(HttpStatus status, String code, String message,
-                                                         List<ErrorDetail> details, String requestId) {
-        return ResponseEntity.status(status).body(new ErrorResponse(code, message, details, requestId));
+    private ResponseEntity<ErrorResponse> errorResponse(HttpStatus status, String code, String messageKey,
+                                                         String fallbackMessage, List<ErrorDetail> details,
+                                                         String requestId) {
+        return ResponseEntity.status(status).body(new ErrorResponse(code, resolve(messageKey, fallbackMessage), details,
+                requestId, messageKey(messageKey)));
+    }
+
+    private String resolve(String key, String fallback) {
+        if (key == null || key.isBlank()) {
+            return fallback;
+        }
+        return messageCatalogService == null
+                ? MessageCatalogDefaults.defaults().getOrDefault(key, fallback)
+                : messageCatalogService.resolve(key, fallback);
+    }
+
+    private String messageKey(String key) {
+        return key != null && key.matches("[a-zA-Z][a-zA-Z0-9_.-]*") ? key : null;
     }
 
     private String requestId(HttpServletRequest request) {

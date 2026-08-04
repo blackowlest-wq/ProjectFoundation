@@ -5,7 +5,8 @@
 export type ApiError = {
   code: string;
   message: string;
-  details: { field: string; message: string }[];
+  messageKey?: string;
+  details: { field: string; message: string; messageKey?: string }[];
   requestId?: string;
 };
 
@@ -29,6 +30,7 @@ export async function readError(response: Response): Promise<ApiError> {
     const error: ApiError = {
       code: typeof payload.code === 'string' ? payload.code : fallbackErrorCode(response.status),
       message: typeof payload.message === 'string' ? payload.message : fallbackErrorMessage(response.status),
+      messageKey: typeof payload.messageKey === 'string' ? payload.messageKey : undefined,
       details: Array.isArray(payload.details) ? payload.details : [],
       requestId: typeof payload.requestId === 'string' && payload.requestId.length > 0
         ? payload.requestId

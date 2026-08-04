@@ -28,7 +28,7 @@ public class DailyReportAccessPolicy {
         // Why not: リクエストの社員IDを信頼すると他者の日報を操作できるため、登録・編集・提出は本人だけに限定する。
         // How: 社員以外は業務処理へ進めず、権限エラーを即時に返す。
         if (principal.user().getRole() != Role.EMPLOYEE) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only employees can use this operation.");
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.only_employees", "Only employees can use this operation.");
         }
         return principal.user();
     }
@@ -39,7 +39,7 @@ public class DailyReportAccessPolicy {
     public AppUser requireManager(AuthenticatedUser principal) {
         // Why not: 管理者を含む他ロールを許可すると、承認対象グループの責務が曖昧になるため上長だけに限定する。
         if (principal.user().getRole() != Role.MANAGER) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Only managers can use this operation.");
+            throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.only_managers", "Only managers can use this operation.");
         }
         return principal.user();
     }

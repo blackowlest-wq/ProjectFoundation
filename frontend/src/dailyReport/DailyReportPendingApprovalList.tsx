@@ -6,10 +6,11 @@ import { pendingApprovalCriteria } from './dailyReportApproval';
 import { validateDailyReportSearch } from './dailyReportSearch';
 import { formatDateTime } from './dateTimeFormat';
 import type { DailyReportListItem } from './types';
+import { useMessage } from '../shared/messageCatalog';
 
 /** 未承認一覧取得時のAPIエラーを、画面に表示できる文言へ変換する。 */
-function readErrorMessage(error: unknown) {
-  return (error as Partial<ApiError>).message ?? '未承認一覧の取得に失敗しました。';
+function readErrorMessage(error: unknown, fallback: string) {
+  return (error as Partial<ApiError>).message ?? fallback;
 }
 
 /** 分数を一覧表示用のH:mm形式へ変換する。 */
@@ -19,6 +20,9 @@ function formatMinutes(minutes: number) {
 
 /** 上長の担当範囲にある当月の承認待ち日報を表示する。 */
 export function DailyReportPendingApprovalList({ user, onUnauthorized }: { user: CurrentUser; onUnauthorized?: () => void }) {
+  const pendingErrorFallback = useMessage('error.pending_approvals', '未承認一覧の取得に失敗しました。');
+  const loadingMessage = useMessage('ui.loading', '読み込み中...');
+  const emptyMessage = useMessage('empty.no_pending_approvals', '承認待ちの日報はありません。');
   const [criteria, setCriteria] = useState(() => pendingApprovalCriteria());
   const [reports, setReports] = useState<DailyReportListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,11 +46,11 @@ export function DailyReportPendingApprovalList({ user, onUnauthorized }: { user:
         onUnauthorized?.();
         return;
       }
-      setError(readErrorMessage(fetchError));
+      setError(readErrorMessage(fetchError, pendingErrorFallback));
     } finally {
       setLoading(false);
     }
-  }, [criteria, onUnauthorized]);
+  }, [criteria, onUnauthorized, pendingErrorFallback]);
 
   useEffect(() => {
     if (user.role !== 'MANAGER') {
@@ -78,7 +82,7 @@ export function DailyReportPendingApprovalList({ user, onUnauthorized }: { user:
     <section className="report-panel" aria-labelledby="pending-approvals-heading">
       <div className="section-heading">
         <h2 id="pending-approvals-heading">未承認一覧</h2>
-        {loading && <span className="hint" role="status">読み込み中...</span>}
+        {loading && <span className="hint" role="status">{loadingMessage}</span>}
       </div>
       <form
         className="form-grid"
@@ -109,7 +113,7 @@ export function DailyReportPendingApprovalList({ user, onUnauthorized }: { user:
         </div>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
-      {!loading && !error && reports.length === 0 && <p className="hint">承認待ちの日報はありません。</p>}
+      {!loading && !error && reports.length === 0 && <p className="hint">{emptyMessage}</p>}
       {!error && reports.length > 0 && (
         <div className="table-wrap">
           <table>

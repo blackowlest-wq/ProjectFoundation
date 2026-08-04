@@ -43,6 +43,20 @@ export const baseDailyReport = {
 
 export async function mockDailyReportApis(page: Page, options: Parameters<typeof mockAuthApis>[1] = {}) {
   await mockAuthApis(page, options);
+  await page.route('**/api/master/messages?*', async (route) => {
+    await route.fulfill({
+      json: {
+        locale: 'ja-JP',
+        messages: {
+          'status.draft': '未提出',
+          'status.draft_editor': '下書き',
+          'status.pending': '承認待ち',
+          'status.rejected': '差戻し',
+          'status.approved': '承認済み',
+        },
+      },
+    });
+  });
   let draftApprovalStatus: 'DRAFT' | 'PENDING' = 'DRAFT';
   let newReportApprovalStatus: 'DRAFT' | 'PENDING' = 'DRAFT';
   await page.route('**/api/master/projects', async (route) => {

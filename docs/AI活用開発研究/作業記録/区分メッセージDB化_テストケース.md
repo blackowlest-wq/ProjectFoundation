@@ -72,6 +72,25 @@
 | TC-MSG-006 | AC-MSG-004 | 未登録キー、JdbcTemplate例外、fetch例外 | Backend/Frontend解決 | ソースデフォルト、内部情報非表示 | Unit | RT-MSG-006 |
 | TC-MSG-007 | AC-MSG-005 | DB本文だけ変更 | 状態/ロール/検証/計算を実行 | 結果が従来と一致 | Regression | RT-MSG-007 |
 
+## 実行結果
+
+- `MasterControllerTest`、`MasterControllerUnitTest`、`MessageCatalogControllerTest`、`MasterDataRepositoryTest`、`MessageCatalogServiceTest`、`ApiExceptionHandlerTest`、日報ルール: Focused Unit 56件成功。Oracle接続を必要とするSpring統合テスト全体は`ORA-01017`で保留。
+- `MessageCatalogServiceTest`: DB本文、未登録キー、DB障害、locale、TTL再取得を成功。
+- `MessageCatalogControllerTest`: 空localeの`ja-JP`正規化を成功。
+- `ApiExceptionHandlerTest`: API本文・details本文のDBキー解決と既存レスポンス項目維持を成功。
+- `messageCatalog.test.tsx`: DB上書きと取得失敗時フォールバックを成功。
+- Frontend全体: 16 files / 137 tests、lint、typecheck、build成功。
+- Mock E2E: 17 tests成功。Frontend coverageはStatements 95.87%、Branches 92.38%、Functions 97.48%、Lines 95.71%。
+- Markdown 103 files、test layout、Quick/secret検査成功。
+
+## 期待結果・テスト不足レビュー
+
+| TC | 期待結果レビュー | テスト不足レビュー | 判定 |
+| --- | --- | --- | --- |
+| TC-MSG-001〜002 | ロール別空配列・許可範囲・表示順・無効行・スナップショットを確認 | Oracle実FKとDB更新反映は未実行 | 保留条件明記 |
+| TC-MSG-003〜006 | status/code、DB本文、未登録/障害時の安全なフォールバックを確認 | locale別Oracle実値は未実行 | 保留条件明記 |
+| TC-MSG-007 | DB本文のみ変更して状態・計算ロジックが変わらないことをUnit/E2Eで確認 | Backend Oracle/coverage未実行 | 保留条件明記 |
+
 ## テスト構成・責務分割
 
 - `MasterControllerTest`: マスタAPIの認証・ロール別取得のみ。既存マスタAPIテストと責務が一致するため維持する。

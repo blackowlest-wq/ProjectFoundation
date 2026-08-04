@@ -24,6 +24,21 @@
         <Class name="com.example.dailyreport.master.MasterDataRepository"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Spring-managed JdbcTemplate dependencies are intentionally constructor-injected and not copied. -->
+    <Match>
+        <Class name="com.example.dailyreport.master.MessageCatalogRepository"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- The response record copies its map in the canonical constructor; the accessor is immutable by contract. -->
+    <Match>
+        <Class name="com.example.dailyreport.master.MessageCatalogController$MessageCatalogResponse"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- Invalid TTL is rejected during construction to prevent an unusable cache. -->
+    <Match>
+        <Class name="com.example.dailyreport.master.MessageCatalogService"/>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
     <Match>
         <Class name="com.example.dailyreport.master.MasterDataRepository$WorkSettings"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>

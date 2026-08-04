@@ -145,6 +145,7 @@ HOLIDAY_TYPE_DAYS
 | A-020 | GET | `/api/master/holiday-types` | 休日区分選択肢を取得する | 社員、上長、管理者 | F-002、F-003、F-004 |
 | A-021 | GET | `/api/master/break-types` | 休憩区分選択肢を取得する | 社員、上長、管理者 | F-002、F-003、F-005 |
 | A-022 | GET | `/api/master/work-time-types` | 勤務区分選択肢を取得する | 社員、上長、管理者 | F-002、F-003、F-005 |
+| A-023 | GET | `/api/master/messages` | 画面・API表示メッセージを取得する | 社員、上長、管理者 | F-001〜F-011 |
 
 ## A-001 ログイン
 
@@ -724,7 +725,7 @@ GET /api/master/groups?scope=VISIBLE
 
 | 名前 | 必須 | 内容 |
 | --- | --- | --- |
-| scope | 任意 | `VISIBLE` のみ。省略時も `VISIBLE` と同じ |
+| scope | 任意 | 後方互換のため受け付ける。`VISIBLE` のみ。省略時も同じ |
 
 ### レスポンス
 
@@ -732,7 +733,7 @@ GET /api/master/groups?scope=VISIBLE
 [
   {
     "groupId": "G001",
-    "groupName": "第一開発グループ"
+    "groupName": "第1開発グループ"
   }
 ]
 ```
@@ -742,6 +743,42 @@ GET /api/master/groups?scope=VISIBLE
 - 上長は承認対象グループのみ取得できる
 - 管理者は全グループを取得できる
 - 社員は初回サンプルではグループ選択肢取得を利用しない
+- 未認証の場合は共通認証エラーを返す
+- `scope` の値にかかわらず、認証済みユーザーのロールと上長権限をサーバー側で判定する
+
+## A-023 メッセージカタログ取得
+
+### リクエスト
+
+```http
+GET /api/master/messages?locale=ja-JP
+```
+
+### クエリパラメータ
+
+| 名前 | 必須 | 内容 |
+| --- | --- | --- |
+| locale | 任意 | ロケール。省略時は `ja-JP` |
+
+### レスポンス
+
+```json
+{
+  "locale": "ja-JP",
+  "messages": {
+    "status.pending": "承認待ち",
+    "ui.logout": "ログアウト"
+  }
+}
+```
+
+### 仕様
+
+- 認証済みユーザーが利用できる
+- `message_key` はソースで管理する安定キー、表示本文は `message_catalog` の有効行を正とする
+- DBに未登録のキーはレスポンスに含めず、Backend・Frontendがソースデフォルトへフォールバックする
+- DB障害時もAPIはソースデフォルトで継続し、DB例外やSQL情報をレスポンスへ含めない
+- メッセージ本文の変更で、状態値、ロール、入力検証、計算ロジックは変化しない
 
 ## A-020 休日区分選択肢取得
 

@@ -42,11 +42,12 @@ public class DailyReportCommandService {
         TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(request, user, masterDataRepository);
         // How: 同一社員・同一日付の日報が存在する場合は、新規Entityを作成せず重複エラーを返す。
         if (repository.existsByEmployeeUserIdAndReportDate(user.getUserId(), request.reportDate())) {
-            throw new ApiException(HttpStatus.CONFLICT, "DUPLICATE_REPORT", "Daily report already exists.");
+            throw new ApiException(HttpStatus.CONFLICT, "DUPLICATE_REPORT", "report.duplicate", "Daily report already exists.");
         }
         DailyReportEntity report = new DailyReportEntity("R-" + UUID.randomUUID());
         // Why not: 利用者マスタを参照し続けると過去の日報表示が現在の所属・氏名へ変わるため、提出時点の値をスナップショットする。
-        report.setEmployeeSnapshot(user.getUserId(), user.getEmployeeId(), user.getUserName(), user.getGroupId(), user.getGroupName());
+        String currentGroupName = masterDataRepository.groupName(user.getGroupId(), user.getGroupName());
+        report.setEmployeeSnapshot(user.getUserId(), user.getEmployeeId(), user.getUserName(), user.getGroupId(), currentGroupName);
         apply(request, user, report, calculated);
         DailyReportEntity saved = repository.save(report);
         return new DailyReportSummaryResponse(saved.getReportId(), saved.getApprovalStatus());
@@ -59,16 +60,16 @@ public class DailyReportCommandService {
     public DailyReportSummaryResponse update(String reportId, DailyReportRequest request, AuthenticatedUser principal) {
         AppUser user = accessPolicy.requireEmployee(principal);
         DailyReportEntity report = repository.findByReportIdAndEmployeeUserId(reportId, user.getUserId())
-                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access is forbidden."));
+                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.forbidden", "Access is forbidden."));
         // Why not: 提出済み・承認済みを編集可能にすると承認内容と実データがずれるため、差戻しだけを修正可能にする。
         // How: 下書き・差戻し以外の状態は内容変更へ進めず、状態エラーを返す。
         if (report.getApprovalStatus() != ApprovalStatus.DRAFT && report.getApprovalStatus() != ApprovalStatus.REJECTED) {
-            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "Daily report cannot be edited in the current status.");
+            throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATUS", "report.invalid_status", "Daily report cannot be edited in the current status.");
         }
         TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(request, user, masterDataRepository);
         // How: 更新対象以外に同一社員・同一日付の日報があれば、更新せず重複エラーを返す。
         if (repository.existsByEmployeeUserIdAndReportDateAndReportIdNot(user.getUserId(), request.reportDate(), reportId)) {
-            throw new ApiException(HttpStatus.CONFLICT, "DUPLICATE_REPORT", "Daily report already exists.");
+            throw new ApiException(HttpStatus.CONFLICT, "DUPLICATE_REPORT", "report.duplicate", "Daily report already exists.");
         }
         apply(request, user, report, calculated);
         return new DailyReportSummaryResponse(report.getReportId(), report.getApprovalStatus());

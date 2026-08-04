@@ -53,7 +53,7 @@ public final class TimeRules {
         List<ApiExceptionHandler.ErrorDetail> errors = validateItems(request, masterDataRepository);
         // How: 休日区分がない場合は後続の区分判定へ進めず、項目エラーとしてまとめる。
         if (request.holidayType() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("holidayType", "休日区分を選択してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("holidayType", "validation.holiday_type_required", "休日区分を選択してください。"));
         }
         // How: 先行検証でエラーがあればマスタ参照や勤務計算を行わず、入力エラーをまとめて返す。
         if (!errors.isEmpty()) {
@@ -148,11 +148,11 @@ public final class TimeRules {
     private static void validatePaidLeave(boolean hasTimes, boolean hasItems, List<ApiExceptionHandler.ErrorDetail> errors) {
         // How: 時刻入力がある場合は時刻項目のエラーを追加する。
         if (hasTimes) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "有給休暇では勤務時刻を入力できません。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("startTime", "validation.paid_leave_work_time_forbidden", "有給休暇では勤務時刻を入力できません。"));
         }
         // How: 作業明細がある場合は明細項目のエラーを追加する。
         if (hasItems) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "有給休暇では作業明細を入力できません。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.paid_leave_work_items_forbidden", "有給休暇では作業明細を入力できません。"));
         }
     }
 
@@ -162,7 +162,7 @@ public final class TimeRules {
     private static void validateHolidayWithoutWorkItems(boolean hasTimes, List<ApiExceptionHandler.ErrorDetail> errors) {
         // How: 時刻入力がある場合だけ、作業なし休日の時刻項目へエラーを追加する。
         if (hasTimes) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "休日で作業明細がない場合、勤務時刻は入力できません。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("startTime", "validation.holiday_work_time_forbidden", "休日で作業明細がない場合、勤務時刻は入力できません。"));
         }
     }
 
@@ -180,20 +180,20 @@ public final class TimeRules {
             // Why not: 勤務時刻と作業明細の片方だけを許すと集計基準が二つになるため、通常勤務・休日作業ありではセットで必須にする。
             // How: 開始時刻がない場合は開始時刻のエラーを追加する。
             if (start == null) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("startTime", "勤務開始時刻を入力してください。"));
+                errors.add(ApiExceptionHandler.ErrorDetail.keyed("startTime", "validation.start_time_required", "勤務開始時刻を入力してください。"));
             }
             // How: 終了時刻がない場合は終了時刻のエラーを追加する。
             if (end == null) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("endTime", "勤務終了時刻を入力してください。"));
+                errors.add(ApiExceptionHandler.ErrorDetail.keyed("endTime", "validation.end_time_required", "勤務終了時刻を入力してください。"));
             }
             // How: 作業明細がない場合は明細のエラーを追加する。
             if (request.workItems().isEmpty()) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "作業明細を1件以上入力してください。"));
+                errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.work_items_required", "作業明細を1件以上入力してください。"));
             }
         }
         // How: 開始・終了の両方が揃う場合だけ時刻順を比較し、逆転をエラーにする。
         if (start != null && end != null && end <= start) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("endTime", "勤務終了時刻は勤務開始時刻より後にしてください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("endTime", "validation.end_time_after_start", "勤務終了時刻は勤務開始時刻より後にしてください。"));
         }
     }
 
@@ -203,7 +203,7 @@ public final class TimeRules {
     private static void validateEmployeeWorkSettings(AppUser employee, List<ApiExceptionHandler.ErrorDetail> errors) {
         // How: 休憩区分または勤務区分が欠けている場合は計算前に設定エラーを追加する。
         if (employee.getBreakTypeId() == null || employee.getWorkTimeTypeId() == null) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workTimeTypeId", "利用者の勤務設定が未設定です。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workTimeTypeId", "validation.work_time_type_required", "利用者の勤務設定が未設定です。"));
         }
     }
 
@@ -220,18 +220,18 @@ public final class TimeRules {
         int elapsed = end - start;
         // How: 休憩が経過時間以上なら、実勤務時間を計算できないためエラーにする。
         if (breakMinutes >= elapsed) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("breakMinutes", "休憩時間は勤務時間未満になるように設定してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("breakMinutes", "validation.break_minutes_less_than_work", "休憩時間は勤務時間未満になるように設定してください。"));
         }
         int workMinutes = elapsed - breakMinutes;
         // How: 休憩控除後の勤務時間が0分以下なら、勤務実績として扱わずエラーにする。
         if (workMinutes <= 0) {
-            errors.add(new ApiExceptionHandler.ErrorDetail("workMinutes", "勤務時間は1分以上になるように入力してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workMinutes", "validation.work_minutes_positive", "勤務時間は1分以上になるように入力してください。"));
         }
         int itemTotal = request.workItems().stream().mapToInt(DailyReportRequest.WorkItemRequest::workMinutes).sum();
         // How: 作業明細合計が実勤務時間と異なる場合は、分割計算へ進めず不一致エラーを追加する。
         if (itemTotal != workMinutes) {
             // Why not: 実勤務時間と作業明細合計のどちらかを正とすると集計が二重基準になるため、不一致を拒否する。
-            errors.add(new ApiExceptionHandler.ErrorDetail("workItems", "作業時間の合計は実勤務時間と一致させてください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.work_items_minutes_match", "作業時間の合計は実勤務時間と一致させてください。"));
         }
         throwIfInvalid(errors);
 
@@ -250,14 +250,14 @@ public final class TimeRules {
         }
         // How: HH:mm形式でない入力は数値変換せず、形式エラーを追加して終了する。
         if (!value.matches("\\d{2}:\\d{2}")) {
-            errors.add(new ApiExceptionHandler.ErrorDetail(field, "時刻はHH:mm形式で入力してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed(field, "validation.time_format", "時刻はHH:mm形式で入力してください。"));
             return null;
         }
         int hour = Integer.parseInt(value.substring(0, 2));
         int minute = Integer.parseInt(value.substring(3, 5));
         // How: 形式が正しくても時刻範囲外なら、分へ変換せず形式エラーを追加する。
         if (hour > 23 || minute > 59) {
-            errors.add(new ApiExceptionHandler.ErrorDetail(field, "時刻はHH:mm形式で入力してください。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed(field, "validation.time_format", "時刻はHH:mm形式で入力してください。"));
             return null;
         }
         return hour * 60 + minute;
@@ -275,15 +275,15 @@ public final class TimeRules {
             // Why not: 明細全体のエラーだけを返すと入力行を特定できないため、field名にindexを付けて返す。
             // How: 案件が無効な行だけを特定できるよう、行番号付きの案件エラーを追加する。
             if (!masterDataRepository.projectExists(item.projectId())) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("workItems[%d].projectId".formatted(i), "案件が存在しません。"));
+                errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems[%d].projectId".formatted(i), "validation.project_not_found", "案件が存在しません。"));
             }
             // How: 作業分類が無効な行だけを特定できるよう、行番号付きの分類エラーを追加する。
             if (!masterDataRepository.workCategoryExists(item.workCategoryId())) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("workItems[%d].workCategoryId".formatted(i), "作業分類が存在しません。"));
+                errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems[%d].workCategoryId".formatted(i), "validation.work_category_not_found", "作業分類が存在しません。"));
             }
             // How: 作業時間が未入力または1分未満の行だけを特定できるよう、行番号付きの時間エラーを追加する。
             if (item.workMinutes() == null || item.workMinutes() < 1) {
-                errors.add(new ApiExceptionHandler.ErrorDetail("workItems[%d].workMinutes".formatted(i), "作業時間は1分以上で入力してください。"));
+                errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems[%d].workMinutes".formatted(i), "validation.work_item_minutes_positive", "作業時間は1分以上で入力してください。"));
             }
         }
         return errors;
@@ -353,7 +353,7 @@ public final class TimeRules {
      * 集約した項目別エラーから400の共通API例外を生成する。
      */
     private static ApiException validation(List<ApiExceptionHandler.ErrorDetail> errors) {
-        return new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容が不正です。", errors);
+        return new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid", "入力内容が不正です。", errors);
     }
 
 }

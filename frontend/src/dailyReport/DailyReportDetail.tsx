@@ -5,17 +5,18 @@ import { approveDailyReport, fetchDailyReport, rejectDailyReport } from './daily
 import { validateRejectComment } from './dailyReportApproval';
 import { formatDateTime } from './dateTimeFormat';
 import type { ApprovalStatus, DailyReportResponse } from './types';
+import { useMessage } from '../shared/messageCatalog';
 
-const statusLabelByStatus: Record<ApprovalStatus, string> = {
-  DRAFT: '下書き',
-  PENDING: '承認待ち',
-  REJECTED: '差戻し',
-  APPROVED: '承認済み',
+const statusMessageKeyByStatus: Record<ApprovalStatus, string> = {
+  DRAFT: 'status.draft_editor',
+  PENDING: 'status.pending',
+  REJECTED: 'status.rejected',
+  APPROVED: 'status.approved',
 };
 
 /** APIエラーから詳細画面向けの表示文言を返す。 */
-function readErrorMessage(error: unknown) {
-  return (error as Partial<ApiError>).message ?? '日報の読み込みに失敗しました。';
+function readErrorMessage(error: unknown, fallback: string) {
+  return (error as Partial<ApiError>).message ?? fallback;
 }
 
 /** 分数を作業明細向けのH:mm形式へ変換する。 */
@@ -33,6 +34,14 @@ export function DailyReportDetail({
   reportId: string;
   onUnauthorized?: () => void;
 }) {
+  const statusLabelByStatus: Record<ApprovalStatus, string> = {
+    DRAFT: useMessage(statusMessageKeyByStatus.DRAFT, '下書き'),
+    PENDING: useMessage(statusMessageKeyByStatus.PENDING, '承認待ち'),
+    REJECTED: useMessage(statusMessageKeyByStatus.REJECTED, '差戻し'),
+    APPROVED: useMessage(statusMessageKeyByStatus.APPROVED, '承認済み'),
+  };
+  const detailErrorFallback = useMessage('error.daily_report_load', '日報の読み込みに失敗しました。');
+  const loadingMessage = useMessage('ui.loading', '読み込み中...');
   const [report, setReport] = useState<DailyReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [operating, setOperating] = useState(false);
@@ -71,7 +80,7 @@ export function DailyReportDetail({
           onUnauthorized?.();
           return;
         }
-        setError(readErrorMessage(fetchError));
+        setError(readErrorMessage(fetchError, detailErrorFallback));
       })
       .finally(() => {
         if (active) {
@@ -82,7 +91,7 @@ export function DailyReportDetail({
     return () => {
       active = false;
     };
-  }, [onUnauthorized, reportId]);
+  }, [detailErrorFallback, onUnauthorized, reportId]);
 
   useEffect(() => {
     if (approvalDialogOpen) {
@@ -153,7 +162,7 @@ export function DailyReportDetail({
         onUnauthorized?.();
         return;
       }
-      setError(readErrorMessage(fetchError));
+      setError(readErrorMessage(fetchError, detailErrorFallback));
     } finally {
       setLoading(false);
     }
@@ -174,7 +183,7 @@ export function DailyReportDetail({
       });
     } catch (approveError) {
       setActionsAvailable(false);
-      setError(readErrorMessage(approveError));
+      setError(readErrorMessage(approveError, detailErrorFallback));
       if ((approveError as Partial<ApiError>).code === 'UNAUTHORIZED') {
         onUnauthorized?.();
       }
@@ -219,7 +228,7 @@ export function DailyReportDetail({
     } catch (rejectError) {
       setActionsAvailable(false);
       closeRejectDialog();
-      setError(readErrorMessage(rejectError));
+      setError(readErrorMessage(rejectError, detailErrorFallback));
       if ((rejectError as Partial<ApiError>).code === 'UNAUTHORIZED') {
         onUnauthorized?.();
       }
@@ -243,7 +252,7 @@ export function DailyReportDetail({
     <section className="report-panel" aria-labelledby="daily-report-detail-heading">
       <div className="section-heading">
         <h2 id="daily-report-detail-heading">日報詳細</h2>
-        {loading && <span className="hint" role="status">読み込み中...</span>}
+        {loading && <span className="hint" role="status">{loadingMessage}</span>}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {!loading && report && (

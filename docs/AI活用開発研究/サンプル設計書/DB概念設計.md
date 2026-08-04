@@ -30,6 +30,8 @@
 - 同一社員・同一日の日報は1件のみ登録できる
 - 承認状態、ロールは列挙値として扱う
 - 休日区分はマスタで管理し、日報には利用時点の休日区分IDを保持する
+- 業務上変更される表示名はDBマスタを正とし、画面・APIの表示本文はメッセージカタログを正とする
+- メッセージのキー、状態、ロール、入力検証、計算ロジックはソースで管理し、DBは本文の差し替えに限定する
 - 論理削除は初回サンプルでは扱わない
 
 ## エンティティ一覧
@@ -39,6 +41,7 @@
 | users | 利用者。社員、上長、管理者を表す |
 | groups | 所属グループマスタ |
 | manager_group_permissions | 上長が承認できるグループを表す |
+| message_catalog | 画面・API表示メッセージのローカライズ本文 |
 | projects | 案件マスタ |
 | work_categories | 作業分類マスタ |
 | holiday_types | 休日区分マスタ |
@@ -60,6 +63,12 @@ erDiagram
     work_time_types ||--o{ users : "default for"
     users ||--o{ manager_group_permissions : "manager"
     groups ||--o{ manager_group_permissions : "approved by"
+    message_catalog {
+        varchar message_key PK
+        varchar locale PK
+        varchar message_text
+        number enabled
+    }
     groups ||--o{ daily_reports : "reported in"
     holiday_types ||--o{ daily_reports : "used by"
     break_types ||--o{ daily_reports : "used by"
@@ -114,7 +123,7 @@ erDiagram
 | group_id | グループID | 必須 | 主キー |
 | group_name | グループ名 | 必須 | 画面表示、CSV出力に使用 |
 | display_order | 表示順 | 必須 | 選択肢表示に使用 |
-| active_flag | 有効フラグ | 必須 | 初期データで使用 |
+| enabled | 有効フラグ | 必須 | `1` の行を選択肢として使用 |
 | created_at | 作成日時 | 必須 | 監査用 |
 | updated_at | 更新日時 | 必須 | 監査用 |
 
@@ -133,18 +142,40 @@ erDiagram
 
 | 属性 | 内容 | 必須 | 備考 |
 | --- | --- | --- | --- |
-| manager_group_permission_id | 上長グループ権限ID | 必須 | 主キー |
-| manager_user_id | 上長ユーザーID | 必須 | users への参照 |
-| group_id | 承認対象グループID | 必須 | groups への参照 |
-| created_at | 作成日時 | 必須 | 監査用 |
-| updated_at | 更新日時 | 必須 | 監査用 |
+| manager_user_id | 上長ユーザーID | 必須 | users への参照。複合主キーの一部 |
+| group_id | 承認対象グループID | 必須 | groups への参照。複合主キーの一部 |
 
 ### 主な制約
 
 - `manager_user_id` は `MANAGER` ロールのユーザーを参照する
 - `manager_user_id` と `group_id` の組み合わせは一意
+- 主キーは `manager_user_id + group_id` の複合キー
 - 上長は、承認対象グループに所属する社員の日報のみ承認・差戻しできる
 - 同一グループを複数の上長に紐づけられるため、同一社員の日報を複数の上長が承認可能なルートも表現できる
+
+## message_catalog
+
+### 概要
+
+画面・APIで利用する表示本文をロケール単位で管理する。
+業務ロジックが参照するキーやエラーコードはソースを正とし、DBは表示本文の差し替えとローカライズだけを担う。
+
+### 主な属性
+
+| 属性 | 内容 | 必須 | 備考 |
+| --- | --- | --- | --- |
+| message_key | メッセージキー | 必須 | ソースが定義する安定キー。複合主キーの一部 |
+| locale | ロケール | 必須 | 初期値は `ja-JP`。複合主キーの一部 |
+| message_text | 表示本文 | 必須 | 画面・APIへ出す本文。最大1000文字 |
+| enabled | 有効フラグ | 必須 | `1` の行だけ解決対象 |
+| created_at | 作成日時 | 必須 | 監査用 |
+| updated_at | 更新日時 | 必須 | 監査用 |
+
+### 主な制約
+
+- `message_key + locale` は一意
+- 未登録・無効・DB障害の場合は、直前キャッシュまたはソースデフォルトへフォールバックする
+- パスワード、トークン、個人情報、SQLなどの機微情報を本文やログへ入れない
 
 ## projects
 
@@ -160,7 +191,7 @@ erDiagram
 | project_id | 案件ID | 必須 | 主キー |
 | project_name | 案件名 | 必須 | 画面表示、CSV出力に使用 |
 | display_order | 表示順 | 必須 | 選択肢表示に使用 |
-| active_flag | 有効フラグ | 必須 | 初期データで使用 |
+| enabled | 有効フラグ | 必須 | `1` の行を選択肢として使用 |
 | created_at | 作成日時 | 必須 | 監査用 |
 | updated_at | 更新日時 | 必須 | 監査用 |
 
@@ -183,7 +214,7 @@ erDiagram
 | work_category_id | 作業分類ID | 必須 | 主キー |
 | work_category_name | 作業分類名 | 必須 | 画面表示、CSV出力に使用 |
 | display_order | 表示順 | 必須 | 選択肢表示に使用 |
-| active_flag | 有効フラグ | 必須 | 初期データで使用 |
+| enabled | 有効フラグ | 必須 | `1` の行を選択肢として使用 |
 | created_at | 作成日時 | 必須 | 監査用 |
 | updated_at | 更新日時 | 必須 | 監査用 |
 
@@ -209,7 +240,7 @@ erDiagram
 | requires_work_time | 勤務時刻必須フラグ | 必須 | 勤務開始・終了時刻が必要かを表す |
 | allows_work_items | 作業明細許可フラグ | 必須 | 作業明細を登録できるかを表す |
 | display_order | 表示順 | 必須 | 選択肢表示に使用 |
-| active_flag | 有効フラグ | 必須 | 初期データで使用 |
+| enabled | 有効フラグ | 必須 | `1` の行を選択肢として使用 |
 | created_at | 作成日時 | 必須 | 監査用 |
 | updated_at | 更新日時 | 必須 | 監査用 |
 
@@ -233,7 +264,7 @@ erDiagram
 | break_type_id | 休憩区分ID | 必須 | 主キー |
 | break_type_name | 休憩区分名 | 必須 | 例: 標準休憩、夕方休憩あり |
 | display_order | 表示順 | 必須 | 選択肢表示に使用 |
-| active_flag | 有効フラグ | 必須 | 初期データで使用 |
+| enabled | 有効フラグ | 必須 | `1` の行を選択肢として使用 |
 | created_at | 作成日時 | 必須 | 監査用 |
 | updated_at | 更新日時 | 必須 | 監査用 |
 
@@ -282,7 +313,7 @@ erDiagram
 | regular_start_time_minutes | 通常勤務開始時刻 | 必須 | 0:00からの経過分 |
 | regular_end_time_minutes | 通常勤務終了時刻 | 必須 | 0:00からの経過分 |
 | display_order | 表示順 | 必須 | 選択肢表示に使用 |
-| active_flag | 有効フラグ | 必須 | 初期データで使用 |
+| enabled | 有効フラグ | 必須 | `1` の行を選択肢として使用 |
 | created_at | 作成日時 | 必須 | 監査用 |
 | updated_at | 更新日時 | 必須 | 監査用 |
 
@@ -437,6 +468,7 @@ erDiagram
 | users.work_time_type_id | work_time_types.work_time_type_id | 社員の勤務区分 |
 | manager_group_permissions.manager_user_id | users.user_id | 上長 |
 | manager_group_permissions.group_id | groups.group_id | 承認対象グループ |
+| message_catalog.message_key + locale | ソースのメッセージキー・ロケール | 表示本文 |
 | daily_reports.employee_user_id | users.user_id | 日報登録者 |
 | daily_reports.group_id | groups.group_id | 日報登録時点の所属グループ |
 | daily_reports.holiday_type_id | holiday_types.holiday_type_id | 休日区分 |
@@ -467,7 +499,7 @@ erDiagram
 | 日付 | 業務日付は `DATE` を基本とし、時刻部分は業務上使用しない |
 | 時刻 | `start_time_minutes`、`end_time_minutes` は0:00からの経過分として `NUMBER(4)` で保持する。アプリケーションでは `HH:mm` として扱う |
 | 日時 | 作成日時、更新日時、提出日時、承認日時、差戻し日時は `TIMESTAMP WITH LOCAL TIME ZONE` を基本候補とする |
-| 真偽値 | Oracle Databaseには汎用的なテーブル列の `BOOLEAN` を前提にしない。`active_flag` などのフラグ列は `CHAR(1)` または `NUMBER(1)` で保持する |
+| 真偽値 | Oracle Databaseには汎用的なテーブル列の `BOOLEAN` を前提にしない。`enabled` などのフラグ列は `CHAR(1)` または `NUMBER(1)` で保持する |
 | 列挙値 | `user_role`、`approval_status` は文字列で保持し、アプリケーション層とDB制約の両方で妥当性を確認する。休日区分は `holiday_types` を参照する |
 | 予約語回避 | Oracleの予約語や一般的なキーワードに近い列名は避ける。例: `role` ではなく `user_role` を使用する |
 
@@ -479,6 +511,8 @@ erDiagram
 - 通常勤務時間、残業時間、深夜時間は、社員に紐づく勤務区分と勤務時間帯からアプリケーション層で自動算出する
 - 作業明細合計と実勤務時間の一致は、アプリケーション層で検証する
 - 上長の参照、承認、差戻し権限は、日報の `group_id` と `manager_group_permissions` で判定する
+- グループ名は登録時に日報へスナップショットし、既存履歴の表示を現在のグループ名変更から保護する
+- メッセージカタログは5分TTLのキャッシュを利用し、DB障害時は直前キャッシュまたはソースデフォルトへフォールバックする
 - 画面・APIの `HH:mm` とDBの分整数の変換は、アプリケーション層で行う
 - 作業なしの休日・有給休暇でDBに勤務時刻、休憩時間、実勤務時間、勤務時間内訳、作業明細を保持しない場合でも、CSV出力時は `スコープ定義.md` のCSV出力仕様に従い、該当列を空欄または0分として出力する
 - 月次集計は集計テーブルを持たず、承認済み日報と作業明細から都度集計する

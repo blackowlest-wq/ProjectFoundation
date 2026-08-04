@@ -28,17 +28,17 @@ final class DailyReportDateRangeValidator {
     private static void addMissingDateErrors(LocalDate dateFrom, LocalDate dateTo,
                                              List<ApiExceptionHandler.ErrorDetail> details) {
         if (dateFrom == null) {
-            details.add(new ApiExceptionHandler.ErrorDetail("dateFrom", "検索開始日を指定してください。"));
+            details.add(ApiExceptionHandler.ErrorDetail.keyed("dateFrom", "validation.date_from_required", "検索開始日を指定してください。"));
         }
         if (dateTo == null) {
-            details.add(new ApiExceptionHandler.ErrorDetail("dateTo", "検索終了日を指定してください。"));
+            details.add(ApiExceptionHandler.ErrorDetail.keyed("dateTo", "validation.date_to_required", "検索終了日を指定してください。"));
         }
     }
 
     private static void addDateOrderError(LocalDate dateFrom, LocalDate dateTo,
                                           List<ApiExceptionHandler.ErrorDetail> details) {
         if (hasDateRange(dateFrom, dateTo) && dateFrom.isAfter(dateTo)) {
-            details.add(new ApiExceptionHandler.ErrorDetail("dateTo", "検索終了日は検索開始日以降にしてください。"));
+            details.add(ApiExceptionHandler.ErrorDetail.keyed("dateTo", "validation.date_to_before_date_from", "検索終了日は検索開始日以降にしてください。"));
         }
     }
 
@@ -46,7 +46,7 @@ final class DailyReportDateRangeValidator {
                                                List<ApiExceptionHandler.ErrorDetail> details) {
         if (hasDateRange(dateFrom, dateTo) && !dateFrom.isAfter(dateTo)
                 && ChronoUnit.DAYS.between(dateFrom, dateTo) > MAX_SEARCH_DAYS) {
-            details.add(new ApiExceptionHandler.ErrorDetail("dateTo", "検索対象期間は366日以内で指定してください。"));
+            details.add(ApiExceptionHandler.ErrorDetail.keyed("dateTo", "validation.date_range_too_long", "検索対象期間は366日以内で指定してください。"));
         }
     }
 
@@ -56,7 +56,7 @@ final class DailyReportDateRangeValidator {
 
     private static void throwIfInvalid(List<ApiExceptionHandler.ErrorDetail> details) {
         if (!details.isEmpty()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "入力内容に誤りがあります。", details);
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "validation.invalid", "入力内容に誤りがあります。", details);
         }
     }
 }

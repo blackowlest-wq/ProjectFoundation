@@ -7,8 +7,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.dailyreport.master.MessageCatalogRepository;
+import com.example.dailyreport.master.MessageCatalogService;
 import com.example.dailyreport.observability.RequestIdFilter;
 import com.example.dailyreport.observability.RequestMetadataInterceptor;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import org.mockito.Mockito;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -85,6 +94,34 @@ class ApiExceptionHandlerTest {
         assertThat(output).doesNotContain("event=system.unhandled_exception");
     }
 
+    @Test
+    void resolvesExceptionAndDetailMessagesFromCatalogWhileKeepingResponseContract() throws Exception {
+        MessageCatalogRepository repository = Mockito.mock(MessageCatalogRepository.class);
+        Mockito.when(repository.findAll("ja-JP")).thenReturn(Map.of(
+                "test.business.message", "DBの業務エラー",
+                "test.business.detail", "DBの項目エラー"));
+        MessageCatalogService service = new MessageCatalogService(
+                repository,
+                Clock.fixed(Instant.parse("2026-08-04T00:00:00Z"), ZoneOffset.UTC),
+                Duration.ofMinutes(5),
+                Map.of(
+                        "test.business.message", "ソースの業務エラー",
+                        "test.business.detail", "ソースの項目エラー"));
+        mockMvc = MockMvcBuilders.standaloneSetup(new FailureController())
+                .setControllerAdvice(new ApiExceptionHandler(service))
+                .addFilters(new RequestIdFilter())
+                .addInterceptors(new RequestMetadataInterceptor())
+                .build();
+
+        mockMvc.perform(get("/test/keyed-business"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("BUSINESS_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("DBの業務エラー"))
+                .andExpect(jsonPath("$.messageKey").value("test.business.message"))
+                .andExpect(jsonPath("$.details[0].message").value("DBの項目エラー"))
+                .andExpect(jsonPath("$.details[0].messageKey").value("test.business.detail"));
+    }
+
     @RestController
     static class FailureController {
         @GetMapping("/test/business")
@@ -95,6 +132,17 @@ class ApiExceptionHandlerTest {
         @GetMapping("/test/system")
         String system() {
             throw new IllegalStateException("database password must not be returned");
+        }
+
+        @GetMapping("/test/keyed-business")
+        String keyedBusiness() {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "BUSINESS_CONFLICT",
+                    "test.business.message",
+                    "ソースの業務エラー",
+                    List.of(ApiExceptionHandler.ErrorDetail.keyed(
+                            "field", "test.business.detail", "ソースの項目エラー")));
         }
 
         @PostMapping("/test/json")

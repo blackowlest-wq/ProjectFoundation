@@ -10,12 +10,13 @@ import {
 } from './dailyReportSearch';
 import { formatDateTime } from './dateTimeFormat';
 import type { ApprovalStatus, DailyReportListItem, HolidayType, HolidayTypeOption } from './types';
+import { useMessage } from '../shared/messageCatalog';
 
-const statusLabelByStatus: Record<ApprovalStatus, string> = {
-  DRAFT: '未提出',
-  PENDING: '承認待ち',
-  REJECTED: '差戻し',
-  APPROVED: '承認済み',
+const statusMessageKeyByStatus: Record<ApprovalStatus, string> = {
+  DRAFT: 'status.draft',
+  PENDING: 'status.pending',
+  REJECTED: 'status.rejected',
+  APPROVED: 'status.approved',
 };
 
 const statusClassByStatus: Record<ApprovalStatus, string> = {
@@ -48,9 +49,9 @@ function holidayName(item: DailyReportListItem, holidayTypes: HolidayTypeOption[
 }
 
 /** APIエラーから画面表示用メッセージを取り出し、未知のエラーには既定文言を返す。 */
-function readErrorMessage(error: unknown) {
+function readErrorMessage(error: unknown, fallback: string) {
   const apiError = error as Partial<ApiError>;
-  return apiError.message ?? '日報一覧の取得に失敗しました。';
+  return apiError.message ?? fallback;
 }
 
 /** 分数を一覧表示用のH:mm形式へ変換する。 */
@@ -60,6 +61,15 @@ function formatMinutes(minutes: number) {
 
 /** 検索条件・カレンダー・一覧を管理し、401時は親へ再認証を通知する。 */
 export function DailyReportCalendarList({ user, onUnauthorized }: { user: CurrentUser; onUnauthorized?: () => void }) {
+  const statusLabelByStatus: Record<ApprovalStatus, string> = {
+    DRAFT: useMessage(statusMessageKeyByStatus.DRAFT, '未提出'),
+    PENDING: useMessage(statusMessageKeyByStatus.PENDING, '承認待ち'),
+    REJECTED: useMessage(statusMessageKeyByStatus.REJECTED, '差戻し'),
+    APPROVED: useMessage(statusMessageKeyByStatus.APPROVED, '承認済み'),
+  };
+  const listErrorFallback = useMessage('error.daily_report_list', '日報一覧の取得に失敗しました。');
+  const searchingMessage = useMessage('ui.searching', '検索中...');
+  const emptyMessage = useMessage('empty.no_reports', '該当する日報はありません。');
   const [criteria, setCriteria] = useState<DailyReportSearchCriteria>(() => initialSearchCriteria());
   const [reports, setReports] = useState<DailyReportListItem[]>([]);
   const [holidayTypes, setHolidayTypes] = useState<HolidayTypeOption[]>([]);
@@ -122,7 +132,7 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
         onUnauthorized?.();
         return;
       }
-      setError(readErrorMessage(searchError));
+      setError(readErrorMessage(searchError, listErrorFallback));
     } finally {
       setLoading(false);
     }
@@ -132,7 +142,7 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
     <section className="report-panel">
       <div className="section-heading">
         <h2>日報検索</h2>
-        {loading && <span className="hint">検索中...</span>}
+        {loading && <span className="hint">{searchingMessage}</span>}
       </div>
 
       <div className="form-grid">
@@ -246,7 +256,7 @@ export function DailyReportCalendarList({ user, onUnauthorized }: { user: Curren
             ))}
             {reports.length === 0 && (
               <tr>
-                <td colSpan={11}>該当する日報はありません。</td>
+        <td colSpan={11}>{emptyMessage}</td>
               </tr>
             )}
           </tbody>

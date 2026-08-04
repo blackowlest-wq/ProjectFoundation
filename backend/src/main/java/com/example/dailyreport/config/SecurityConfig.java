@@ -6,6 +6,7 @@ package com.example.dailyreport.config;
 
 import com.example.dailyreport.auth.AppUserDetailsService;
 import com.example.dailyreport.common.ApiExceptionHandler.ErrorResponse;
+import com.example.dailyreport.master.MessageCatalogService;
 import com.example.dailyreport.observability.RequestContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,7 +39,8 @@ public class SecurityConfig {
     /**
      * Cookieセッション、CSRF、未認証時の401、認可失敗時の共通403レスポンスを設定する。
      */
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
+                                                   MessageCatalogService messageCatalogService) throws Exception {
         CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
         // How: CookieCsrfTokenRepositoryがXSRF-TOKEN Cookieを発行し、SPAは変更系リクエストでX-XSRF-TOKENヘッダーへ返す。
         // Why not: SPAがCookieからCSRFトークンを読む契約を維持するため、リクエスト属性名の遅延解決を無効化する。
@@ -60,24 +62,27 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authenticationException) ->
                                 writeErrorResponse(request, response, objectMapper, HttpStatus.UNAUTHORIZED,
-                                        "UNAUTHORIZED", "ログインが必要です。", "security.authentication_required"))
-                        .accessDeniedHandler(accessDeniedHandler(objectMapper)));
+                                        "UNAUTHORIZED", "security.authentication_required", "ログインが必要です。",
+                                        "security.authentication_required", messageCatalogService))
+                        .accessDeniedHandler(accessDeniedHandler(objectMapper, messageCatalogService)));
         return http.build();
     }
 
     /**
      * 認可失敗時に、画面が扱える共通JSONレスポンスを書き込むハンドラーを生成する。
      */
-    private AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
+    private AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper, MessageCatalogService messageCatalogService) {
         return (request, response, accessDeniedException) -> writeErrorResponse(request, response, objectMapper,
-                HttpStatus.FORBIDDEN, "FORBIDDEN", "権限がありません。", "security.access_denied");
+                HttpStatus.FORBIDDEN, "FORBIDDEN", "security.access_denied", "権限がありません。",
+                "security.access_denied", messageCatalogService);
     }
 
     /**
      * Security由来の認証・認可失敗を共通JSON形式へ書き込む。
      */
     private void writeErrorResponse(HttpServletRequest request, HttpServletResponse response, ObjectMapper objectMapper,
-                                    HttpStatus status, String code, String message, String event) throws IOException {
+                                    HttpStatus status, String code, String messageKey, String fallbackMessage,
+                                    String event, MessageCatalogService messageCatalogService) throws IOException {
         String requestId = RequestContext.requestId(request);
         response.setStatus(status.value());
         response.setHeader(RequestContext.REQUEST_ID_HEADER, requestId);
@@ -86,7 +91,8 @@ public class SecurityConfig {
         LOGGER.warn("event={} requestId={} feature={} useCase={} status={} code={}", event, requestId,
                 RequestContext.feature(request), RequestContext.useCase(request), status.value(), code);
         // Why not: Spring Security標準のHTML/空レスポンスでは画面側のエラー処理を統一できないため、共通JSON形式で返す。
-        objectMapper.writeValue(response.getWriter(), new ErrorResponse(code, message, List.of(), requestId));
+        String message = messageCatalogService.resolve(messageKey, fallbackMessage);
+        objectMapper.writeValue(response.getWriter(), new ErrorResponse(code, message, List.of(), requestId, messageKey));
     }
 
     @Bean

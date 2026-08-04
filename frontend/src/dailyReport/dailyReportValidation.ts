@@ -3,6 +3,7 @@
  * バックエンドのTimeRulesを正としつつ、画面上で即時に分かる入力不備を先に返す。
  */
 import type { DailyReportRequest, HolidayTypeOption } from './types';
+import { resolveMessage } from '../shared/messageCatalog';
 
 const timePattern = /^\d{2}:\d{2}$/;
 
@@ -34,14 +35,14 @@ export function totalWorkItemMinutes(request: DailyReportRequest): number {
 export function validateDailyReportInput(request: DailyReportRequest, holidayTypeOption?: HolidayTypeOption): string | null {
   // How: 日付がない場合は休日区分や勤務内容を検証せず、日付エラーを先に返す。
   if (!request.reportDate) {
-    return '日付を入力してください。';
+    return resolveMessage('validation.date_required', '日付を入力してください。');
   }
   // How: 休日区分がない場合は区分別ルールへ進まず、選択エラーを先に返す。
   if (!request.holidayType) {
-    return '休日区分を選択してください。';
+    return resolveMessage('validation.holiday_type_required', '休日区分を選択してください。');
   }
   if (!holidayTypeOption || holidayTypeOption.holidayType !== request.holidayType) {
-    return '休日区分マスタを読み込んでください。';
+    return resolveMessage('validation.holiday_type_master_required', '休日区分マスタを読み込んでください。');
   }
   const hasTimes = Boolean(request.startTime || request.endTime);
   const hasItems = request.workItems.length > 0;
@@ -50,7 +51,7 @@ export function validateDailyReportInput(request: DailyReportRequest, holidayTyp
     // Why not: 勤務実績を持たない区分へ勤務入力を保存すると勤務集計と矛盾するため、時刻と作業明細を受け付けない。
     // How: 禁止入力が一つでもあれば対象区分のエラーを返し、通常勤務の検証へ進めない。
     if (hasTimes || hasItems) {
-      return `${holidayTypeOption.holidayTypeName}では勤務時刻と作業明細を入力できません。`;
+      return resolveMessage('validation.paid_leave_forbidden', `${holidayTypeOption.holidayTypeName}では勤務時刻と作業明細を入力できません。`);
     }
     return null;
   }
@@ -58,25 +59,25 @@ export function validateDailyReportInput(request: DailyReportRequest, holidayTyp
   if (!holidayTypeOption.requiresWorkTime && holidayTypeOption.allowsWorkItems && !hasItems) {
     // Why not: 作業しない休日に時刻だけを許すと勤務時間の根拠がなくなるため、勤務ゼロとして時刻入力を拒否する。
     // How: 時刻が入力されている場合だけエラーを返し、未入力なら休日として正常終了する。
-    return hasTimes ? `${holidayTypeOption.holidayTypeName}で作業明細がない場合、勤務時刻は入力できません。` : null;
+    return hasTimes ? resolveMessage('validation.holiday_work_time_forbidden', `${holidayTypeOption.holidayTypeName}で作業明細がない場合、勤務時刻は入力できません。`) : null;
   }
   // How: 通常勤務または作業する休日では、時刻と明細が揃わなければ計算へ進めない。
   if (!request.startTime || !request.endTime || !hasItems) {
-    return '勤務時刻と1件以上の作業明細を入力してください。';
+    return resolveMessage('validation.work_inputs_required', '勤務時刻と1件以上の作業明細を入力してください。');
   }
   const start = parseTime(request.startTime);
   const end = parseTime(request.endTime);
   // How: 開始・終了のどちらかが不正なら、時刻順や作業時間の検証へ進めず形式エラーを返す。
   if (start === null || end === null) {
-    return '時刻はHH:mm形式で入力してください。';
+    return resolveMessage('validation.time_format', '時刻はHH:mm形式で入力してください。');
   }
   // How: 時刻が揃った場合だけ開始・終了順を比較し、逆転していればエラーを返す。
   if (end <= start) {
-    return '勤務終了時刻は勤務開始時刻より後にしてください。';
+    return resolveMessage('validation.end_time_after_start', '勤務終了時刻は勤務開始時刻より後にしてください。');
   }
   // How: 明細に1分未満の行が一つでもあれば、勤務時間計算へ進めず入力エラーを返す。
   if (request.workItems.some((item) => item.workMinutes < 1)) {
-    return '作業時間は1分以上で入力してください。';
+    return resolveMessage('validation.work_item_minutes_positive', '作業時間は1分以上で入力してください。');
   }
   return null;
 }

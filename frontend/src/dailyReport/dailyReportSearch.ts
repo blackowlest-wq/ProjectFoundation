@@ -1,4 +1,5 @@
 import type { ApprovalStatus, HolidayType } from './types';
+import { resolveMessage } from '../shared/messageCatalog';
 
 export type DailyReportSearchCriteria = {
   targetMonth: string;
@@ -59,15 +60,15 @@ export function initialSearchCriteria(): DailyReportSearchCriteria {
 export function validateDailyReportSearch(criteria: DailyReportSearchCriteria): string | null {
   // How: 開始日または終了日がない場合は日付形式や順序を検証せず、必須エラーを返す。
   if (!criteria.dateFrom || !criteria.dateTo) {
-    return '対象期間を指定してください。';
+    return resolveMessage('validation.search_period_required', '対象期間を指定してください。');
   }
   // How: 両日付の形式または実在性が不正なら、日付順の比較へ進めない。
   if (!isValidDateText(criteria.dateFrom) || !isValidDateText(criteria.dateTo)) {
-    return '対象期間の日付形式が正しくありません。';
+    return resolveMessage('validation.search_period_format', '対象期間の日付形式が正しくありません。');
   }
   // How: 両日付が正しい場合だけ開始日と終了日を比較し、逆順をエラーにする。
   if (criteria.dateFrom > criteria.dateTo) {
-    return '検索終了日は検索開始日以降にしてください。';
+    return resolveMessage('validation.date_to_before_date_from', '検索終了日は検索開始日以降にしてください。');
   }
   return null;
 }

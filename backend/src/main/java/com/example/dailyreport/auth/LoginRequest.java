@@ -9,13 +9,13 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record LoginRequest(
-        @NotBlank(message = "ログインIDは必須です。")
-        @Size(max = 80, message = "ログインIDは80文字以内で入力してください。")
-        @Pattern(regexp = "^[A-Za-z0-9]+$", message = "ログインIDは半角英数字で入力してください。")
+        @NotBlank(message = "auth.login_id.required")
+        @Size(max = 80, message = "auth.login_id.max_length")
+        @Pattern(regexp = "^[A-Za-z0-9]+$", message = "auth.login_id.invalid_format")
         String loginId,
-        @NotBlank(message = "パスワードは必須です。")
-        @Size(max = 100, message = "パスワードは100文字以内で入力してください。")
-        @Pattern(regexp = "^[A-Za-z0-9]+$", message = "パスワードは半角英数字で入力してください。")
+        @NotBlank(message = "auth.password.required")
+        @Size(max = 100, message = "auth.password.max_length")
+        @Pattern(regexp = "^[A-Za-z0-9]+$", message = "auth.password.invalid_format")
         String password
 ) {
 }
