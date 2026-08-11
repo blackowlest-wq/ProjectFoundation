@@ -1,6 +1,6 @@
 # Long-Term Maintainability Guidance Integration Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Codexでの実行:** 実装前に`/plan`でこの既存計画と現在のリポジトリ状態を照合する。長時間・多段階の実行では、合意した結果、制約、検証を含む`/goal`を開始する。チェックボックスは進捗記録に使い、未確認の項目を現行要件として扱わない。
 
 **Goal:** 既存の開発フロー・実装前チェック・実装後レビューへ長期保守可能性の判断を組み込み、重要な設計判断をADRで追跡できるようにする。
 

@@ -1,6 +1,6 @@
 # F-002 日報登録画面 完成 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Codexでの実行:** 実装前に`/plan`でこの既存計画と現在のリポジトリ状態を照合する。長時間・多段階の実行では、合意した結果、制約、検証を含む`/goal`を開始する。チェックボックスは進捗記録に使い、未確認の項目を現行要件として扱わない。
 
 **Goal:** F-002のBackend未実行ケースを実行可能な正本テストへ追加し、JaCoCo全指標85%以上とOracle実行証跡を満たした日報登録画面の品質ゲートを完成させる。
 

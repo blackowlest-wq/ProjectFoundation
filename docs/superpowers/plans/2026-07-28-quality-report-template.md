@@ -1,6 +1,6 @@
 # 品質確認表示データのテンプレート化 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Codexでの実行:** 実装前に`/plan`でこの既存計画と現在のリポジトリ状態を照合する。長時間・多段階の実行では、合意した結果、制約、検証を含む`/goal`を開始する。チェックボックスは進捗記録に使い、未確認の項目を現行要件として扱わない。
 
 **Goal:** 品質確認表示データの共通JSON形式と汎用契約テストを追加し、F-001をテンプレート形式へ移行して他機能へ展開できる状態にする。
 

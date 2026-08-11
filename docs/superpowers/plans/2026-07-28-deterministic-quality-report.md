@@ -1,6 +1,6 @@
 # 品質確認画面の機械検証化 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Codexでの実行:** 実装前に`/plan`でこの既存計画と現在のリポジトリ状態を照合する。長時間・多段階の実行では、合意した結果、制約、検証を含む`/goal`を開始する。チェックボックスは進捗記録に使い、未確認の項目を現行要件として扱わない。
 
 **Goal:** AIまたは意味解釈に依存する「不足」「要補足」を自動確認項目から外し、PowerShellがJSONの構造・ID・紐付け・実行結果・基準値から決定的な機械検証結果を生成する。
 

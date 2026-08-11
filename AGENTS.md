@@ -60,6 +60,8 @@
 
 - リポジトリでCodexが自動検出するSkillは `.agents/skills/<skill名>/SKILL.md` に配置する。
 - ProjectFoundation用Skillの編集元は `docs/AI活用開発研究/構想メモ/標準化/skills/` とし、内容を更新した後に `.agents/skills/` へコピーする。
+- ProjectFoundation内では、同名のユーザー共通Skillが存在しても、リポジトリの `.agents/skills/` と上記編集元を正本として扱う。ユーザー共通Skillの自動同期や削除は行わない。
+- Skillまたは`AGENTS.md`を編集する場合は、利用可能な`$writing-for-agents`と`$skill-creator`を使い、起動条件、責務境界、参照先、検証方法を確認する。利用できない場合も、正本と配布コピーの同期・検証は省略しない。
 - Skillの配置を変更または更新した場合は、変更内容、コピー先、検証結果を作業記録へ残す。
 
 ## ドキュメント運用

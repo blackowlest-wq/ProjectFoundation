@@ -1,6 +1,6 @@
 # 影響範囲ベーステスト実行への移行 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Codexでの実行:** 実装前に`/plan`でこの既存計画と現在のリポジトリ状態を照合する。長時間・多段階の実行では、合意した結果、制約、検証を含む`/goal`を開始する。チェックボックスは進捗記録に使い、未確認の項目を現行要件として扱わない。
 
 **Goal:** 通常の品質確認を変更影響範囲へ限定し、夜間・リリース前に全体テストと全体カバレッジを実行する運用を、標準資料と品質重視モードSkillへ反映する。
 
