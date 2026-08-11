@@ -17,7 +17,7 @@ public final class MessageCatalogDefaults {
         Map<String, String> messages = new LinkedHashMap<>();
         messages.put("security.authentication_required", "ログインが必要です。");
         messages.put("security.access_denied", "権限がありません。");
-        messages.put("status.draft", "未提出");
+        messages.put("status.draft", "下書き");
         messages.put("status.draft_editor", "下書き");
         messages.put("status.pending", "承認待ち");
         messages.put("status.rejected", "差戻し");
@@ -74,7 +74,7 @@ public final class MessageCatalogDefaults {
         messages.put("validation.end_time_required", "勤務終了時刻を入力してください。");
         messages.put("validation.work_items_required", "作業明細を1件以上入力してください。");
         messages.put("validation.end_time_after_start", "勤務終了時刻は勤務開始時刻より後にしてください。");
-        messages.put("validation.work_time_type_required", "利用者の勤務設定が未設定です。");
+        messages.put("validation.work_time_type_required", "社員の勤務設定が未設定です。");
         messages.put("validation.break_minutes_less_than_work", "休憩時間は勤務時間未満になるように設定してください。");
         messages.put("validation.work_minutes_positive", "勤務時間は1分以上になるように入力してください。");
         messages.put("validation.work_items_minutes_match", "作業時間の合計は実勤務時間と一致させてください。");

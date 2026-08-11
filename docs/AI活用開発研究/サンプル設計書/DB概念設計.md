@@ -23,7 +23,7 @@
 - 初回サンプルでは、各種マスタのメンテナンス画面は作らない
 - 日報は日報ヘッダと作業明細に分ける
 - 時間量は分単位の整数で保持する
-- 勤務開始・終了時刻は、日付とは分けて分単位で保持する
+- 勤務開始時刻・勤務終了時刻は、日付とは分けて分単位で保持する
 - 休憩時間は社員に紐づく休憩区分から自動算出して保持する
 - 実勤務時間は社員に紐づく勤務区分から通常勤務時間、残業時間、深夜時間に分解して保持する
 - 日時はタイムゾーンを考慮できる型で扱う
@@ -237,7 +237,7 @@ erDiagram
 | holiday_type_id | 休日区分ID | 必須 | 主キー |
 | holiday_type_code | 休日区分コード | 必須 | `WORKDAY`、`HOLIDAY`、`PAID_LEAVE`、`AM_OFF`、`PM_OFF` |
 | holiday_type_name | 休日区分名 | 必須 | 画面表示、CSV出力に使用 |
-| requires_work_time | 勤務時刻必須フラグ | 必須 | 勤務開始・終了時刻が必要かを表す |
+| requires_work_time | 勤務時刻必須フラグ | 必須 | 勤務開始時刻・勤務終了時刻が必要かを表す |
 | allows_work_items | 作業明細許可フラグ | 必須 | 作業明細を登録できるかを表す |
 | display_order | 表示順 | 必須 | 選択肢表示に使用 |
 | enabled | 有効フラグ | 必須 | `1` の行を選択肢として使用 |
@@ -370,7 +370,7 @@ erDiagram
 - `work_minutes` は0以上
 - `break_minutes` は0以上
 - 勤務時刻がある日報では、`end_time_minutes` は `start_time_minutes` より後にする
-- 勤務時刻がある日報では、休憩区分から算出した `break_minutes` は勤務開始から勤務終了までの時間未満にする
+- 勤務時刻がある日報では、休憩区分から算出した `break_minutes` は勤務開始時刻から勤務終了時刻までの時間未満にする
 - 勤務時刻がある日報では、`work_time_type_id` を必須とする
 - `regular_work_minutes`、`overtime_work_minutes`、`night_work_minutes` は重複しない内訳として算出し、合計が `work_minutes` と一致する必要がある
 - 有給休暇の日報では、`start_time_minutes`、`end_time_minutes`、`break_type_id`、`work_time_type_id`、`break_minutes`、`work_minutes`、`regular_work_minutes`、`overtime_work_minutes`、`night_work_minutes` を保持しない
@@ -427,7 +427,7 @@ erDiagram
 
 | 値 | 内容 |
 | --- | --- |
-| DRAFT | 未提出 |
+| DRAFT | 下書き |
 | PENDING | 承認待ち |
 | REJECTED | 差戻し |
 | APPROVED | 承認済み |

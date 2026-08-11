@@ -149,7 +149,7 @@ erDiagram
 | --- | --- | --- | --- | --- | --- |
 | 休日区分コード | `holiday_type` | `VARCHAR2(20 CHAR)` | 不可 | PK | 休日区分を識別するコード |
 | 休日区分名 | `holiday_type_name` | `VARCHAR2(120 CHAR)` | 不可 | | 画面表示、CSV出力に使用 |
-| 勤務時刻必須フラグ | `requires_work_time` | `NUMBER(1)` | 不可 | | 勤務開始・終了時刻の要否 |
+| 勤務時刻必須フラグ | `requires_work_time` | `NUMBER(1)` | 不可 | | 勤務開始時刻・勤務終了時刻の要否 |
 | 作業明細許可フラグ | `allows_work_items` | `NUMBER(1)` | 不可 | | 作業明細登録の可否 |
 | 表示順 | `display_order` | `NUMBER(5)` | 不可 | | 選択肢の表示順 |
 | 有効フラグ | `enabled` | `NUMBER(1)` | 不可 | `1` | 1:有効、0:無効 |
@@ -185,10 +185,10 @@ erDiagram
 | --- | --- | --- | --- | --- | --- |
 | 勤務区分ID | `work_time_type_id` | `VARCHAR2(20 CHAR)` | 不可 | PK | 勤務区分識別子 |
 | 勤務区分名 | `work_time_type_name` | `VARCHAR2(120 CHAR)` | 不可 | | 画面表示に使用 |
-| 通常勤務開始分 | `regular_start_minutes` | `NUMBER(4)` | 不可 | | 通常勤務帯の開始分 |
-| 通常勤務終了分 | `regular_end_minutes` | `NUMBER(4)` | 不可 | | 通常勤務帯の終了分 |
-| 深夜勤務開始分 | `night_start_minutes` | `NUMBER(4)` | 不可 | | 深夜勤務帯の開始分 |
-| 深夜勤務終了分 | `night_end_minutes` | `NUMBER(4)` | 不可 | | 深夜勤務帯の終了分 |
+| 通常勤務開始時刻（分） | `regular_start_minutes` | `NUMBER(4)` | 不可 | | 通常勤務帯の開始分 |
+| 通常勤務終了時刻（分） | `regular_end_minutes` | `NUMBER(4)` | 不可 | | 通常勤務帯の終了分 |
+| 深夜勤務開始時刻（分） | `night_start_minutes` | `NUMBER(4)` | 不可 | | 深夜勤務帯の開始分 |
+| 深夜勤務終了時刻（分） | `night_end_minutes` | `NUMBER(4)` | 不可 | | 深夜勤務帯の終了分 |
 | 表示順 | `display_order` | `NUMBER(5)` | 不可 | | 選択肢の表示順 |
 | 有効フラグ | `enabled` | `NUMBER(1)` | 不可 | `1` | 1:有効、0:無効 |
 
@@ -208,8 +208,8 @@ erDiagram
 | 休憩区分名 | `break_type_name` | `VARCHAR2(120 CHAR)` | 可 | | 登録時点の休憩区分名 |
 | 勤務区分ID | `work_time_type_id` | `VARCHAR2(20 CHAR)` | 可 | FK | 登録時に使用した勤務区分 |
 | 勤務区分名 | `work_time_type_name` | `VARCHAR2(120 CHAR)` | 可 | | 登録時点の勤務区分名 |
-| 勤務開始分 | `start_time_minutes` | `NUMBER(4)` | 可 | | 0:00からの経過分 |
-| 勤務終了分 | `end_time_minutes` | `NUMBER(4)` | 可 | | 0:00からの経過分 |
+| 勤務開始時刻（分） | `start_time_minutes` | `NUMBER(4)` | 可 | | 0:00からの経過分 |
+| 勤務終了時刻（分） | `end_time_minutes` | `NUMBER(4)` | 可 | | 0:00からの経過分 |
 | 休憩時間分 | `break_minutes` | `NUMBER(5)` | 可 | | 休憩区分から算出した休憩時間 |
 | 実勤務時間分 | `work_minutes` | `NUMBER(5)` | 可 | | 勤務時間から休憩時間を差し引いた時間 |
 | 通常勤務時間分 | `regular_work_minutes` | `NUMBER(5)` | 可 | | 通常勤務帯に該当する時間 |
@@ -358,7 +358,7 @@ erDiagram
 
 | 値 | 表示上の意味 |
 | --- | --- |
-| `DRAFT` | 未提出 |
+| `DRAFT` | 下書き |
 | `PENDING` | 承認待ち |
 | `REJECTED` | 差戻し |
 | `APPROVED` | 承認済み |

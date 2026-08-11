@@ -61,7 +61,7 @@ export function DailyReportPendingApprovalList({ user, onUnauthorized }: { user:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role]);
 
-  /** 指定条件だけを更新し、検索は利用者が明示的に実行する。 */
+  /** 指定条件だけを更新し、検索は操作者が明示的に実行する。 */
   function setField<K extends keyof typeof criteria>(key: K, value: (typeof criteria)[K]) {
     setCriteria((current) => ({ ...current, [key]: value }));
   }

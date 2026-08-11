@@ -26,6 +26,7 @@ export type HolidayTypeOption = {
 export type DailyReportWorkItemInput = {
   projectId: string;
   workCategoryId: string;
+  /** API互換項目。意味は日報明細の作業時間で、日報ヘッダの実勤務時間とは異なる。 */
   workMinutes: number;
 };
 
@@ -49,6 +50,7 @@ export type DailyReportResponse = Omit<DailyReportRequest, 'workItems'> & {
   workTimeTypeId: string | null;
   workTimeTypeName: string | null;
   breakMinutes: number | null;
+  /** API互換項目。日報ヘッダの実勤務時間を表す。 */
   workMinutes: number | null;
   regularWorkMinutes: number | null;
   overtimeWorkMinutes: number | null;

@@ -49,7 +49,7 @@ class TimeRulesTest {
         TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(request, employee("BT002", "WT002"), masterData());
 
         assertThat(calculated.breakMinutes()).isEqualTo(75);
-        assertThat(calculated.workMinutes()).isEqualTo(765);
+        assertThat(calculated.actualWorkMinutes()).isEqualTo(765);
         assertThat(calculated.regularWorkMinutes()).isEqualTo(450);
         assertThat(calculated.overtimeWorkMinutes()).isEqualTo(255);
         assertThat(calculated.nightWorkMinutes()).isEqualTo(60);
@@ -64,7 +64,7 @@ class TimeRulesTest {
                 request, employee("BT001", "WT001"), masterData());
 
         assertThat(calculated.hasWorkTime()).isFalse();
-        assertThat(calculated.workMinutes()).isNull();
+        assertThat(calculated.actualWorkMinutes()).isNull();
     }
 
     @Test
@@ -76,7 +76,7 @@ class TimeRulesTest {
                 request, employee("BT001", "WT001"), masterData());
 
         assertThat(calculated.hasWorkTime()).isFalse();
-        assertThat(calculated.workMinutes()).isNull();
+        assertThat(calculated.actualWorkMinutes()).isNull();
     }
 
     @Test
@@ -293,7 +293,7 @@ class TimeRulesTest {
     @Test
     void validateStoredReportRejectsWorkItemTotalMismatch() throws Exception {
         DailyReportEntity report = reportWithValidWorkday();
-        set(report.getWorkItems().get(0), "workMinutes", 479);
+        set(report.getWorkItems().get(0), "workItemMinutes", 479);
 
         assertThatThrownBy(() -> TimeRules.validateStoredReport(report, masterData()))
                 .isInstanceOf(ApiException.class)
@@ -357,14 +357,14 @@ class TimeRulesTest {
         return report;
     }
 
-    private DailyReportRequest workday(LocalDate reportDate, String startTime, String endTime, int workMinutes) {
+    private DailyReportRequest workday(LocalDate reportDate, String startTime, String endTime, int workItemMinutes) {
         return new DailyReportRequest(
                 reportDate,
                 "WORKDAY",
                 startTime,
                 endTime,
                 "remarks",
-                List.of(new DailyReportRequest.WorkItemRequest("P001", "WC001", workMinutes)));
+                List.of(new DailyReportRequest.WorkItemRequest("P001", "WC001", workItemMinutes)));
     }
 
     private MasterDataRepository masterData() {

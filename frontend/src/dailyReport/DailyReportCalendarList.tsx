@@ -62,7 +62,7 @@ function formatMinutes(minutes: number) {
 /** 検索条件・カレンダー・一覧を管理し、401時は親へ再認証を通知する。 */
 export function DailyReportCalendarList({ user, onUnauthorized }: { user: CurrentUser; onUnauthorized?: () => void }) {
   const statusLabelByStatus: Record<ApprovalStatus, string> = {
-    DRAFT: useMessage(statusMessageKeyByStatus.DRAFT, '未提出'),
+    DRAFT: useMessage(statusMessageKeyByStatus.DRAFT, '下書き'),
     PENDING: useMessage(statusMessageKeyByStatus.PENDING, '承認待ち'),
     REJECTED: useMessage(statusMessageKeyByStatus.REJECTED, '差戻し'),
     APPROVED: useMessage(statusMessageKeyByStatus.APPROVED, '承認済み'),

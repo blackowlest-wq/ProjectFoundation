@@ -148,7 +148,7 @@ VALUES (source.message_key, source.locale, source.message_text, 1);
 
 MERGE INTO message_catalog target
 USING (
-    SELECT 'status.draft' message_key, 'ja-JP' locale, '未提出' message_text FROM dual
+    SELECT 'status.draft' message_key, 'ja-JP' locale, '下書き' message_text FROM dual
     UNION ALL SELECT 'status.draft_editor', 'ja-JP', '下書き' FROM dual
     UNION ALL SELECT 'status.pending', 'ja-JP', '承認待ち' FROM dual
     UNION ALL SELECT 'status.rejected', 'ja-JP', '差戻し' FROM dual
@@ -251,7 +251,7 @@ USING (
     UNION ALL SELECT 'validation.end_time_required', 'ja-JP', '勤務終了時刻を入力してください。' FROM dual
     UNION ALL SELECT 'validation.work_items_required', 'ja-JP', '作業明細を1件以上入力してください。' FROM dual
     UNION ALL SELECT 'validation.end_time_after_start', 'ja-JP', '勤務終了時刻は勤務開始時刻より後にしてください。' FROM dual
-    UNION ALL SELECT 'validation.work_time_type_required', 'ja-JP', '利用者の勤務設定が未設定です。' FROM dual
+    UNION ALL SELECT 'validation.work_time_type_required', 'ja-JP', '社員の勤務設定が未設定です。' FROM dual
     UNION ALL SELECT 'validation.break_minutes_less_than_work', 'ja-JP', '休憩時間は勤務時間未満になるように設定してください。' FROM dual
     UNION ALL SELECT 'validation.work_minutes_positive', 'ja-JP', '勤務時間は1分以上になるように入力してください。' FROM dual
     UNION ALL SELECT 'validation.work_items_minutes_match', 'ja-JP', '作業時間の合計は実勤務時間と一致させてください。' FROM dual

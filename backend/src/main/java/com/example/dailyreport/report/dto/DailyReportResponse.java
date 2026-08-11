@@ -71,7 +71,7 @@ public record DailyReportResponse(
                 report.getWorkTimeTypeId(),
                 report.getWorkTimeTypeName(),
                 report.getBreakMinutes(),
-                report.getWorkMinutes(),
+                report.getActualWorkMinutes(),
                 report.getRegularWorkMinutes(),
                 report.getOvertimeWorkMinutes(),
                 report.getNightWorkMinutes(),
@@ -116,13 +116,13 @@ public record DailyReportResponse(
          */
         static WorkMinuteSummary from(DailyReportEntity report) {
             // Why not: 画面側で再計算するとバックエンドの計算結果と二重基準になるため、ヘッダ結果と明細合計を同じレスポンスで返す。
-            int total = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkMinutes).sum();
+            int totalWorkItemMinutes = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkItemMinutes).sum();
             return new WorkMinuteSummary(
-                    TimeRules.formatDuration(report.getWorkMinutes()),
+                    TimeRules.formatDuration(report.getActualWorkMinutes()),
                     TimeRules.formatDuration(report.getRegularWorkMinutes()),
                     TimeRules.formatDuration(report.getOvertimeWorkMinutes()),
                     TimeRules.formatDuration(report.getNightWorkMinutes()),
-                    total);
+                    totalWorkItemMinutes);
         }
     }
 
@@ -140,7 +140,7 @@ public record DailyReportResponse(
         static WorkItemResponse from(DailyReportWorkItemEntity item, MasterDataRepository masterDataRepository) {
             return new WorkItemResponse(item.getWorkItemId(), item.getProjectId(),
                     masterDataRepository.projectName(item.getProjectId()), item.getWorkCategoryId(),
-                    masterDataRepository.workCategoryName(item.getWorkCategoryId()), item.getWorkMinutes());
+                    masterDataRepository.workCategoryName(item.getWorkCategoryId()), item.getWorkItemMinutes());
         }
     }
 }

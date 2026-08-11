@@ -47,7 +47,7 @@ public class DailyReportApprovalService {
     }
 
     private DailyReportEntity reportForApproval(String reportId, AppUser user) {
-        DailyReportEntity report = repository.findById(reportId)
+        DailyReportEntity report = repository.findByReportIdForUpdate(reportId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "report.not_found", "Daily report was not found."));
         if (!accessPolicy.canReadReport(user, report)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "report.forbidden", "Access is forbidden.");

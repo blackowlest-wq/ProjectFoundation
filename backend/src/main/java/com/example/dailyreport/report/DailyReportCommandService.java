@@ -33,10 +33,10 @@ public class DailyReportCommandService {
 
     @Transactional
     /**
-     * 社員本人の日報を、入力検証・重複確認・利用者スナップショット後に新規登録する。
+     * 社員本人の日報を、入力検証・重複確認・社員スナップショット後に新規登録する。
      */
     public DailyReportSummaryResponse create(DailyReportRequest request, AuthenticatedUser principal) {
-        // How: 本人認可、入力・勤務計算、重複確認、利用者スナップショット、Entity適用、保存の順に処理する。
+        // How: 本人認可、入力・勤務計算、重複確認、社員スナップショット、Entity適用、保存の順に処理する。
         AppUser user = accessPolicy.requireEmployee(principal);
         // Why not: 未検証の入力をEntityへ保存すると計算済み時間と明細が不整合になるため、登録前に検証と計算を完了する。
         TimeRules.CalculatedWorkTime calculated = TimeRules.validateAndCalculate(request, user, masterDataRepository);
@@ -45,7 +45,7 @@ public class DailyReportCommandService {
             throw new ApiException(HttpStatus.CONFLICT, "DUPLICATE_REPORT", "report.duplicate", "Daily report already exists.");
         }
         DailyReportEntity report = new DailyReportEntity("R-" + UUID.randomUUID());
-        // Why not: 利用者マスタを参照し続けると過去の日報表示が現在の所属・氏名へ変わるため、提出時点の値をスナップショットする。
+        // Why not: 社員マスタを参照し続けると過去の日報表示が現在の所属・氏名へ変わるため、登録時点の値をスナップショットする。
         String currentGroupName = masterDataRepository.groupName(user.getGroupId(), user.getGroupName());
         report.setEmployeeSnapshot(user.getUserId(), user.getEmployeeId(), user.getUserName(), user.getGroupId(), currentGroupName);
         apply(request, user, report, calculated);

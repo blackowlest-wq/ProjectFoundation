@@ -85,7 +85,7 @@ export async function mockApprovalApis(page: Page, options: ApprovalMockOptions 
       json: {
         locale: 'ja-JP',
         messages: {
-          'status.draft': '未提出',
+          'status.draft': '下書き',
           'status.draft_editor': '下書き',
           'status.pending': '承認待ち',
           'status.rejected': '差戻し',

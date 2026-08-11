@@ -23,17 +23,17 @@ public final class DailyReportTestSupport {
     }
 
     public static ResultActions createReport(MockMvc mockMvc, ObjectMapper objectMapper,
-            MockHttpSession session, LocalDate date, int workMinutes) throws Exception {
+            MockHttpSession session, LocalDate date, int workItemMinutes) throws Exception {
         return mockMvc.perform(post("/api/daily-reports")
                 .with(csrf())
                 .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(reportJson(objectMapper, date, "WORKDAY", "09:00", "18:00", workMinutes, "remarks")));
+                .content(reportJson(objectMapper, date, "WORKDAY", "09:00", "18:00", workItemMinutes, "remarks")));
     }
 
     public static String createReportId(MockMvc mockMvc, ObjectMapper objectMapper,
-            MockHttpSession session, LocalDate date, int workMinutes) throws Exception {
-        String responseBody = createReport(mockMvc, objectMapper, session, date, workMinutes)
+            MockHttpSession session, LocalDate date, int workItemMinutes) throws Exception {
+        String responseBody = createReport(mockMvc, objectMapper, session, date, workItemMinutes)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.approvalStatus", equalTo("DRAFT")))
                 .andReturn()
@@ -87,9 +87,9 @@ public final class DailyReportTestSupport {
     }
 
     public static String reportJson(ObjectMapper objectMapper, LocalDate reportDate, String holidayType,
-            String startTime, String endTime, int workMinutes, String remarks) throws Exception {
-        List<Map<String, Object>> items = workMinutes > 0
-                ? List.of(Map.of("projectId", "P001", "workCategoryId", "WC001", "workMinutes", workMinutes))
+            String startTime, String endTime, int workItemMinutes, String remarks) throws Exception {
+        List<Map<String, Object>> items = workItemMinutes > 0
+                ? List.of(Map.of("projectId", "P001", "workCategoryId", "WC001", "workMinutes", workItemMinutes))
                 : List.of();
         return reportJsonWithItems(objectMapper, reportDate, holidayType, startTime, endTime, remarks, items);
     }

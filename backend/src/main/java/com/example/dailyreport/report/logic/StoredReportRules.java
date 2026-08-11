@@ -68,7 +68,7 @@ final class StoredReportRules {
             errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.work_items_required", "作業明細を1件以上入力してください。"));
         }
         if (report.getBreakTypeId() == null || report.getWorkTimeTypeId() == null) {
-            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workTimeTypeId", "validation.work_time_type_required", "利用者の勤務設定が未設定です。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workTimeTypeId", "validation.work_time_type_required", "社員の勤務設定が未設定です。"));
         }
     }
 
@@ -96,15 +96,15 @@ final class StoredReportRules {
         if (!Integer.valueOf(expectedBreakMinutes).equals(report.getBreakMinutes())) {
             errors.add(ApiExceptionHandler.ErrorDetail.keyed("breakMinutes", "validation.stored_break_minutes_mismatch", "保存済みの休憩時間が勤務設定と一致しません。"));
         }
-        if (!Integer.valueOf(expectedWorkMinutes).equals(report.getWorkMinutes())) {
+        if (!Integer.valueOf(expectedWorkMinutes).equals(report.getActualWorkMinutes())) {
             errors.add(ApiExceptionHandler.ErrorDetail.keyed("workMinutes", "validation.stored_work_minutes_mismatch", "保存済みの勤務時間が勤務設定と一致しません。"));
         }
     }
 
     private static void validateStoredWorkItemTotal(DailyReportEntity report, int expectedWorkMinutes,
                                                     List<ApiExceptionHandler.ErrorDetail> errors) {
-        int itemTotal = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkMinutes).sum();
-        if (itemTotal != expectedWorkMinutes) {
+        int totalWorkItemMinutes = report.getWorkItems().stream().mapToInt(DailyReportWorkItemEntity::getWorkItemMinutes).sum();
+        if (totalWorkItemMinutes != expectedWorkMinutes) {
             errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.work_items_minutes_match", "作業時間の合計は実勤務時間と一致させてください。"));
         }
     }

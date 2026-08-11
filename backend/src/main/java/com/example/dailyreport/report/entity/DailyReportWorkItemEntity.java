@@ -31,7 +31,7 @@ public class DailyReportWorkItemEntity {
     private String workCategoryId;
 
     @Column(name = "work_minutes", nullable = false)
-    private int workMinutes;
+    private int workItemMinutes;
 
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
@@ -39,18 +39,18 @@ public class DailyReportWorkItemEntity {
     protected DailyReportWorkItemEntity() {
     }
 
-    DailyReportWorkItemEntity(DailyReportEntity report, String projectId, String workCategoryId, int workMinutes, int displayOrder) {
+    DailyReportWorkItemEntity(DailyReportEntity report, String projectId, String workCategoryId, int workItemMinutes, int displayOrder) {
         this.workItemId = "WI-" + UUID.randomUUID();
         this.report = report;
         this.projectId = projectId;
         this.workCategoryId = workCategoryId;
-        this.workMinutes = workMinutes;
+        this.workItemMinutes = workItemMinutes;
         this.displayOrder = displayOrder;
     }
 
     public String getWorkItemId() { return workItemId; }
     public String getProjectId() { return projectId; }
     public String getWorkCategoryId() { return workCategoryId; }
-    public int getWorkMinutes() { return workMinutes; }
+    public int getWorkItemMinutes() { return workItemMinutes; }
     public int getDisplayOrder() { return displayOrder; }
 }

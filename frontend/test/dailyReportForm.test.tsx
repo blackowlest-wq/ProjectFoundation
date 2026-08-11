@@ -31,13 +31,14 @@ describe('DailyReportForm behavior from task-owned tests', () => {
     cleanupUi();
   });
 
-  it('renders defaults, shows fallback user labels, and updates added work items through real controls', async () => {
+  it('renders defaults, shows employee labels, and updates added work items through real controls', async () => {
     installFrontendFetch();
 
     await renderUi(<DailyReportForm user={fallbackUser} />);
 
     expect(document.body.textContent).toContain('日報登録');
     expect(controlByLabel<HTMLInputElement>('日付').value).toBe('2026-07-17');
+    expect(document.body.textContent).toContain('社員名');
     expect(document.body.textContent).toContain('休憩区分');
     expect(document.body.textContent).toContain('勤務区分');
     expect(document.body.textContent).toContain('-');
@@ -85,8 +86,8 @@ describe('DailyReportForm behavior from task-owned tests', () => {
     await renderUi(<DailyReportForm user={currentUser} />);
     setControlValue(controlByLabel<HTMLSelectElement>('休日区分'), 'SPECIAL_OFF');
 
-    expect(controlByLabel<HTMLInputElement>('勤務開始').disabled).toBe(true);
-    expect(controlByLabel<HTMLInputElement>('勤務終了').disabled).toBe(true);
+    expect(controlByLabel<HTMLInputElement>('勤務開始時刻').disabled).toBe(true);
+    expect(controlByLabel<HTMLInputElement>('勤務終了時刻').disabled).toBe(true);
     expect(buttonByText('追加').disabled).toBe(true);
   });
 
@@ -97,17 +98,17 @@ describe('DailyReportForm behavior from task-owned tests', () => {
 
     setControlValue(controlByLabel<HTMLSelectElement>('休日区分'), 'PAID_LEAVE');
 
-    expect(controlByLabel<HTMLInputElement>('勤務開始').value).toBe('');
-    expect(controlByLabel<HTMLInputElement>('勤務終了').value).toBe('');
-    expect(controlByLabel<HTMLInputElement>('勤務開始').disabled).toBe(true);
-    expect(controlByLabel<HTMLInputElement>('勤務終了').disabled).toBe(true);
+    expect(controlByLabel<HTMLInputElement>('勤務開始時刻').value).toBe('');
+    expect(controlByLabel<HTMLInputElement>('勤務終了時刻').value).toBe('');
+    expect(controlByLabel<HTMLInputElement>('勤務開始時刻').disabled).toBe(true);
+    expect(controlByLabel<HTMLInputElement>('勤務終了時刻').disabled).toBe(true);
     expect(document.querySelectorAll('.work-row')).toHaveLength(0);
     expect(buttonByText('追加').disabled).toBe(true);
 
     setControlValue(controlByLabel<HTMLSelectElement>('休日区分'), 'HOLIDAY');
 
-    expect(controlByLabel<HTMLInputElement>('勤務開始').disabled).toBe(true);
-    expect(controlByLabel<HTMLInputElement>('勤務終了').disabled).toBe(true);
+    expect(controlByLabel<HTMLInputElement>('勤務開始時刻').disabled).toBe(true);
+    expect(controlByLabel<HTMLInputElement>('勤務終了時刻').disabled).toBe(true);
     expect(buttonByText('追加').disabled).toBe(false);
   });
 
@@ -376,8 +377,8 @@ describe('DailyReportForm behavior from task-owned tests', () => {
 
     await renderUi(<DailyReportForm user={currentUser} />);
 
-    setControlValue(controlByLabel<HTMLInputElement>('勤務開始'), '09:00');
-    setControlValue(controlByLabel<HTMLInputElement>('勤務終了'), '18:00');
+    setControlValue(controlByLabel<HTMLInputElement>('勤務開始時刻'), '09:00');
+    setControlValue(controlByLabel<HTMLInputElement>('勤務終了時刻'), '18:00');
     await click(buttonByText('追加'));
     await click(buttonByText('保存して提出'));
 

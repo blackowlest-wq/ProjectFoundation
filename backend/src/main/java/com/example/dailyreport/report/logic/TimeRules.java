@@ -23,7 +23,7 @@ public final class TimeRules {
             Integer startTimeMinutes,
             Integer endTimeMinutes,
             Integer breakMinutes,
-            Integer workMinutes,
+            Integer actualWorkMinutes,
             Integer regularWorkMinutes,
             Integer overtimeWorkMinutes,
             Integer nightWorkMinutes
@@ -203,7 +203,7 @@ public final class TimeRules {
     private static void validateEmployeeWorkSettings(AppUser employee, List<ApiExceptionHandler.ErrorDetail> errors) {
         // How: 休憩区分または勤務区分が欠けている場合は計算前に設定エラーを追加する。
         if (employee.getBreakTypeId() == null || employee.getWorkTimeTypeId() == null) {
-            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workTimeTypeId", "validation.work_time_type_required", "利用者の勤務設定が未設定です。"));
+            errors.add(ApiExceptionHandler.ErrorDetail.keyed("workTimeTypeId", "validation.work_time_type_required", "社員の勤務設定が未設定です。"));
         }
     }
 
@@ -222,14 +222,14 @@ public final class TimeRules {
         if (breakMinutes >= elapsed) {
             errors.add(ApiExceptionHandler.ErrorDetail.keyed("breakMinutes", "validation.break_minutes_less_than_work", "休憩時間は勤務時間未満になるように設定してください。"));
         }
-        int workMinutes = elapsed - breakMinutes;
+        int actualWorkMinutes = elapsed - breakMinutes;
         // How: 休憩控除後の勤務時間が0分以下なら、勤務実績として扱わずエラーにする。
-        if (workMinutes <= 0) {
+        if (actualWorkMinutes <= 0) {
             errors.add(ApiExceptionHandler.ErrorDetail.keyed("workMinutes", "validation.work_minutes_positive", "勤務時間は1分以上になるように入力してください。"));
         }
-        int itemTotal = request.workItems().stream().mapToInt(DailyReportRequest.WorkItemRequest::workMinutes).sum();
+        int totalWorkItemMinutes = request.workItems().stream().mapToInt(DailyReportRequest.WorkItemRequest::workMinutes).sum();
         // How: 作業明細合計が実勤務時間と異なる場合は、分割計算へ進めず不一致エラーを追加する。
-        if (itemTotal != workMinutes) {
+        if (totalWorkItemMinutes != actualWorkMinutes) {
             // Why not: 実勤務時間と作業明細合計のどちらかを正とすると集計が二重基準になるため、不一致を拒否する。
             errors.add(ApiExceptionHandler.ErrorDetail.keyed("workItems", "validation.work_items_minutes_match", "作業時間の合計は実勤務時間と一致させてください。"));
         }
@@ -237,7 +237,7 @@ public final class TimeRules {
 
         // How: 入力検証後に勤務区分ごとの分数へ分割し、計算済み値を一つのrecordへまとめる。
         int[] split = splitWork(workSettings, start, end);
-        return new CalculatedWorkTime(start, end, breakMinutes, workMinutes, split[0], split[1], split[2]);
+        return new CalculatedWorkTime(start, end, breakMinutes, actualWorkMinutes, split[0], split[1], split[2]);
     }
 
     /**

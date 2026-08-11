@@ -1,5 +1,5 @@
 /**
- * 日報フォームの利用者補助用バリデーション。
+ * 日報フォームの社員入力補助用バリデーション。
  * バックエンドのTimeRulesを正としつつ、画面上で即時に分かる入力不備を先に返す。
  */
 import type { DailyReportRequest, HolidayTypeOption } from './types';

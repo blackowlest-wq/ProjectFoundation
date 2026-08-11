@@ -1,6 +1,6 @@
 /**
  * 日報ヘッダに対応するEntity。
- * 利用者スナップショット、勤務時間の計算結果、承認状態、作業明細をまとめて保持する。
+ * 社員スナップショット、勤務時間の計算結果、承認状態、作業明細をまとめて保持する。
  */
 package com.example.dailyreport.report.entity;
 
@@ -73,7 +73,7 @@ public class DailyReportEntity {
     private Integer breakMinutes;
 
     @Column(name = "work_minutes")
-    private Integer workMinutes;
+    private Integer actualWorkMinutes;
 
     @Column(name = "regular_work_minutes")
     private Integer regularWorkMinutes;
@@ -140,7 +140,7 @@ public class DailyReportEntity {
     public Integer getStartTimeMinutes() { return startTimeMinutes; }
     public Integer getEndTimeMinutes() { return endTimeMinutes; }
     public Integer getBreakMinutes() { return breakMinutes; }
-    public Integer getWorkMinutes() { return workMinutes; }
+    public Integer getActualWorkMinutes() { return actualWorkMinutes; }
     public Integer getRegularWorkMinutes() { return regularWorkMinutes; }
     public Integer getOvertimeWorkMinutes() { return overtimeWorkMinutes; }
     public Integer getNightWorkMinutes() { return nightWorkMinutes; }
@@ -157,10 +157,10 @@ public class DailyReportEntity {
     public List<DailyReportWorkItemEntity> getWorkItems() { return workItems; }
 
     /**
-     * 保存時点の利用者情報を日報へスナップショットとして設定する。
+     * 保存時点の社員情報を日報へスナップショットとして設定する。
      */
     public void setEmployeeSnapshot(String userId, String employeeId, String employeeName, String groupId, String groupName) {
-        // Why not: 利用者マスタを都度参照すると過去の日報が現在の所属・氏名に変わるため、保存時点の値を保持する。
+        // Why not: 社員マスタを都度参照すると過去の日報が現在の所属・氏名に変わるため、保存時点の値を保持する。
         this.employeeUserId = userId;
         this.employeeId = employeeId;
         this.employeeName = employeeName;
@@ -183,7 +183,7 @@ public class DailyReportEntity {
         this.startTimeMinutes = calculated.startTimeMinutes();
         this.endTimeMinutes = calculated.endTimeMinutes();
         this.breakMinutes = calculated.breakMinutes();
-        this.workMinutes = calculated.workMinutes();
+        this.actualWorkMinutes = calculated.actualWorkMinutes();
         this.regularWorkMinutes = calculated.regularWorkMinutes();
         this.overtimeWorkMinutes = calculated.overtimeWorkMinutes();
         this.nightWorkMinutes = calculated.nightWorkMinutes();

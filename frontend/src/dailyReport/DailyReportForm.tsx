@@ -272,7 +272,7 @@ function useDailyReportEditor() {
       return;
     }
     // How: 取得済みマスタの先頭値を使って明細を末尾へ追加する。
-    // Why not: 未取得時に固定IDを作ると、利用者に見えない無効な入力を保存要求へ混入させるため、マスタがない場合は追加しない。
+    // Why not: 未取得時に固定IDを作ると、社員に見えない無効な入力を保存要求へ混入させるため、マスタがない場合は追加しない。
     setCalculation(null);
     setForm((current) => ({
       ...current,
@@ -399,7 +399,7 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
       </div>
       <div className="summary compact">
         <dl>
-          <div><dt>利用者</dt><dd>{user.userName}</dd></div>
+          <div><dt>社員名</dt><dd>{user.userName}</dd></div>
           <div><dt>所属</dt><dd>{user.groupName ?? '-'}</dd></div>
           <div><dt>休憩区分</dt><dd>{user.breakTypeName ?? '-'}</dd></div>
           <div><dt>勤務区分</dt><dd>{user.workTimeTypeName ?? '-'}</dd></div>
@@ -433,11 +433,11 @@ export function DailyReportForm({ user }: { user: CurrentUser }) {
           </select>
         </label>
         <label>
-          勤務開始
+          勤務開始時刻
           <input type="time" value={editor.form.startTime ?? ''} disabled={editor.workTimeDisabled} onChange={(event) => editor.setField('startTime', event.target.value || null)} />
         </label>
         <label>
-          勤務終了
+          勤務終了時刻
           <input type="time" value={editor.form.endTime ?? ''} disabled={editor.workTimeDisabled} onChange={(event) => editor.setField('endTime', event.target.value || null)} />
         </label>
       </div>

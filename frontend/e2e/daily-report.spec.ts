@@ -202,8 +202,8 @@ test('employee can save and submit a daily report from the screen', async ({ pag
   await loginAsEmployee(page);
 
   await page.getByLabel('日付').fill('2026-06-28');
-  await page.getByLabel('勤務開始').fill('09:00');
-  await page.getByLabel('勤務終了').fill('18:00');
+  await page.getByLabel('勤務開始時刻').fill('09:00');
+  await page.getByLabel('勤務終了時刻').fill('18:00');
   await page.getByLabel('備考').fill('E2E日報');
   await page.getByRole('button', { name: '保存して提出' }).click();
 
@@ -219,8 +219,8 @@ test('daily report validation errors are visible on the screen', async ({ page }
   await mockStaticFrontend(page);
   await loginAsEmployee(page);
 
-  await page.getByLabel('勤務開始').fill('18:00');
-  await page.getByLabel('勤務終了').fill('09:00');
+  await page.getByLabel('勤務開始時刻').fill('18:00');
+  await page.getByLabel('勤務終了時刻').fill('09:00');
   await page.getByRole('button', { name: '下書き保存' }).click();
 
   await expect(page.getByRole('alert')).toContainText('勤務終了時刻は勤務開始時刻より後にしてください。');
