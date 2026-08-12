@@ -17,7 +17,8 @@ public class RequestMetadataInterceptor implements HandlerInterceptor {
             "DailyReportSearchController", "DAILY_REPORT",
             "DailyReportApprovalController", "DAILY_REPORT",
             "DailyReportPendingApprovalController", "DAILY_REPORT",
-            "MasterController", "MASTER");
+            "MasterController", "MASTER",
+            "MonthlySummaryController", "MONTHLY_SUMMARY");
 
     private static final Map<String, String> USE_CASE_BY_METHOD = Map.ofEntries(
             Map.entry("login", "LOGIN"),
@@ -34,7 +35,8 @@ public class RequestMetadataInterceptor implements HandlerInterceptor {
             Map.entry("pendingApprovals", "PENDING_APPROVALS"),
             Map.entry("projects", "PROJECTS"),
             Map.entry("workCategories", "WORK_CATEGORIES"),
-            Map.entry("holidayTypes", "HOLIDAY_TYPES"));
+            Map.entry("holidayTypes", "HOLIDAY_TYPES"),
+            Map.entry("monthlySummary", "MONTHLY_SUMMARY"));
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {

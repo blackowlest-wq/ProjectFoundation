@@ -1,0 +1,74 @@
+.monthly-summary-page {
+  background: #fff;
+  border: 1px solid #d9e0ec;
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+  padding: 24px;
+}
+
+.monthly-summary-controls {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.monthly-summary-controls label {
+  flex-basis: 100%;
+}
+
+.monthly-summary-controls input {
+  min-width: 180px;
+}
+
+.monthly-summary-overview {
+  background: #f8fafc;
+  border: 1px solid #d9e0ec;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.monthly-summary-tabs {
+  border-bottom: 1px solid #b9c4d4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.monthly-summary-tabs button {
+  background: #e2e8f0;
+  border-radius: 6px 6px 0 0;
+  color: #172033;
+}
+
+.monthly-summary-tabs button[aria-selected="true"] {
+  background: #2563eb;
+  color: #fff;
+}
+
+.monthly-summary-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.monthly-summary-empty {
+  background: #f8fafc;
+  border: 1px dashed #b9c4d4;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

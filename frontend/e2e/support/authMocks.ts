@@ -87,7 +87,7 @@ export async function loginAsManager(page: Page) {
 }
 
 export async function loginAsAdmin(page: Page) {
-  await loginAs(page, 'admin001', '日報カレンダー・一覧');
+  await loginAs(page, 'admin001', '月次集計');
 }
 
 async function loginAs(page: Page, loginId: string, heading: string) {

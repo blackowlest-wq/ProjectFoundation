@@ -72,6 +72,24 @@ class RequestIdFilterTest {
     }
 
     @Test
+    void resolvesMonthlySummaryMetadataForUnauthenticatedCompletion(CapturedOutput output) throws Exception {
+        originalLevel = filterLogger.getLevel();
+        filterLogger.setLevel(Level.DEBUG);
+
+        RequestIdFilter filter = new RequestIdFilter();
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/monthly-summaries");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, (servletRequest, servletResponse) ->
+                ((MockHttpServletResponse) servletResponse).setStatus(401));
+
+        assertThat(output).contains("path=/api/monthly-summaries");
+        assertThat(output).contains("feature=MONTHLY_SUMMARY");
+        assertThat(output).contains("useCase=MONTHLY_SUMMARY");
+        assertThat(output).contains("status=401");
+    }
+
+    @Test
     void logsAndRethrowsUnexpectedFilterFailure(CapturedOutput output) {
         originalLevel = filterLogger.getLevel();
         filterLogger.setLevel(Level.DEBUG);

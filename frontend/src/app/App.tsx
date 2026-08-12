@@ -9,6 +9,7 @@ import { DailyReportCalendarList } from '../dailyReport/DailyReportCalendarList'
 import { DailyReportDetail } from '../dailyReport/DailyReportDetail';
 import { DailyReportForm } from '../dailyReport/DailyReportForm';
 import { DailyReportPendingApprovalList } from '../dailyReport/DailyReportPendingApprovalList';
+import { MonthlySummaryPage } from '../monthlySummary/MonthlySummaryPage';
 import type { CurrentUser } from '../auth/types';
 import { useMessage, useMessageCatalogActions } from '../shared/messageCatalog';
 import '../styles.css';
@@ -45,12 +46,13 @@ function AuthenticatedHome({
   const logoutLabel = useMessage('ui.logout', 'ログアウト');
   const roleLabel = useMessage(`ui.role.${user.role.toLowerCase()}`, user.role);
   const detailReportId = detailReportIdFromPath();
+  const monthlySummaryRoute = user.role === 'ADMIN' && window.location.pathname === '/monthly-summaries';
   return (
     <main className="shell">
       <header className="topbar">
         <div>
           <p className="eyebrow">{brand}</p>
-          <h1>{pageTitle}</h1>
+          {!monthlySummaryRoute && <h1>{pageTitle}</h1>}
         </div>
         <button className="secondary" onClick={onLogout}>
           {logoutLabel}
@@ -73,7 +75,9 @@ function AuthenticatedHome({
         </dl>
       </section>
       {logoutError && <p className="error" role="alert">{logoutError}</p>}
-      {detailReportId ? (
+      {monthlySummaryRoute ? (
+        <MonthlySummaryPage user={user} onUnauthorized={onUnauthorized} />
+      ) : detailReportId ? (
         <DailyReportDetail user={user} reportId={detailReportId} onUnauthorized={onUnauthorized} />
       ) : (
         <>

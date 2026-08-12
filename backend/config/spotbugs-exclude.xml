@@ -56,4 +56,14 @@
         <Class name="com.example.dailyreport.report.entity.DailyReportEntity"/>
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
+    <!-- The monthly response record copies each aggregate list in its canonical constructor. -->
+    <Match>
+        <Class name="com.example.dailyreport.monthlysummary.MonthlySummaryResponse"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- Spring-managed JdbcTemplate dependencies are intentionally constructor-injected and not copied. -->
+    <Match>
+        <Class name="com.example.dailyreport.monthlysummary.JdbcMonthlySummaryRepository"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

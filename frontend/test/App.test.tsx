@@ -18,6 +18,19 @@ import {
   respondJson,
   submitLogin,
 } from './support/dailyReportTestSupport';
+import type { MonthlySummaryResponse } from '../src/monthlySummary/types';
+
+const monthlySummaryForApp: MonthlySummaryResponse = {
+  yearMonth: '2026-07',
+  employeeWorkSummaries: [],
+  projectWorkSummaries: [],
+  categoryWorkSummaries: [],
+  holidayTypeSummaries: [],
+};
+
+vi.mock('../src/monthlySummary/monthlySummaryApi', () => ({
+  getMonthlySummary: vi.fn(),
+}));
 
 vi.mock('../src/auth/authApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/auth/authApi')>();
@@ -123,6 +136,53 @@ describe('App authentication state', () => {
     expect(window.location.pathname).toBe('/login');
     expect(document.querySelector('[role="alert"]')?.textContent).toBe('ログインが必要です。');
     expect(document.querySelector('h1')?.textContent).toBe('ログイン');
+  });
+
+  it('RT-F011-FE-008 shows only the monthly summary page for an authenticated admin', async () => {
+    const { getMonthlySummary } = await import('../src/monthlySummary/monthlySummaryApi');
+    vi.mocked(getMonthlySummary).mockResolvedValue(monthlySummaryForApp);
+    installFrontendFetch();
+    vi.mocked(fetchMe).mockResolvedValue(adminUser);
+    window.history.replaceState(null, '', '/monthly-summaries');
+
+    await renderUi(<App />);
+    await flushEffects();
+
+    expect(window.location.pathname).toBe('/monthly-summaries');
+    expect(document.querySelector('h1')?.textContent).toBe('月次集計');
+    expect(document.querySelectorAll('[role="tab"]')).toHaveLength(4);
+    expect(document.body.textContent).not.toContain('日報カレンダー・一覧');
+    expect(document.body.textContent).not.toContain('日報検索');
+    expect(vi.mocked(getMonthlySummary)).toHaveBeenCalledTimes(1);
+  });
+
+  it('RT-F011-FE-012-013 returns an admin to the login screen when the monthly summary expires', async () => {
+    const { getMonthlySummary } = await import('../src/monthlySummary/monthlySummaryApi');
+    vi.mocked(getMonthlySummary).mockRejectedValue({ code: 'UNAUTHORIZED', message: 'ログインが必要です。' });
+    installFrontendFetch();
+    vi.mocked(fetchMe).mockResolvedValue(adminUser);
+    window.history.replaceState(null, '', '/monthly-summaries');
+
+    await renderUi(<App />);
+    await flushEffects();
+
+    expect(window.location.pathname).toBe('/login');
+    expect(document.querySelector('h1')?.textContent).toBe('ログイン');
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe('ログインが必要です。');
+    expect(document.body.textContent).not.toContain('鈴木 一郎');
+  });
+
+  it.each([currentUser, managerUser])('RT-F011-FE-008 does not expose the monthly page or call its API for %s', async (loggedInUser) => {
+    const { getMonthlySummary } = await import('../src/monthlySummary/monthlySummaryApi');
+    installFrontendFetch();
+    vi.mocked(fetchMe).mockResolvedValue(loggedInUser);
+    window.history.replaceState(null, '', '/monthly-summaries');
+
+    await renderUi(<App />);
+    await flushEffects();
+
+    expect(document.body.textContent).not.toContain('月次集計');
+    expect(vi.mocked(getMonthlySummary)).not.toHaveBeenCalled();
   });
 
   it('RT-APR-UI-004 routes an encoded detail ID and preserves the employee edit route', async () => {

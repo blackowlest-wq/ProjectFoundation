@@ -224,8 +224,44 @@ try {
             '(?m)^.*event=request.completed requestId=[0-9a-f-]{36}.*feature=DAILY_REPORT useCase=CREATE status=409 durationMs=\d+.*$')) {
         throw 'Backend log did not contain the duplicate business error completion status and duration.'
     }
-    Write-Host "==> Verify Oracle persisted report $reportId"
-    Invoke-OracleSqlPlus -Environment $oracleEnvironment -Path $verifyPath -Variables @{ REPORT_ID = $reportId } `
+    if (-not [regex]::IsMatch($backendLogContent,
+            '(?m)^.*event=daily_report.approved feature=DAILY_REPORT useCase=APPROVE.*status=APPROVED.*$')) {
+        throw 'Backend log did not contain the daily report APPROVE success event.'
+    }
+    if (-not [regex]::IsMatch($backendLogContent,
+            '(?m)^.*event=request.completed requestId=[0-9a-f-]{36}.*feature=DAILY_REPORT useCase=APPROVE status=200 durationMs=\d+.*$')) {
+        throw 'Backend log did not contain the APPROVE completion status and duration.'
+    }
+    if (-not [regex]::IsMatch($backendLogContent,
+            '(?m)^.*event=request.completed requestId=[0-9a-f-]{36}.*feature=MONTHLY_SUMMARY useCase=MONTHLY_SUMMARY status=200 durationMs=\d+.*$')) {
+        throw 'Backend log did not contain the MONTHLY_SUMMARY completion status and duration.'
+    }
+    $playwrightOutput = Get-Content -Raw -Encoding UTF8 -LiteralPath $playwrightStdout
+    $correlationMatch = [regex]::Match($playwrightOutput, '(?m)^F011_REQUEST_IDS=(?<json>\{[^\r\n]+\})$')
+    if (-not $correlationMatch.Success) {
+        throw 'Playwright output did not contain the F011 request correlation marker.'
+    }
+    $correlation = $correlationMatch.Groups['json'].Value | ConvertFrom-Json
+    $correlationProperties = @('create', 'submit', 'approve', 'monthlySummary')
+    $correlationIds = @($correlationProperties | ForEach-Object {
+            $value = [string]$correlation.$_
+            if ($value -notmatch '^[0-9a-f-]{36}$') {
+                throw "Invalid F011 request correlation ID for $_."
+            }
+            $value
+        })
+    if (@($correlationIds | Select-Object -Unique).Count -ne $correlationIds.Count) {
+        throw 'F011 request correlation IDs must be distinct per operation.'
+    }
+    foreach ($correlationId in $correlationIds) {
+        $escapedCorrelationId = [regex]::Escape($correlationId)
+        if (-not [regex]::IsMatch($backendLogContent,
+                "(?m)^.*event=request.completed requestId=$escapedCorrelationId.*status=\d+ durationMs=\d+.*$")) {
+            throw "Backend log did not contain completion for F011 request $correlationId."
+        }
+    }
+    Write-Host '==> Verify Oracle persisted the fixed monthly-summary E2E dataset'
+    Invoke-OracleSqlPlus -Environment $oracleEnvironment -Path $verifyPath `
         -WorkingDirectory $backendDir
 }
 catch {

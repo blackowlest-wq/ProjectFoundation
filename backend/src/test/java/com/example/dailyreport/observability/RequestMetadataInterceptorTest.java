@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.dailyreport.auth.AuthenticatedUser;
 import com.example.dailyreport.auth.AuthController;
 import com.example.dailyreport.master.MasterController;
+import com.example.dailyreport.monthlysummary.MonthlySummaryController;
 import com.example.dailyreport.report.DailyReportApprovalService;
 import com.example.dailyreport.report.DailyReportPendingApprovalService;
 import com.example.dailyreport.report.controller.DailyReportApprovalController;
@@ -98,6 +99,21 @@ class RequestMetadataInterceptorTest {
         assertThat(authRequest.getAttribute(RequestContext.USE_CASE_ATTRIBUTE)).isEqualTo("LOGIN");
         assertThat(masterRequest.getAttribute(RequestContext.FEATURE_ATTRIBUTE)).isEqualTo("MASTER");
         assertThat(masterRequest.getAttribute(RequestContext.USE_CASE_ATTRIBUTE)).isEqualTo("PROJECTS");
+    }
+
+    @Test
+    void resolvesMonthlySummaryMetadataForMvcAndSecurityPaths() throws Exception {
+        RequestMetadataInterceptor interceptor = new RequestMetadataInterceptor();
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/monthly-summaries");
+        MonthlySummaryController controller = new MonthlySummaryController(null);
+
+        interceptor.preHandle(request, new MockHttpServletResponse(), new HandlerMethod(controller,
+                MonthlySummaryController.class.getMethod("monthlySummary", String.class, AuthenticatedUser.class)));
+
+        assertThat(request.getAttribute(RequestContext.FEATURE_ATTRIBUTE)).isEqualTo("MONTHLY_SUMMARY");
+        assertThat(request.getAttribute(RequestContext.USE_CASE_ATTRIBUTE)).isEqualTo("MONTHLY_SUMMARY");
+        assertThat(RequestContext.featureForPath("/api/monthly-summaries")).isEqualTo("MONTHLY_SUMMARY");
+        assertThat(RequestContext.useCaseForPath("GET", "/api/monthly-summaries")).isEqualTo("MONTHLY_SUMMARY");
     }
 
     @Test

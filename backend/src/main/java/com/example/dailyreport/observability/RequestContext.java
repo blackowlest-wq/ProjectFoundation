@@ -29,7 +29,8 @@ public final class RequestContext {
             route("POST", "/api/daily-reports/[^/]+/reject", "REJECT"),
             route("GET", "/api/master/projects", "PROJECTS"),
             route("GET", "/api/master/work-categories", "WORK_CATEGORIES"),
-            route("GET", "/api/master/holiday-types", "HOLIDAY_TYPES"));
+            route("GET", "/api/master/holiday-types", "HOLIDAY_TYPES"),
+            route("GET", "/api/monthly-summaries", "MONTHLY_SUMMARY"));
 
     private RequestContext() {
     }
@@ -55,6 +56,9 @@ public final class RequestContext {
         }
         if (path.startsWith("/api/master")) {
             return "MASTER";
+        }
+        if (path.startsWith("/api/monthly-summaries")) {
+            return "MONTHLY_SUMMARY";
         }
         return UNKNOWN;
     }

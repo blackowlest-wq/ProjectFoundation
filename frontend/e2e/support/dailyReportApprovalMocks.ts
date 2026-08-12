@@ -94,6 +94,17 @@ export async function mockApprovalApis(page: Page, options: ApprovalMockOptions 
       },
     });
   });
+  await page.route('**/api/monthly-summaries**', async (route) => {
+    await route.fulfill({
+      json: {
+        yearMonth: '2026-07',
+        employeeWorkSummaries: [],
+        projectWorkSummaries: [],
+        categoryWorkSummaries: [],
+        holidayTypeSummaries: [],
+      },
+    });
+  });
   await page.route('**/api/master/projects', async (route) => {
     await route.fulfill({ json: [{ projectId: 'P001', projectName: 'プロジェクトA' }] });
   });
