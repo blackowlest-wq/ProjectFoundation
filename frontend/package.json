@@ -8,7 +8,7 @@
     "check:test-layout": "pwsh -NoProfile -ExecutionPolicy Bypass -File ../scripts/check-test-layout.ps1",
     "pretest": "npm run check:test-layout",
     "precoverage": "npm run check:test-layout",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
+    "lint": "node scripts/frontend-lint.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",

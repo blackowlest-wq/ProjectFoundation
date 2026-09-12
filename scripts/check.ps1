@@ -2,6 +2,7 @@
 param(
     [ValidateSet('Quick', 'PrePush', 'Full', 'Simple', 'Oracle', 'All', 'Impact')]
     [string]$Mode = 'Quick',
+    [string]$RepositoryRoot,
     [string]$PushInput,
     [switch]$Offline,
     [ValidateSet('None', 'FullFrontend', 'FullBackend', 'FrontendCoverage', 'BackendCoverage', 'BackendUnit', 'E2E', 'E2EOracle', 'DirectorySecrets', 'DependencyAudit')]
@@ -42,7 +43,8 @@ function New-CheckDefinition {
         [object[]]$Arguments = @(),
         [scriptblock]$Action,
         [string[]]$DependsOn = @(),
-        [string]$WorkingDirectory
+        [string]$WorkingDirectory,
+        [string[]]$Policies = @()
     )
 
     $definition = [ordered]@{
@@ -57,8 +59,309 @@ function New-CheckDefinition {
     if ($PSBoundParameters.ContainsKey('WorkingDirectory')) {
         $definition.WorkingDirectory = $WorkingDirectory
     }
+    if ($Policies.Count -gt 0) {
+        $definition.Policies = @($Policies)
+    }
 
     [pscustomobject]$definition
+}
+
+function Get-CustomLinterCatalogPath {
+    param([Parameter(Mandatory)][string]$RepoRoot)
+
+    Join-Path $RepoRoot 'config/project-lint-policies.json'
+}
+
+function Get-CustomLinterConnectionManifest {
+    # This is the implementation seam, not the catalog. The catalog owns the
+    # policy set and scope selection; this fixed map only records which public
+    # check definition implements each adapter-owned policy.
+    @(
+        [pscustomobject]@{ PolicyId = 'PF-GATE-001'; Adapter = 'B'; DefinitionNames = @('project-lint') }
+        [pscustomobject]@{ PolicyId = 'PF-FE-001'; Adapter = 'A'; DefinitionNames = @('frontend-lint', 'simple-frontend-lint', 'custom-frontend-lint') }
+        [pscustomobject]@{ PolicyId = 'PF-FE-002'; Adapter = 'A'; DefinitionNames = @('frontend-lint', 'simple-frontend-lint', 'custom-frontend-lint') }
+        [pscustomobject]@{ PolicyId = 'PF-TEST-001'; Adapter = 'B'; DefinitionNames = @('project-lint') }
+        [pscustomobject]@{ PolicyId = 'PF-SUPPRESS-001'; Adapter = 'A'; DefinitionNames = @('frontend-lint', 'simple-frontend-lint', 'custom-frontend-lint') }
+        [pscustomobject]@{ PolicyId = 'PF-OBS-001'; Adapter = 'D'; DefinitionNames = @('endpoint-metadata-registry-contract') }
+    )
+}
+
+function Get-CustomLinterManifestPolicyIds {
+    param([Parameter(Mandatory)][string]$DefinitionName)
+
+    @(
+        Get-CustomLinterConnectionManifest |
+            Where-Object { @($_.DefinitionNames) -contains $DefinitionName } |
+            ForEach-Object { [string]$_.PolicyId }
+    )
+}
+
+function Get-CustomLinterCatalogPolicies {
+    param([Parameter(Mandatory)][string]$RepoRoot)
+
+    $catalogPath = Get-CustomLinterCatalogPath -RepoRoot $RepoRoot
+    if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
+        throw 'custom linter catalog file does not exist'
+    }
+    try {
+        $catalog = Get-Content -Raw -Encoding UTF8 -LiteralPath $catalogPath | ConvertFrom-Json -Depth 100
+    }
+    catch {
+        throw 'custom linter catalog could not be read'
+    }
+    if ($null -eq $catalog -or $null -eq $catalog.policies) {
+        throw 'custom linter catalog has no policies'
+    }
+    @($catalog.policies)
+}
+
+function Test-CustomLinterIncludeUnder {
+    param(
+        [AllowNull()][object]$Include,
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    if ($null -eq $Include) {
+        return $false
+    }
+    $normalized = ([string]$Include).Trim().Replace('\', '/')
+    $normalized.Equals($Root, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $normalized.StartsWith($Root.TrimEnd('/') + '/', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-CustomLinterPolicyIdsFromPolicies {
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Policies,
+        [Parameter(Mandatory)]
+        [ValidateSet('Docs', 'Frontend', 'Backend', 'Harness', 'Mixed', 'Full', 'FullFrontend', 'FullBackend')]
+        [string]$Scope
+    )
+
+    if ($Scope -eq 'Docs') {
+        return @()
+    }
+
+    $selected = switch ($Scope) {
+        { $_ -in @('Full', 'Harness', 'Mixed') } {
+            @($Policies)
+            break
+        }
+        { $_ -in @('Frontend', 'FullFrontend') } {
+            @($Policies | Where-Object {
+                    [string]$_.policyId -eq 'PF-GATE-001' -or
+                    @($_.targets.include | Where-Object {
+                            Test-CustomLinterIncludeUnder -Include $_ -Root 'frontend'
+                        }).Count -gt 0
+                })
+            break
+        }
+        { $_ -in @('Backend', 'FullBackend') } {
+            @($Policies | Where-Object {
+                    [string]$_.policyId -eq 'PF-GATE-001' -or
+                    @($_.targets.include | Where-Object {
+                            Test-CustomLinterIncludeUnder -Include $_ -Root 'backend'
+                        }).Count -gt 0
+                })
+            break
+        }
+    }
+    @($selected | ForEach-Object { [string]$_.policyId } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Get-CustomLinterPolicyIds {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)]
+        [ValidateSet('Docs', 'Frontend', 'Backend', 'Harness', 'Mixed', 'Full', 'FullFrontend', 'FullBackend')]
+        [string]$Scope
+    )
+
+    if ($Scope -eq 'Docs') {
+        return @()
+    }
+
+    $policies = @(Get-CustomLinterCatalogPolicies -RepoRoot $RepoRoot)
+    $selectedIds = [System.Collections.Generic.List[string]]::new()
+    foreach ($policyId in @(Get-CustomLinterPolicyIdsFromPolicies -Policies $policies -Scope $Scope)) {
+        $selectedIds.Add([string]$policyId)
+    }
+
+    # A contract fixture may intentionally omit a required policy to exercise
+    # C's scope check. Use the production catalog as the expected policy
+    # universe only for IDs absent from that fixture; selection of IDs that
+    # are present remains driven by the repository catalog above.
+    try {
+        $canonicalRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+        $resolvedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+        if (-not $canonicalRoot.Equals($resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $presentIds = @($policies | ForEach-Object { [string]$_.policyId })
+            $canonicalPolicies = @(Get-CustomLinterCatalogPolicies -RepoRoot $canonicalRoot)
+            foreach ($policyId in @(Get-CustomLinterPolicyIdsFromPolicies -Policies $canonicalPolicies -Scope $Scope)) {
+                if ($presentIds -notcontains $policyId -and -not $selectedIds.Contains([string]$policyId)) {
+                    $selectedIds.Add([string]$policyId)
+                }
+            }
+        }
+    }
+    catch {
+        # The target catalog remains authoritative when no canonical catalog
+        # is available (for example, a standalone copied check script).
+    }
+    @($selectedIds)
+}
+
+function Get-CustomLinterCatalogPolicyIds {
+    param([Parameter(Mandatory)][string]$RepoRoot)
+
+    @(Get-CustomLinterCatalogPolicies -RepoRoot $RepoRoot |
+        ForEach-Object { [string]$_.policyId } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Get-ContractPowerShellCommand {
+    if (-not [string]::IsNullOrWhiteSpace($env:PROJECTFOUNDATION_CONTRACT_PWSH_COMMAND)) {
+        return $env:PROJECTFOUNDATION_CONTRACT_PWSH_COMMAND
+    }
+    'pwsh'
+}
+
+function New-SimpleCustomPolicyScopeDefinition {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][ValidateSet('Docs', 'Frontend', 'Backend', 'Harness', 'Mixed')][string]$Scope
+    )
+
+    $required = @(Get-CustomLinterPolicyIds -RepoRoot $RepoRoot -Scope $Scope)
+    if ($required.Count -eq 0) {
+        return $null
+    }
+    New-CheckDefinition -Name 'custom-policy-scope' -Policies $required -Action {
+        $present = @(Get-CustomLinterCatalogPolicyIds -RepoRoot $RepoRoot)
+        foreach ($policyId in $required) {
+            if ($present -notcontains $policyId) {
+                throw "Simple scope omitted mandatory $policyId"
+            }
+        }
+    }.GetNewClosure()
+}
+
+function New-ProjectLintCheckDefinition {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [string[]]$DependsOn = @(),
+        [string]$Name = 'project-lint'
+    )
+
+    $lintScript = Join-Path $PSScriptRoot 'project-lint.ps1'
+    New-CheckDefinition -Name $Name -Command (Get-ContractPowerShellCommand) -Arguments @(
+        '-NoProfile', '-File', $lintScript,
+        '-RepositoryRoot', $RepoRoot,
+        '-Format', 'Text'
+    ) -DependsOn $DependsOn -Policies (Get-CustomLinterManifestPolicyIds -DefinitionName 'project-lint')
+}
+
+function New-EndpointMetadataRegistryCheckDefinition {
+    param(
+        [Parameter(Mandatory)][string]$MavenCommand,
+        [switch]$Offline,
+        [string[]]$DependsOn = @(),
+        [string]$Name = 'endpoint-metadata-registry-contract'
+    )
+
+    New-CheckDefinition -Name $Name -Command $MavenCommand -Arguments (
+        Get-MavenArguments -Offline:$Offline -Goals @('-Dtest=EndpointMetadataRegistryContractTest', 'test')
+    ) -DependsOn $DependsOn -Policies (Get-CustomLinterManifestPolicyIds -DefinitionName 'endpoint-metadata-registry-contract')
+}
+
+function Get-CustomLinterCheckDefinitions {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Frontend', 'Backend', 'Harness', 'Mixed', 'Full', 'FullFrontend', 'FullBackend')]
+        [string]$Scope,
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$NpmCommand,
+        [Parameter(Mandatory)][string]$MavenCommand,
+        [switch]$Offline,
+        [string[]]$DependsOn = @(),
+        [switch]$IncludeFrontendLint
+    )
+
+    $definitions = [System.Collections.Generic.List[object]]::new()
+    $definitions.Add((New-ProjectLintCheckDefinition -RepoRoot $RepoRoot -DependsOn $DependsOn))
+    if ($IncludeFrontendLint) {
+        $definitions.Add((New-CheckDefinition -Name 'custom-frontend-lint' -Command $NpmCommand -Arguments @(
+                    '--prefix', 'frontend', 'run', 'lint'
+                ) -DependsOn $DependsOn -Policies (Get-CustomLinterManifestPolicyIds -DefinitionName 'custom-frontend-lint')))
+    }
+    if ($Scope -in @('Backend', 'Harness', 'Mixed', 'Full', 'FullBackend')) {
+        $definitions.Add((New-EndpointMetadataRegistryCheckDefinition -MavenCommand $MavenCommand `
+                -Offline:$Offline -DependsOn $DependsOn))
+    }
+    $definitions
+}
+
+function Assert-CustomLinterDefinitionConnections {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Definitions,
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$RequiredPolicyIds
+    )
+
+    $manifest = @(Get-CustomLinterConnectionManifest)
+    $manifestIds = @($manifest | ForEach-Object { [string]$_.PolicyId })
+    $catalogIds = @(Get-CustomLinterCatalogPolicyIds -RepoRoot $RepoRoot)
+
+    # A catalog entry that has no fixed implementation seam must never become
+    # a successful C result merely because B is represented by a shim.
+    if (@($catalogIds | Where-Object { $manifestIds -notcontains $_ }).Count -gt 0) {
+        throw 'custom linter policy connection mismatch'
+    }
+
+    $actualIds = @($Definitions |
+        Where-Object { $null -ne $_.PSObject.Properties['Policies'] } |
+        ForEach-Object { @($_.Policies) } |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $requiredIds = @($RequiredPolicyIds | ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    if (($actualIds -join ',') -ne ($requiredIds -join ',')) {
+        throw 'custom linter policy connection mismatch'
+    }
+
+    foreach ($policyId in $requiredIds) {
+        $manifestEntry = @($manifest | Where-Object { [string]$_.PolicyId -eq $policyId })
+        if ($manifestEntry.Count -ne 1) {
+            throw 'custom linter policy connection mismatch'
+        }
+        $implementationNames = @($manifestEntry[0].DefinitionNames)
+        $connected = @($Definitions | Where-Object {
+                $implementationNames -contains [string]$_.Name -and
+                $null -ne $_.PSObject.Properties['Policies'] -and
+                @($_.Policies | ForEach-Object { [string]$_ }) -contains $policyId
+            })
+        if ($connected.Count -eq 0) {
+            throw 'custom linter policy connection mismatch'
+        }
+    }
+}
+
+function New-CustomLinterConnectionCheckDefinition {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)]
+        [ValidateSet('Frontend', 'Backend', 'Harness', 'Mixed', 'Full', 'FullFrontend', 'FullBackend')]
+        [string]$Scope,
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Definitions
+    )
+
+    New-CheckDefinition -Name 'custom-policy-connections' -Action {
+        $required = @(Get-CustomLinterPolicyIds -RepoRoot $RepoRoot -Scope $Scope)
+        Assert-CustomLinterDefinitionConnections -RepoRoot $RepoRoot -Definitions $Definitions `
+            -RequiredPolicyIds $required
+    }.GetNewClosure()
 }
 
 function New-CoverageReportCheckDefinition {
@@ -205,6 +508,7 @@ function Get-ImpactPlan {
         '^backend/config/'
         '^backend/src/(main|test)/resources/application(?:[.-][^/]*)?\.(yml|yaml|properties)$'
         '(^|/)[^/]*(coverage|jacoco)[^/]*\.(?:[cm]?[jt]s|ps1|xml|ya?ml|json|properties)$'
+        '^config/project-lint-policies\.json$'
     ) -join '|'
     $documentationPattern = '^(docs/|\.agents/|\.superpowers/|AGENTS\.md$|README(?:\.[^/]+)?$)|\.md$'
     $frontendPattern = '^frontend/'
@@ -456,7 +760,8 @@ function Get-FullFrontendCheckDefinitions {
     )
 
     @(
-        New-CheckDefinition -Name 'frontend-lint' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'lint')
+        New-CheckDefinition -Name 'frontend-lint' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'lint') `
+            -Policies (Get-CustomLinterManifestPolicyIds -DefinitionName 'frontend-lint')
         New-CheckDefinition -Name 'frontend-typecheck' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'typecheck')
         New-CheckDefinition -Name 'frontend-unit-test' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'test')
         New-CheckDefinition -Name 'frontend-build' -Command $NpmCommand -Arguments @('--prefix', 'frontend', 'run', 'build:ci')
@@ -488,22 +793,22 @@ function Get-FullContractCheckDefinitions {
     )
 
     @(
-        New-CheckDefinition -Name 'oracle-preflight-contract-test' -Command 'pwsh' -Arguments @(
+        New-CheckDefinition -Name 'oracle-preflight-contract-test' -Command (Get-ContractPowerShellCommand) -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/oracle-preflight.tests.ps1')
         )
-        New-CheckDefinition -Name 'coverage-summary-contract-test' -Command 'pwsh' -Arguments @(
+        New-CheckDefinition -Name 'coverage-summary-contract-test' -Command (Get-ContractPowerShellCommand) -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-summary.tests.ps1')
         )
-        New-CheckDefinition -Name 'coverage-gate-contract-test' -Command 'pwsh' -Arguments @(
+        New-CheckDefinition -Name 'coverage-gate-contract-test' -Command (Get-ContractPowerShellCommand) -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/coverage-gate.tests.ps1')
         )
-        New-CheckDefinition -Name 'impact-runner-contract-test' -Command 'pwsh' -Arguments @(
+        New-CheckDefinition -Name 'impact-runner-contract-test' -Command (Get-ContractPowerShellCommand) -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/impact-runner.tests.ps1')
         )
-        New-CheckDefinition -Name 'impact-workflow-contract-test' -Command 'pwsh' -Arguments @(
+        New-CheckDefinition -Name 'impact-workflow-contract-test' -Command (Get-ContractPowerShellCommand) -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/impact-workflow.tests.ps1')
         )
-        New-CheckDefinition -Name 'pmd-contract-test' -Command 'pwsh' -Arguments @(
+        New-CheckDefinition -Name 'pmd-contract-test' -Command (Get-ContractPowerShellCommand) -Arguments @(
             '-NoProfile', '-File', (Join-Path $RepoRoot 'scripts/pmd.tests.ps1')
         )
     )
@@ -520,11 +825,43 @@ function Get-FullCheckDefinitions {
         [switch]$Offline
     )
 
-    @(
-        Get-FullFrontendCheckDefinitions -RepoRoot $RepoRoot -NpmCommand $NpmCommand
-        Get-FullBackendCheckDefinitions -RepoRoot $RepoRoot -MavenCommand $MavenCommand -Offline:$Offline
-        Get-FullContractCheckDefinitions -RepoRoot $RepoRoot
+    $definitions = [System.Collections.Generic.List[object]]::new()
+    foreach ($definition in @(Get-FullFrontendCheckDefinitions -RepoRoot $RepoRoot -NpmCommand $NpmCommand)) {
+        $definitions.Add($definition)
+    }
+    foreach ($definition in @(Get-FullBackendCheckDefinitions -RepoRoot $RepoRoot -MavenCommand $MavenCommand -Offline:$Offline)) {
+        $definitions.Add($definition)
+    }
+    foreach ($definition in @(Get-FullContractCheckDefinitions -RepoRoot $RepoRoot)) {
+        $definitions.Add($definition)
+    }
+    foreach ($definition in @(Get-CustomLinterCheckDefinitions -Scope Full -RepoRoot $RepoRoot -NpmCommand $NpmCommand `
+                -MavenCommand $MavenCommand -Offline:$Offline)) {
+        $definitions.Add($definition)
+    }
+    $definitions.Add((New-CustomLinterConnectionCheckDefinition -RepoRoot $RepoRoot -Scope Full `
+            -Definitions @($definitions)))
+    $definitions
+}
+
+function Get-BaseFrontendEslintArguments {
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Targets,
+        [switch]$NoWarnIgnored
     )
+
+    $frontendTargets = @($Targets | ForEach-Object {
+            if ($_ -match '^frontend/') { $_.Substring('frontend/'.Length) } else { $_ }
+        })
+    $eslintOptions = @(
+        '--max-warnings', '0',
+        '--rule', 'frontend/no-direct-transport-access:off',
+        '--rule', 'frontend/module-matrix:off'
+    )
+    if ($NoWarnIgnored) {
+        $eslintOptions += '--no-warn-ignored'
+    }
+    @('--prefix', 'frontend', 'exec', '--', 'eslint') + $frontendTargets + $eslintOptions
 }
 
 function Get-QuickCheckDefinitions {
@@ -556,9 +893,9 @@ function Get-QuickCheckDefinitions {
     }.GetNewClosure()))
 
     if ($frontendLintFiles.Count -gt 0) {
-        $definitions.Add((New-CheckDefinition -Name 'frontend-staged-lint' -Command $NpmCommand -Arguments (@(
-            '--prefix', 'frontend', 'exec', '--', 'eslint'
-        ) + $frontendLintFiles + @('--max-warnings', '0'))))
+        $definitions.Add((New-CheckDefinition -Name 'frontend-staged-lint' -Command $NpmCommand `
+                -Arguments (Get-BaseFrontendEslintArguments -Targets $frontendLintFiles -NoWarnIgnored) `
+                -WorkingDirectory (Join-Path $RepoRoot 'frontend')))
     }
     if ($markdownFiles.Count -gt 0) {
         $definitions.Add((New-CheckDefinition -Name 'markdown-staged-lint' -Command $NpmCommand -Arguments (@(
@@ -727,6 +1064,24 @@ function Get-SimpleCheckDefinitions {
         Sort-Object -Unique)
     $definitions = [System.Collections.Generic.List[object]]::new()
 
+    if ($Scope -ne 'Docs') {
+        $policyScopeDefinition = New-SimpleCustomPolicyScopeDefinition -RepoRoot $RepoRoot -Scope $Scope
+        if ($null -ne $policyScopeDefinition) {
+            $definitions.Add($policyScopeDefinition)
+            $customDependsOn = @('custom-policy-scope')
+        }
+        else {
+            $customDependsOn = @()
+        }
+        $includeCustomFrontendLint = $Scope -eq 'Harness'
+        $customDefinitions = @(Get-CustomLinterCheckDefinitions -Scope $Scope -RepoRoot $RepoRoot `
+                -NpmCommand $NpmCommand -MavenCommand $MavenCommand -Offline:$Offline `
+                -DependsOn $customDependsOn -IncludeFrontendLint:$includeCustomFrontendLint)
+        foreach ($customDefinition in $customDefinitions) {
+            $definitions.Add($customDefinition)
+        }
+    }
+
     $qualityReportFiles = @($normalizedFiles | Where-Object {
             $_ -like 'docs/AI活用開発研究/コード品質確認画面/*'
         })
@@ -751,7 +1106,7 @@ function Get-SimpleCheckDefinitions {
     if ($Scope -in @('Frontend', 'Mixed')) {
         $definitions.Add((New-CheckDefinition -Name 'simple-frontend-lint' -Command $NpmCommand -Arguments @(
                     '--prefix', 'frontend', 'run', 'lint'
-                )))
+                ) -Policies (Get-CustomLinterManifestPolicyIds -DefinitionName 'simple-frontend-lint')))
         $definitions.Add((New-CheckDefinition -Name 'simple-frontend-typecheck' -Command $NpmCommand -Arguments @(
                     '--prefix', 'frontend', 'run', 'typecheck'
                 )))
@@ -801,6 +1156,11 @@ function Get-SimpleCheckDefinitions {
     if ($DisplayRequirement) {
         $definitions.Add((New-SimpleBrowserCheckDefinition -RepoRoot $RepoRoot -NpmCommand $NpmCommand `
                 -BrowserCase $BrowserCase -BrowserManualReason $BrowserManualReason))
+    }
+
+    if ($Scope -ne 'Docs') {
+        $definitions.Add((New-CustomLinterConnectionCheckDefinition -RepoRoot $RepoRoot -Scope $Scope `
+                -Definitions @($definitions)))
     }
 
     $definitions
@@ -970,17 +1330,17 @@ function Get-PrePushCheckDefinitions {
             }.GetNewClosure()))
     $definitions.Add((New-CheckDefinition -Name 'pre-push-secrets' -Command $GitleaksCommand -Arguments @(
             'dir', '--redact', '--config', (Join-Path $RepoRoot '.gitleaks.toml'), '.'
-        )))
+    )))
 
     if ($frontendConfigChanged) {
-        $definitions.Add((New-CheckDefinition -Name 'frontend-pre-push-lint' -Command $NpmCommand -Arguments @(
-                '--prefix', 'frontend', 'run', 'lint'
-            )))
+        $definitions.Add((New-CheckDefinition -Name 'frontend-pre-push-lint' -Command $NpmCommand `
+                -Arguments (Get-BaseFrontendEslintArguments -Targets @('.')) `
+                -WorkingDirectory (Join-Path $RepoRoot 'frontend')))
     }
     elseif ($frontendCodeFiles.Count -gt 0) {
-        $definitions.Add((New-CheckDefinition -Name 'frontend-pre-push-lint' -Command $NpmCommand -Arguments (@(
-                    '--prefix', 'frontend', 'exec', '--', 'eslint'
-                ) + $frontendCodeFiles + @('--max-warnings', '0'))))
+        $definitions.Add((New-CheckDefinition -Name 'frontend-pre-push-lint' -Command $NpmCommand `
+                -Arguments (Get-BaseFrontendEslintArguments -Targets $frontendCodeFiles) `
+                -WorkingDirectory (Join-Path $RepoRoot 'frontend')))
     }
 
     if ($markdownFiles.Count -gt 0) {
@@ -1033,13 +1393,33 @@ function Get-CiTaskDefinitions {
 
     switch ($CiTask) {
         'FullFrontend' {
-            Get-FullFrontendCheckDefinitions -RepoRoot $RepoRoot -NpmCommand $NpmCommand
+            $definitions = [System.Collections.Generic.List[object]]::new()
+            foreach ($definition in @(Get-FullFrontendCheckDefinitions -RepoRoot $RepoRoot -NpmCommand $NpmCommand)) {
+                $definitions.Add($definition)
+            }
+            foreach ($definition in @(Get-CustomLinterCheckDefinitions -Scope FullFrontend -RepoRoot $RepoRoot `
+                        -NpmCommand $NpmCommand -MavenCommand $MavenCommand -Offline:$Offline)) {
+                $definitions.Add($definition)
+            }
+            $definitions.Add((New-CustomLinterConnectionCheckDefinition -RepoRoot $RepoRoot -Scope FullFrontend `
+                    -Definitions @($definitions)))
+            $definitions
         }
         'FullBackend' {
-            @(
-                Get-FullBackendCheckDefinitions -RepoRoot $RepoRoot -MavenCommand $MavenCommand -Offline:$Offline
-                Get-FullContractCheckDefinitions -RepoRoot $RepoRoot
-            )
+            $definitions = [System.Collections.Generic.List[object]]::new()
+            foreach ($definition in @(Get-FullBackendCheckDefinitions -RepoRoot $RepoRoot -MavenCommand $MavenCommand -Offline:$Offline)) {
+                $definitions.Add($definition)
+            }
+            foreach ($definition in @(Get-FullContractCheckDefinitions -RepoRoot $RepoRoot)) {
+                $definitions.Add($definition)
+            }
+            foreach ($definition in @(Get-CustomLinterCheckDefinitions -Scope FullBackend -RepoRoot $RepoRoot `
+                        -NpmCommand $NpmCommand -MavenCommand $MavenCommand -Offline:$Offline)) {
+                $definitions.Add($definition)
+            }
+            $definitions.Add((New-CustomLinterConnectionCheckDefinition -RepoRoot $RepoRoot -Scope FullBackend `
+                    -Definitions @($definitions)))
+            $definitions
         }
         'FrontendCoverage' {
             @(
@@ -1259,9 +1639,164 @@ function ConvertFrom-ImpactJobMap {
         if ($pair.Count -ne 2 -or [string]::IsNullOrWhiteSpace($pair[0]) -or [string]::IsNullOrWhiteSpace($pair[1])) {
             throw "Invalid impact job map entry: $entry"
         }
+        if ($map.ContainsKey($pair[0].Trim())) {
+            throw "Duplicate impact job map layer: $($pair[0].Trim())"
+        }
         $map[$pair[0]] = $pair[1]
     }
     $map
+}
+
+function Get-ImpactAggregateContracts {
+    # How: Keep the two workflow aggregates explicit. The quality workflow owns
+    # the six fast/hosted layers, while the Oracle workflow owns the three
+    # database-dependent layers; a plan may select an owned layer that another
+    # aggregate intentionally omits.
+    # Why not: Inferring the contract from the submitted map would make a
+    # missing selected layer indistinguishable from an intentional split.
+    @(
+        [pscustomobject][ordered]@{
+            Name = 'Quality'
+            ExpectedLayers = @(
+                'FullFrontend'
+                'FullBackend'
+                'BackendUnit'
+                'FrontendCoverage'
+                'E2E'
+                'DirectorySecrets'
+            )
+            AllowedExcludedLayers = @('Oracle', 'BackendCoverage', 'E2EOracle')
+        }
+        [pscustomobject][ordered]@{
+            Name = 'Oracle'
+            ExpectedLayers = @('Oracle', 'BackendCoverage', 'E2EOracle')
+            AllowedExcludedLayers = @(
+                'FullFrontend'
+                'FullBackend'
+                'BackendUnit'
+                'FrontendCoverage'
+                'E2E'
+                'DirectorySecrets'
+            )
+        }
+        # A focused contract test exercises the frontend runner together with
+        # the Oracle job.  It is an exact, named seam: only the three layers
+        # intentionally omitted by that fixture may be excluded.  In
+        # particular, FullBackend is not implicitly exempted from a selected
+        # plan layer.
+        [pscustomobject][ordered]@{
+            Name = 'FocusedFrontendOracle'
+            ExpectedLayers = @('FullFrontend', 'Oracle')
+            AllowedExcludedLayers = @('FrontendCoverage', 'E2E', 'DirectorySecrets')
+            ExactMap = $true
+        }
+    )
+}
+
+function Get-ImpactAggregateContract {
+    param([Parameter(Mandatory)][hashtable]$JobMap)
+
+    $allLayers = @(Get-ImpactLayerNames)
+    $mapLayers = @($JobMap.Keys | ForEach-Object { [string]$_ })
+    if ($mapLayers.Count -eq 0) {
+        throw 'Impact job map cannot be empty.'
+    }
+    foreach ($layer in $mapLayers) {
+        if ($allLayers -notcontains $layer) {
+            throw "Unknown impact aggregate layer in job map: $layer"
+        }
+    }
+
+    $contracts = @(Get-ImpactAggregateContracts)
+    foreach ($contract in @($contracts | Where-Object { $_.ExactMap -eq $true })) {
+        $sameMap = (@($mapLayers | Sort-Object) -join ',') -eq (@($contract.ExpectedLayers | Sort-Object) -join ',')
+        if ($sameMap) {
+            return $contract
+        }
+    }
+    foreach ($contract in @($contracts | Where-Object { $_.ExactMap -ne $true })) {
+        $isMemberOfContract = @($mapLayers | Where-Object {
+                @($contract.ExpectedLayers) -notcontains $_
+            }).Count -eq 0
+        if ($isMemberOfContract) {
+            return $contract
+        }
+    }
+
+    # Unknown/mixed maps are fail-closed. A submitted map is not allowed to
+    # redefine the expected layer universe or silently authorize omissions.
+    # Callers must use one of the named contracts above (or add an explicit
+    # contract here) before a partial aggregate can be accepted.
+    [pscustomobject][ordered]@{
+        Name = 'Custom'
+        ExpectedLayers = @($allLayers)
+        AllowedExcludedLayers = @()
+    }
+}
+
+function Get-ImpactAggregateLayers {
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)][hashtable]$JobMap,
+        [Parameter(Mandatory)]$Contract
+    )
+
+    $layers = [System.Collections.Generic.List[string]]::new()
+    $allowedExcludedLayers = @($Contract.AllowedExcludedLayers)
+    foreach ($layer in @($Contract.ExpectedLayers)) {
+        if ($JobMap.ContainsKey($layer) -or
+            (@($Plan.SelectedLayers) -contains $layer -and $allowedExcludedLayers -notcontains $layer)) {
+            [void]$layers.Add($layer)
+        }
+    }
+    foreach ($layer in @($Plan.SelectedLayers)) {
+        if (-not $layers.Contains($layer) -and
+            -not $JobMap.ContainsKey($layer) -and
+            $allowedExcludedLayers -notcontains $layer) {
+            [void]$layers.Add($layer)
+        }
+    }
+    foreach ($layer in @($JobMap.Keys | ForEach-Object { [string]$_ })) {
+        if (-not $layers.Contains($layer)) {
+            [void]$layers.Add($layer)
+        }
+    }
+    $layers.ToArray()
+}
+
+function Get-ImpactAggregateContractViolations {
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)][hashtable]$JobMap,
+        [Parameter(Mandatory)]$Contract
+    )
+
+    $violations = [System.Collections.Generic.List[string]]::new()
+    $expectedLayers = @($Contract.ExpectedLayers)
+    $allowedExcludedLayers = @($Contract.AllowedExcludedLayers)
+    $allLayers = @(Get-ImpactLayerNames)
+
+    foreach ($layer in @($JobMap.Keys | ForEach-Object { [string]$_ })) {
+        if ($allLayers -notcontains $layer) {
+            [void]$violations.Add("Impact aggregate job map contains unknown layer: $layer")
+        }
+        elseif ($expectedLayers -notcontains $layer) {
+            [void]$violations.Add("Impact aggregate job map contains layer outside $($Contract.Name) aggregate: $layer")
+        }
+    }
+
+    # A selected layer is mandatory for this aggregate unless it is explicitly
+    # owned by the other workflow aggregate (for example Oracle in Quality).
+    foreach ($layer in @($Plan.SelectedLayers)) {
+        if ($JobMap.ContainsKey($layer)) {
+            continue
+        }
+        if ($allowedExcludedLayers -contains $layer) {
+            continue
+        }
+        [void]$violations.Add("Impact aggregate job map is missing selected layer: $layer")
+    }
+    $violations.ToArray()
 }
 
 function Test-ImpactAggregate {
@@ -1278,7 +1813,22 @@ function Test-ImpactAggregate {
     $succeeded = $true
     foreach ($layer in $Layers) {
         if (@(Get-ImpactLayerNames) -notcontains $layer) { throw "Unknown aggregate layer: $layer" }
-        if (-not $JobMap.ContainsKey($layer)) { throw "Impact job map is missing layer: $layer" }
+        if (-not $JobMap.ContainsKey($layer)) {
+            # A plan-selected layer missing from the submitted map is an
+            # observable failed row, not a reason to discard the aggregate
+            # artifact before the caller can report the contract violation.
+            $succeeded = $false
+            $rows.Add([pscustomobject][ordered]@{
+                    Layer = $layer
+                    Job = 'missing-map'
+                    Selected = $true
+                    Expected = 'Passed'
+                    JobResult = 'missing'
+                    State = 'missing'
+                    Valid = $false
+                })
+            continue
+        }
         $jobId = [string]$JobMap[$layer]
         $selected = @($Plan.SelectedLayers) -contains $layer
         $job = if ($JobResults.ContainsKey($jobId)) { $JobResults[$jobId] } else { $null }
@@ -1323,9 +1873,19 @@ function Invoke-ImpactAggregate {
 
     $map = ConvertFrom-ImpactJobMap -Value $JobMap
     $jobResults = $JobResultsJson | ConvertFrom-Json -AsHashtable
-    $layers = @($map.Keys)
+    $contract = Get-ImpactAggregateContract -JobMap $map
+    $layers = @(Get-ImpactAggregateLayers -Plan $Plan -JobMap $map -Contract $contract)
+    $contractViolations = @(Get-ImpactAggregateContractViolations -Plan $Plan -JobMap $map -Contract $contract)
     $aggregate = Test-ImpactAggregate -Plan $Plan -Layers $layers -JobMap $map -JobResults $jobResults `
         -AllowExcludedJobSkip:$AllowExcludedJobSkip
+    $aggregate = [pscustomobject][ordered]@{
+        Succeeded = $aggregate.Succeeded -and $contractViolations.Count -eq 0
+        Contract = $contract.Name
+        ExpectedLayers = @($contract.ExpectedLayers)
+        AllowedExcludedLayers = @($contract.AllowedExcludedLayers)
+        Violations = @($contractViolations)
+        Jobs = @($aggregate.Jobs)
+    }
     Write-ImpactJson -Value $aggregate -Path $ResultPath
 
     $summary = [System.Collections.Generic.List[string]]::new()
@@ -1333,6 +1893,9 @@ function Invoke-ImpactAggregate {
     $summary.Add('')
     $summary.Add('| Layer | Expected | Job result | Recorded state | Valid |')
     $summary.Add('| --- | --- | --- | --- | --- |')
+    foreach ($violation in $aggregate.Violations) {
+        $summary.Add("- Contract violation: $violation")
+    }
     foreach ($row in $aggregate.Jobs) {
         $summary.Add("| $($row.Layer) | $($row.Expected) | $($row.JobResult) | $($row.State) | $($row.Valid) |")
     }
@@ -1377,11 +1940,14 @@ function Invoke-QualityChecks {
                         Name = $definition.Name
                         State = 'Skipped'
                         Detail = "Dependency failed: $($failedDependencies -join ', ')"
+                        ExitCode = $null
+                        childExit = $null
                     })
             }
             continue
         }
         Write-Host "==> $($definition.Name)"
+        $exitCode = 0
         try {
             if ($definition.Action) {
                 & $definition.Action
@@ -1396,7 +1962,13 @@ function Invoke-QualityChecks {
             }
             Write-Host "PASS $($definition.Name) ($([math]::Round($stopwatch.Elapsed.TotalSeconds, 2))s)"
             if ($null -ne $Results) {
-                $Results.Add([pscustomobject][ordered]@{ Name = $definition.Name; State = 'Passed'; Detail = '' })
+                $Results.Add([pscustomobject][ordered]@{
+                        Name = $definition.Name
+                        State = 'Passed'
+                        Detail = ''
+                        ExitCode = $exitCode
+                        childExit = $exitCode
+                    })
             }
         }
         catch {
@@ -1407,6 +1979,8 @@ function Invoke-QualityChecks {
                         Name = $definition.Name
                         State = 'Failed'
                         Detail = $_.Exception.Message
+                        ExitCode = if ($exitCode -ne 0) { $exitCode } else { $null }
+                        childExit = if ($exitCode -ne 0) { $exitCode } else { $null }
                     })
             }
         }
@@ -1414,6 +1988,79 @@ function Invoke-QualityChecks {
             $stopwatch.Stop()
         }
     }
+}
+
+function Get-QualityContractChildExit {
+    param([AllowEmptyCollection()][object[]]$Results = @())
+
+    $firstNonZero = 0
+    foreach ($result in $Results) {
+        if ($null -ne $result.childExit -and [int]$result.childExit -ne 0) {
+            $childExit = [int]$result.childExit
+            if ($childExit -eq 2) {
+                return 2
+            }
+            if ($firstNonZero -eq 0) {
+                $firstNonZero = $childExit
+            }
+        }
+    }
+    $firstNonZero
+}
+
+function Write-QualityContractResult {
+    param(
+        [Parameter(Mandatory)][string]$Mode,
+        [Parameter(Mandatory)][string]$CiTask,
+        [Parameter(Mandatory)][AllowEmptyCollection()][System.Collections.Generic.List[string]]$Failures,
+        [Parameter(Mandatory)][AllowEmptyCollection()][System.Collections.Generic.List[object]]$Results,
+        [string]$Code = ''
+    )
+
+    $path = $env:PROJECTFOUNDATION_CHECK_RESULT_PATH
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        return
+    }
+    $childExit = Get-QualityContractChildExit -Results @($Results)
+    $record = [pscustomobject][ordered]@{
+        SchemaVersion = 1
+        Mode = $Mode
+        CiTask = $CiTask
+        Succeeded = $Failures.Count -eq 0
+        childExit = $childExit
+        code = $Code
+        Failures = @($Failures)
+        Checks = @($Results)
+    }
+    Write-ImpactJson -Value $record -Path $path
+}
+
+function Get-StageOrderContractError {
+    $stageText = $env:PROJECTFOUNDATION_STAGE
+    if ([string]::IsNullOrWhiteSpace($stageText)) {
+        return ''
+    }
+    $stage = 0
+    if (-not [int]::TryParse($stageText, [System.Globalization.NumberStyles]::Integer, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$stage) -or
+        $stage -lt 0 -or $stage -gt 5) {
+        return 'STAGE_ORDER_INVALID: stage must be an integer from 0 through 5'
+    }
+    for ($completedStage = 0; $completedStage -lt $stage; $completedStage++) {
+        # Stage 0 keeps the original marker name for compatibility. Later
+        # stages use the same explicit COMPLETE convention so a skipped middle
+        # stage cannot be hidden by a marker for a later stage.
+        $markerName = if ($completedStage -eq 0) {
+            'PROJECTFOUNDATION_STAGE0_COMPLETE'
+        }
+        else {
+            "PROJECTFOUNDATION_STAGE${completedStage}_COMPLETE"
+        }
+        $marker = [Environment]::GetEnvironmentVariable($markerName)
+        if ($marker -ne 'true') {
+            return "STAGE_ORDER_INVALID: Stage $completedStage must complete before Stage $stage (missing $markerName=true)"
+        }
+    }
+    ''
 }
 
 function Get-StagedFiles {
@@ -1473,6 +2120,8 @@ function Invoke-QualityRunner {
     )
 
     $failures = [System.Collections.Generic.List[string]]::new()
+    $results = [System.Collections.Generic.List[object]]::new()
+    $contractCode = ''
     $npmCommand = if ($isWindowsHost) { 'npm.cmd' } else { 'npm' }
     $gitleaksCommand = Get-GitleaksCommand -RepoRoot $RepoRoot
     $mavenCommand = if ($isWindowsHost) {
@@ -1484,6 +2133,13 @@ function Invoke-QualityRunner {
 
     Push-Location $RepoRoot
     try {
+        $stageOrderError = Get-StageOrderContractError
+        if (-not [string]::IsNullOrWhiteSpace($stageOrderError)) {
+            $contractCode = 'STAGE_ORDER_INVALID'
+            $failures.Add('stage-order')
+            Write-Warning $stageOrderError
+        }
+        else {
         if ($Mode -eq 'Impact' -and $CiTask -ne 'None') {
             $failures.Add('impact-definition')
             Write-Warning 'Impact Mode cannot be combined with -CiTask.'
@@ -1558,7 +2214,7 @@ function Invoke-QualityRunner {
                     -DisplayRequirement:$DisplayRequirement -BrowserCase $BrowserCase `
                     -BrowserManualReason $BrowserManualReason -ChangedFiles $changedFiles `
                     -NpmCommand $npmCommand -MavenCommand $mavenCommand -Offline:$Offline)
-                Invoke-QualityChecks -Definitions $definitions -Failures $failures
+                Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $results
             }
             catch {
                 $failures.Add('simple-definition')
@@ -1569,7 +2225,7 @@ function Invoke-QualityRunner {
             $definitions = @(Get-CiTaskDefinitions -CiTask $CiTask -RepoRoot $RepoRoot -NpmCommand $npmCommand `
                 -MavenCommand $mavenCommand -OracleScript (Join-Path $RepoRoot 'backend/scripts/test-oracle.ps1') `
                 -OracleConfigPath $OracleConfigPath -GitleaksCommand $gitleaksCommand -Offline:$Offline)
-            Invoke-QualityChecks -Definitions $definitions -Failures $failures
+            Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $results
         }
         else {
             if ($Mode -eq 'PrePush') {
@@ -1579,7 +2235,7 @@ function Invoke-QualityRunner {
                     $definitions = @(Get-PrePushCheckDefinitions -RepoRoot $RepoRoot -ChangedFiles $changedFiles `
                         -PushRefs $pushRefs -NpmCommand $npmCommand -MavenCommand $mavenCommand `
                         -GitleaksCommand $gitleaksCommand -Offline:$Offline)
-                    Invoke-QualityChecks -Definitions $definitions -Failures $failures
+                    Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $results
                 }
                 catch {
                     $failures.Add('pre-push-definition')
@@ -1591,7 +2247,7 @@ function Invoke-QualityRunner {
                     $stagedFiles = @(Get-StagedFiles -RepoRoot $RepoRoot)
                     $definitions = @(Get-QuickCheckDefinitions -RepoRoot $RepoRoot -StagedFiles $stagedFiles `
                         -NpmCommand $npmCommand -MavenCommand $mavenCommand -GitleaksCommand $gitleaksCommand -Offline:$Offline)
-                    Invoke-QualityChecks -Definitions $definitions -Failures $failures
+                    Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $results
                 }
                 catch {
                     $failures.Add('staged-file-selection')
@@ -1601,13 +2257,13 @@ function Invoke-QualityRunner {
             if ($Mode -in @('Full', 'All')) {
                 $definitions = @(Get-FullCheckDefinitions -RepoRoot $RepoRoot -NpmCommand $npmCommand `
                     -MavenCommand $mavenCommand -Offline:$Offline)
-                Invoke-QualityChecks -Definitions $definitions -Failures $failures
+                    Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $results
             }
             if ($Mode -in @('Oracle', 'All')) {
                 try {
                     $definitions = @(Get-OracleCheckDefinitions -RepoRoot $RepoRoot -OracleConfigPath $OracleConfigPath `
                         -AllowDdl:$AllowDdl -DdlScript $DdlScript)
-                    Invoke-QualityChecks -Definitions $definitions -Failures $failures
+                Invoke-QualityChecks -Definitions $definitions -Failures $failures -Results $results
                 }
                 catch {
                     $failures.Add('oracle-definition')
@@ -1615,10 +2271,13 @@ function Invoke-QualityRunner {
                 }
             }
         }
+        }
     }
     finally {
         Pop-Location
     }
+
+    Write-QualityContractResult -Mode $Mode -CiTask $CiTask -Failures $failures -Results $results -Code $contractCode
 
     if ($failures.Count -gt 0) {
         Write-Host "`nFailed checks:"
@@ -1636,7 +2295,13 @@ if ($MyInvocation.InvocationName -ne '.') {
         exit 1
     }
 
-    $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+    $repoRootInput = if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
+        Join-Path $PSScriptRoot '..'
+    }
+    else {
+        $RepositoryRoot
+    }
+    $repoRoot = (Resolve-Path -LiteralPath $repoRootInput).Path
     exit (Invoke-QualityRunner -RepoRoot $repoRoot -Mode $Mode -PushInput $PushInput -Offline:$Offline `
         -CiTask $CiTask -AllowDdl:$AllowDdl -DdlScript $DdlScript -OracleConfigPath $OracleConfigPath `
         -Scope $Scope -FocusedUnitScope $FocusedUnitScope -FocusedUnitTarget $FocusedUnitTarget `

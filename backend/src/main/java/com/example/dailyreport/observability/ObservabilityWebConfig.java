@@ -9,7 +9,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class ObservabilityWebConfig implements WebMvcConfigurer {
-    private final RequestMetadataInterceptor requestMetadataInterceptor = new RequestMetadataInterceptor();
+    private final RequestMetadataInterceptor requestMetadataInterceptor;
+
+    public ObservabilityWebConfig(EndpointMetadataRegistry endpointMetadataRegistry) {
+        this.requestMetadataInterceptor = new RequestMetadataInterceptor(endpointMetadataRegistry);
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {

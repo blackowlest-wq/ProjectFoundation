@@ -5,52 +5,48 @@ package com.example.dailyreport.observability;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Map;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 public class RequestMetadataInterceptor implements HandlerInterceptor {
-    private static final Map<String, String> FEATURE_BY_CONTROLLER = Map.of(
-            "AuthController", "AUTH",
-            "DailyReportCommandController", "DAILY_REPORT",
-            "DailyReportSubmissionController", "DAILY_REPORT",
-            "DailyReportSearchController", "DAILY_REPORT",
-            "DailyReportApprovalController", "DAILY_REPORT",
-            "DailyReportPendingApprovalController", "DAILY_REPORT",
-            "MasterController", "MASTER",
-            "MonthlySummaryController", "MONTHLY_SUMMARY");
+    private static final MetadataLookup DEFAULT_LOOKUP = EndpointMetadataRegistry.defaultRegistry()::lookup;
+    private final MetadataLookup metadataLookup;
 
-    private static final Map<String, String> USE_CASE_BY_METHOD = Map.ofEntries(
-            Map.entry("login", "LOGIN"),
-            Map.entry("logout", "LOGOUT"),
-            Map.entry("me", "ME"),
-            Map.entry("create", "CREATE"),
-            Map.entry("update", "UPDATE"),
-            Map.entry("submit", "SUBMIT"),
-            Map.entry("resubmit", "RESUBMIT"),
-            Map.entry("search", "SEARCH"),
-            Map.entry("get", "DETAIL"),
-            Map.entry("approve", "APPROVE"),
-            Map.entry("reject", "REJECT"),
-            Map.entry("pendingApprovals", "PENDING_APPROVALS"),
-            Map.entry("projects", "PROJECTS"),
-            Map.entry("workCategories", "WORK_CATEGORIES"),
-            Map.entry("holidayTypes", "HOLIDAY_TYPES"),
-            Map.entry("monthlySummary", "MONTHLY_SUMMARY"));
+    public RequestMetadataInterceptor() {
+        this.metadataLookup = DEFAULT_LOOKUP;
+    }
+
+    public RequestMetadataInterceptor(EndpointMetadataRegistry registry) {
+        if (registry == null) {
+            this.metadataLookup = DEFAULT_LOOKUP;
+        } else {
+            this.metadataLookup = (httpMethod, requestPath, handlerMethod) ->
+                    registry.lookup(httpMethod, requestPath, handlerMethod);
+        }
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (handler instanceof HandlerMethod handlerMethod) {
-            String controllerName = handlerMethod.getBeanType().getSimpleName();
-            String methodName = handlerMethod.getMethod().getName();
+            EndpointMetadataRegistry.EndpointMetadata metadata = metadataLookup
+                    .lookup(request.getMethod(), request.getRequestURI(), handlerMethod)
+                    .orElse(null);
             request.setAttribute(RequestContext.FEATURE_ATTRIBUTE,
-                    FEATURE_BY_CONTROLLER.getOrDefault(controllerName, RequestContext.UNKNOWN));
+                    metadata == null ? RequestContext.UNKNOWN : metadata.feature());
             request.setAttribute(RequestContext.USE_CASE_ATTRIBUTE,
-                    USE_CASE_BY_METHOD.getOrDefault(methodName, RequestContext.UNKNOWN));
+                    metadata == null ? RequestContext.UNKNOWN : metadata.useCase());
         } else {
-            request.setAttribute(RequestContext.FEATURE_ATTRIBUTE, RequestContext.UNKNOWN);
-            request.setAttribute(RequestContext.USE_CASE_ATTRIBUTE, RequestContext.UNKNOWN);
+            request.setAttribute(RequestContext.FEATURE_ATTRIBUTE,
+                    RequestContext.UNKNOWN);
+            request.setAttribute(RequestContext.USE_CASE_ATTRIBUTE,
+                    RequestContext.UNKNOWN);
         }
         return true;
+    }
+
+    @FunctionalInterface
+    private interface MetadataLookup {
+        java.util.Optional<EndpointMetadataRegistry.EndpointMetadata> lookup(
+                String httpMethod, String requestPath, HandlerMethod handlerMethod);
     }
 }

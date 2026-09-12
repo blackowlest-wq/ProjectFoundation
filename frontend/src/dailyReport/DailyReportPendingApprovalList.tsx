@@ -58,6 +58,7 @@ export function DailyReportPendingApprovalList({ user, onUnauthorized }: { user:
     }
     void runSearch(criteria);
     // 初期表示だけで取得し、条件入力中の自動通信は避ける。
+    // Why not: 初期表示だけで取得し、条件入力中の自動通信を避けるため依存配列へrunSearchを追加しない。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role]);
 

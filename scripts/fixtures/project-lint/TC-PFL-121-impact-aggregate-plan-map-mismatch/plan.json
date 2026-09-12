@@ -1,0 +1,21 @@
+{
+  "SchemaVersion": 1,
+  "ExecutionScope": "Impact",
+  "ChangedFiles": ["frontend/src/App.tsx"],
+  "SelectedLayers": ["FullFrontend", "FullBackend", "Oracle"],
+  "ExcludedLayers": ["BackendUnit", "FrontendCoverage", "E2E", "DirectorySecrets", "BackendCoverage", "E2EOracle"],
+  "FallbackUsed": false,
+  "FallbackReason": "",
+  "FullReason": "",
+  "LayerReasons": {
+    "FullFrontend": "Frontend change and direct consumers: frontend/src/App.tsx",
+    "FullBackend": "Explicit plan/map mismatch contract fixture.",
+    "BackendUnit": "Excluded because no changed file or direct consumer requires this layer.",
+    "FrontendCoverage": "Excluded because no changed file or direct consumer requires this layer.",
+    "E2E": "Excluded because no changed file or direct consumer requires this layer.",
+    "DirectorySecrets": "Repository directory secret scanning is mandatory for every impact plan.",
+    "Oracle": "Selected by the mixed-map contract fixture; FullBackend is intentionally omitted from the submitted map.",
+    "BackendCoverage": "Excluded because no changed file or direct consumer requires this layer.",
+    "E2EOracle": "Excluded because no changed file or direct consumer requires this layer."
+  }
+}

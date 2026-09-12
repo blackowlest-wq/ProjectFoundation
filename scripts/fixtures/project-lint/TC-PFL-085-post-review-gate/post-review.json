@@ -1,0 +1,39 @@
+{
+  "executionEvidence": {
+    "path": "scripts/fixtures/project-lint/TC-PFL-085-post-review-gate/execution-evidence.json",
+    "sha256": "0982F9CE75AA980B5EC1CF6F6F98DB0C47761B9866FC008FB79BEFE0A92BF7A8"
+  },
+  "requiredArtifacts": [
+    "docs/AI活用開発研究/作業記録/カスタムLinter_実装後レビュー.md",
+    "docs/AI活用開発研究/作業記録/カスタムLinter_テストケース.md",
+    "docs/AI活用開発研究/作業記録/カスタムLinter_統合品質記録.md",
+    "docs/AI活用開発研究/作業記録/カスタムLinter_作業記録.md",
+    "docs/AI活用開発研究/作業記録/日報登録編集_指摘一覧.md"
+  ],
+  "requiredIdRanges": {
+    "acceptance": { "prefix": "AC-PFL-", "start": 1, "end": 9 },
+    "testCases": { "prefix": "TC-PFL-", "start": 1, "end": 105 },
+    "runtimeTests": { "prefix": "RT-PFL-", "start": 1, "end": 105 },
+    "baselineFindings": { "prefix": "FIND-PFL-BASE-", "start": 1, "end": 5 },
+    "postReviewFindings": { "prefix": "FIND-PFL-P1R-", "start": 1, "end": 13 }
+  },
+  "requiredAdditionalIds": {
+    "lunaFindings": [
+      "FIND-LUNA-P0-001",
+      "FIND-LUNA-P1-001",
+      "FIND-LUNA-P1-003",
+      "FIND-LUNA-P1-004"
+    ]
+  },
+  "forbiddenStaleMarkers": [
+    "未実行（Do前Plan）",
+    "Stage 0のまま",
+    "本番コード、テスト、runner、workflowは変更していない",
+    "Stage0レビュー解消・Do開始可",
+    "Stage 0レビュー解消・Do開始可",
+    "本番コード、testコード、fixture、workflow、CI/gate接続は未実施",
+    "本番コード、テストコード、fixture、workflow、C接続は未変更",
+    "本番コード、testコード、fixture、workflow、C接続は未変更",
+    "本番コード、テストコード、fixture、validator、ESLint設定、workflow、scripts/check.ps1接続を変更していない"
+  ]
+}

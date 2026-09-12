@@ -1,0 +1,14 @@
+{
+  "full-windows-frontend": {
+    "result": "success",
+    "outputs": { "state": "passed" }
+  },
+  "oracle-integration": {
+    "result": "success",
+    "outputs": { "state": "passed" }
+  },
+  "backend-unit": {
+    "result": "success",
+    "outputs": { "state": "passed" }
+  }
+}

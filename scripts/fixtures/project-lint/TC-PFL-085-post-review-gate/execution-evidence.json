@@ -1,0 +1,2425 @@
+{
+  "schemaVersion": 2,
+  "commit": "905a9676a7d48a86bf9aab6fb34dcbf08c65f402",
+  "sourceArtifacts": [
+    {
+      "path": "docs/AI活用開発研究/作業記録/カスタムLinter_実装後レビュー.md",
+      "sha256": "61C3B01E9B2DE9276362D7E581A0F21EB23A3514C67924A3603E79C937F64CD4"
+    },
+    {
+      "path": "docs/AI活用開発研究/作業記録/カスタムLinter_テストケース.md",
+      "sha256": "DDDCF19FBFBE6329899E8D5306A436429E72E2C2F324500FCA7944C3971BDDBE"
+    },
+    {
+      "path": "docs/AI活用開発研究/作業記録/カスタムLinter_統合品質記録.md",
+      "sha256": "9020D93915450D213179F883AC113AA2A45AC1A543B767615B50BA2623ACC2F7"
+    },
+    {
+      "path": "docs/AI活用開発研究/作業記録/カスタムLinter_作業記録.md",
+      "sha256": "921568BC39A920EAEB524082AFE5574F47E725050235DCD386D5148630C64607"
+    },
+    {
+      "path": "docs/AI活用開発研究/作業記録/日報登録編集_指摘一覧.md",
+      "sha256": "127C31AD8CFB372AF7DFB64AA326E87858341406E74F43E8BBA7B2C4DA359B6A"
+    },
+    {
+      "path": "scripts/check.ps1",
+      "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+    },
+    {
+      "path": "scripts/check.contract.tests.ps1",
+      "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+    },
+    {
+      "path": "scripts/project-lint.ps1",
+      "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+    },
+    {
+      "path": "scripts/project-lint.tests.ps1",
+      "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+    },
+    {
+      "path": "frontend/eslint-rules/index.mjs",
+      "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+    },
+    {
+      "path": "frontend/scripts/frontend-lint.mjs",
+      "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+    },
+    {
+      "path": "frontend/test/lint/baselineSuppression.test.ts",
+      "sha256": "E34256F108A3BC095E8BF975300576C454032A9D26EBBA91E3AB015738E3C254"
+    },
+    {
+      "path": "frontend/test/lint/frontendLint.cli.test.ts",
+      "sha256": "62AA3CAC16CA2674B2895A3C65AC8891860982A54BE19DC7F4DEA08CC0106482"
+    },
+    {
+      "path": "frontend/test/lint/frontendLint.integration.test.ts",
+      "sha256": "53F3BF99E4E210E7DFF58CF8215C6D2FEC2B45180E2F3FCF11B8521A7024CB5F"
+    },
+    {
+      "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+      "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+    },
+    {
+      "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+      "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+    },
+    {
+      "path": "frontend/test/lint/suppressionPolicy.test.ts",
+      "sha256": "FB1BD927BB8A1E9A389F162DA5FB81121898F741069ECECA7B75EC6BEBF26875"
+    },
+    {
+      "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+      "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+    },
+    {
+      "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+      "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+    }
+  ],
+  "executions": [
+    {
+      "id": "exec-TC-PFL-001",
+      "coveredCases": [
+        "TC-PFL-001"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-001 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-001 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "CBD64F0213D80487A029754388A1EE2B74B2241A131F8E26D5FFF0BD406623FB",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-002",
+      "coveredCases": [
+        "TC-PFL-002"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-002 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-002 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "E356A6AA78CDD3C914C3CCD015A0DFA514CA12B234B6C1989A702184AB2F1203",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-003",
+      "coveredCases": [
+        "TC-PFL-003"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-003 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-003 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "AF6D49C7A918AE3E1E8E4E4A1AFB18C42E6783BB81F7C80481126B758233898B",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-004",
+      "coveredCases": [
+        "TC-PFL-004"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-004 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-004 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "EDA1CAF4A978DD2F585E0C0CAF660A8EC4A55B64D4A2E4C77DC580FC596E4696",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-005",
+      "coveredCases": [
+        "TC-PFL-005"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-005 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-005 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "470DC6343AF22B330B24C5919B48BD032EF46A9AD79D319CFF4DAECD442A1104",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-006",
+      "coveredCases": [
+        "TC-PFL-006"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-006 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-006 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "8061B5C4B1573C4AFBAA015C5681772C4209ABCBAFEF288DE5EAFE8D915137F5",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-007",
+      "coveredCases": [
+        "TC-PFL-007"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-007 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-007 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "E3FCBA337CF61B0117E6F7A5888C4E64018FF58D1F1D7367F6AA9D7DCF3F1315",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-008",
+      "coveredCases": [
+        "TC-PFL-008"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-008 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-008 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "19C60FF48950FF707CE9BF6950FCD408E9CB6B47838B8B8C9AF1B211FB32F85C",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-009",
+      "coveredCases": [
+        "TC-PFL-009"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-009 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-009 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "4D713A99811AA5ADF695E9D2294DE3D7BD5A66CC24D8D94A7D9366AF8A6C3F91",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-010",
+      "coveredCases": [
+        "TC-PFL-010"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-010 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-010 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "1828E9C9A7ED92BDFB798ACD6C1E2150736EA677FE54D6049B5E5E3F95FD28D3",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-011",
+      "coveredCases": [
+        "TC-PFL-011"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-011",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "203644157B472AF5255893E5B32458941CC1B14B333345020E26C2ADE53DCD9E",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-012",
+      "coveredCases": [
+        "TC-PFL-012"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-012",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "E1B3CC8581B7B05E8CF16B09201F4215C0EC8E82E8FCF8BE56FD2C83E3C16EFC",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-013",
+      "coveredCases": [
+        "TC-PFL-013"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/frontendLint.cli.test.ts -t TC-PFL-013",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "5F6D3DB991BE5C6361ECB23A528E9393807268B1F4D32E08E2820689E8C8AEFA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/frontendLint.cli.test.ts",
+          "sha256": "62AA3CAC16CA2674B2895A3C65AC8891860982A54BE19DC7F4DEA08CC0106482"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-014",
+      "coveredCases": [
+        "TC-PFL-014"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/frontendLint.cli.test.ts -t TC-PFL-014",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "6EBF078BF15E907544AF827FED64F9F7DAF0771F50BA983322F90B7874C8587A",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/frontendLint.cli.test.ts",
+          "sha256": "62AA3CAC16CA2674B2895A3C65AC8891860982A54BE19DC7F4DEA08CC0106482"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-015",
+      "coveredCases": [
+        "TC-PFL-015"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/frontendLint.cli.test.ts -t TC-PFL-015",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "948EF13E997DAEE94A60747474FB31684F7F259E86AF02C91908000585335BF3",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/frontendLint.cli.test.ts",
+          "sha256": "62AA3CAC16CA2674B2895A3C65AC8891860982A54BE19DC7F4DEA08CC0106482"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-016",
+      "coveredCases": [
+        "TC-PFL-016"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-016 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-016 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "3C67BECA3BCCDBD67427F9E80FAF781F6AA5AD282FA4E5B7DC9B0D8589F965E4",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-017",
+      "coveredCases": [
+        "TC-PFL-017"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-017 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-017 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "2439B71042AA21A5AF28F60D3A05BD470D591BD7D75AC17F714FC1BB5E250D72",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-018",
+      "coveredCases": [
+        "TC-PFL-018"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-018 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-018 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "DD98C8108E5E3F665378BAF0A260F590C7893B97DBB744F49E000EBED3BF0301",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-019",
+      "coveredCases": [
+        "TC-PFL-019"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "773995A65053625F4A27E06470394B9C82B0260FF856BB481605BA42B0CA99E2",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-020",
+      "coveredCases": [
+        "TC-PFL-020"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-020",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "CCD75BA3777CF9B23E7D96012100A740B7EC735A8A24F55AE7609C726CD663E7",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-021",
+      "coveredCases": [
+        "TC-PFL-021"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-021",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "2FE745384B61F833CFFE1FF502C1E946E741EC51EDB954673B6A9832A7BC9BB8",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-022",
+      "coveredCases": [
+        "TC-PFL-022"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-022",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "9D013D86A7DC22A89530791508C528AB0C9292E80136BD3E7B468B9127672B72",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-023",
+      "coveredCases": [
+        "TC-PFL-023"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-023",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "2E598D60529DA080ED74A5503514EFF44E242B659B0A52C18BC9810021CFFBA5",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-024",
+      "coveredCases": [
+        "TC-PFL-024"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-024",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "9B4F235A7E0CC5C42288C624F959FC7219C5DED9FA0C7CDEBA4EDEF7722E4F99",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-025",
+      "coveredCases": [
+        "TC-PFL-025"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-025",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "7EF0F1A95AE7238D3F1A76350049D4A99D3F995D0DC39CB31C73D523F33CB0A5",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-026",
+      "coveredCases": [
+        "TC-PFL-026"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-026",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "1D36F547EA9E8D5E8BB33EA8A2557ACA267A0A45AB00C11EA95122E825DCC730",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-027",
+      "coveredCases": [
+        "TC-PFL-027"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-027",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "E461A8AE8EBFE4BCF6659259C65F818B91E6ECABFF7FC6581187AA7B49DB8A66",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-028",
+      "coveredCases": [
+        "TC-PFL-028"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-028",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "62E7417D0507899ABC0CFD3A3829C86358C820376DF01E1302C3C8F65D69A9FC",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-029",
+      "coveredCases": [
+        "TC-PFL-029"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-029",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "1066EC8BE8131C20D7172AB5F4BF8A4435CE481A71B3FE065B451CB59AE513B2",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-030",
+      "coveredCases": [
+        "TC-PFL-030"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-030",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "0DE01B9ED795321E63C1CCF996C76DC4771568A6C999EA11BBC8A5180505D644",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-031",
+      "coveredCases": [
+        "TC-PFL-031"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-031",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "5AB64D1D59003340EE28B8A892B048D0FC0FB0E02225D23CD29594C9CFA10374",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-032",
+      "coveredCases": [
+        "TC-PFL-032"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-032",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "1577B75F74C4026064CE963A22952CEC4668B12FECCD77D84A4850A7438CF522",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-033",
+      "coveredCases": [
+        "TC-PFL-033"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/noDirectTransport.rule.test.ts -t TC-PFL-033",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "389EC3806D63A1E0C32D549208503959B3CA6E554CC5B65643CBF881898CC5D5",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/noDirectTransport.rule.test.ts",
+          "sha256": "1F23F9A774684588FB2362B1D9C904A76BB7149F47299F103E82F0D158AA65E3"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-034",
+      "coveredCases": [
+        "TC-PFL-034"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "071F35BC5D0D261324A57F392FEE39790358B809DBBA4883EE8C26281919EBD0",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-035",
+      "coveredCases": [
+        "TC-PFL-035"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "FEEB27AD827218BEC6DE398F57112C1F54A6EB65E0CB99F2DC7A622D7184D054",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-036",
+      "coveredCases": [
+        "TC-PFL-036"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "FAC97A75539208F4AFCB978C46BCECC2DBFDE3CFF556594ECE8426709EEA4F76",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-037",
+      "coveredCases": [
+        "TC-PFL-037"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "B9154F017FC11720BC1EEF613D09570D4D90E34CC0C298258E7754CEBF327347",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-038",
+      "coveredCases": [
+        "TC-PFL-038"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-038",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "9DB490BF553F22C1DD9033D1E8914E43248B54E93040C2ED53351EE4203F568F",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-039",
+      "coveredCases": [
+        "TC-PFL-039"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-039",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "5DC54F3E274AFBB970D0C2B63F8465B701B5EA6DAB6E7D8EA23821124AD84C1C",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-040",
+      "coveredCases": [
+        "TC-PFL-040"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-040",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "467B36CAFCA599F3B69CD33AB27A2B969D0FCB419A861E09B4FFE0159725956B",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-041",
+      "coveredCases": [
+        "TC-PFL-041"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-041",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "AA461B9D8A8EA1FAC93D9E42EF5A6B250AEBAE5ECB8E96D4BDB0B6F5CE824F26",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-042",
+      "coveredCases": [
+        "TC-PFL-042"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-042",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "073531665144C94894A803A110E6714E89B5F2ADC745178CE30FB7380F3BA8CA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-043",
+      "coveredCases": [
+        "TC-PFL-043"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-043",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "D2DB02C5FB5EB19A27C428E80A8AA8F41615D75ED66D0CF59F99FBCA6CDC68B0",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-044",
+      "coveredCases": [
+        "TC-PFL-044"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-044",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "3058C5792850D858B3E3E6BC9C582DFC0DF9D7BCB6D61518886D8CE61F3888AA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-045",
+      "coveredCases": [
+        "TC-PFL-045"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-045 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-045 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "00B9C0A2DF728C80480F9A9F8C0D1B502CD33D563AAFCB98F1C91A1E451142CA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-046",
+      "coveredCases": [
+        "TC-PFL-046"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-046 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-046 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "B1B07B40FCBAA58B3F0DBFFC16EAD26C3AEEF42B7F8FC782649AC2A36A687820",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-047",
+      "coveredCases": [
+        "TC-PFL-047"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-047 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-047 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "6473C037E6C57D97250A4CC00048719A73CBA1D3C795CEA1D1615999B1BD65F4",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-048",
+      "coveredCases": [
+        "TC-PFL-048"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-048 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-048 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "9CE7D12A10F5100E5FA47C3754F6E9985F7E65A51EE32F7DA083065BB89C1E1C",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-049",
+      "coveredCases": [
+        "TC-PFL-049"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-049 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-049 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "5B4774BD0260E3589C4D4A202D5398F3FD1B81F691BA2438D6F692A06A1D69CF",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-050",
+      "coveredCases": [
+        "TC-PFL-050"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-050 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-050 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "8B154C79BBE2F010FE0C378411BD153D2327CB3664A7D31A9CCD1E58631742A5",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-051",
+      "coveredCases": [
+        "TC-PFL-051"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-051 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-051 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "8021B2165EC09F30E6CF743526E3C4334EB0DF106183D6B111AC960EBA445400",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-052",
+      "coveredCases": [
+        "TC-PFL-052"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/suppressionPolicy.test.ts -t TC-PFL-052",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "799B37BCCBDC7008A886D6CE6150691F957A9E2631FA52DF93A9AC71F25D7E2C",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/suppressionPolicy.test.ts",
+          "sha256": "FB1BD927BB8A1E9A389F162DA5FB81121898F741069ECECA7B75EC6BEBF26875"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-053",
+      "coveredCases": [
+        "TC-PFL-053"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/suppressionPolicy.test.ts -t TC-PFL-053",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "C2B51CD8B73B1D3D412310B85679764F0A5B755E6F549C28B349C869911EEF8A",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/suppressionPolicy.test.ts",
+          "sha256": "FB1BD927BB8A1E9A389F162DA5FB81121898F741069ECECA7B75EC6BEBF26875"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-054",
+      "coveredCases": [
+        "TC-PFL-054"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/suppressionPolicy.test.ts -t TC-PFL-054",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "8A4FE34F01772171A44893865B9B0F393F9D42CB373F34827986B01C1F161071",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/suppressionPolicy.test.ts",
+          "sha256": "FB1BD927BB8A1E9A389F162DA5FB81121898F741069ECECA7B75EC6BEBF26875"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-055",
+      "coveredCases": [
+        "TC-PFL-055"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/suppressionPolicy.test.ts -t TC-PFL-055",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "6B449657E5AFCE9D2DDBF2BC2D65194A86C3E05504FDD9D6201C47FC1C2F0096",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/suppressionPolicy.test.ts",
+          "sha256": "FB1BD927BB8A1E9A389F162DA5FB81121898F741069ECECA7B75EC6BEBF26875"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-056",
+      "coveredCases": [
+        "TC-PFL-056"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/suppressionPolicy.test.ts -t TC-PFL-056",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "CC152D914875E9B25AFE7784CC9391D3A4A2A69C450D794F1FAEF48C8DA089BA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/suppressionPolicy.test.ts",
+          "sha256": "FB1BD927BB8A1E9A389F162DA5FB81121898F741069ECECA7B75EC6BEBF26875"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-057",
+      "coveredCases": [
+        "TC-PFL-057"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/suppressionPolicy.test.ts -t TC-PFL-057",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "EF64458054909F738F212E14A2A9FF5763E8DBD67A41AF38064148AD78501CBA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/suppressionPolicy.test.ts",
+          "sha256": "FB1BD927BB8A1E9A389F162DA5FB81121898F741069ECECA7B75EC6BEBF26875"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-058",
+      "coveredCases": [
+        "TC-PFL-058"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "D2A6442BDA32CB61061DED451CC30A24D7E0EFDACAC7FC082DCBE2E974C8AE41",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-059",
+      "coveredCases": [
+        "TC-PFL-059"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "53C5992471AD6D4865DBC7E8D8D2AFA68E4EAAE9E21735CC8F8F0EC44A61364E",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-060",
+      "coveredCases": [
+        "TC-PFL-060"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "3119B1F45BB538D442E55DF26ADA11C16BD2B59CFA9B63F5EAB74F8EC2F781F8",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-061",
+      "coveredCases": [
+        "TC-PFL-061"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "90A13A44BF79D3C26D8D1D598B5A8312D95A9909AD1C408A32844A7D41972E12",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-062",
+      "coveredCases": [
+        "TC-PFL-062"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "F9EAB03AFAB8EFDFBC52B81DC8288A6C9AA27613DCD720E22A320D30F8EF7ED6",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-063",
+      "coveredCases": [
+        "TC-PFL-063"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "85905E3DC9BCA1C881EDCBA1F3298C00F13FF993B82388528C83654F48817841",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-064",
+      "coveredCases": [
+        "TC-PFL-064"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-064 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-064 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "B109EB6B13C1231CA71E91F6000701F1DB753278BECD1ED4D76D0F522936B603",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-065",
+      "coveredCases": [
+        "TC-PFL-065"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-065 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-065 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "6DFCDEB469E7F710AFB7F4344F658269DCD5279F067794993B4CDC6A186F6E50",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-066",
+      "coveredCases": [
+        "TC-PFL-066"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-066 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-066 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "96931E936D1047692C42AB7F949C898959C7A183B535C1BD2361DB47197598FB",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-067",
+      "coveredCases": [
+        "TC-PFL-067"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-067 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-067 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "B4FEEB9517340875A3CA14968045F8BA66C4F2B772F199A6465DC1424E9EDFFC",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-068",
+      "coveredCases": [
+        "TC-PFL-068"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-068 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-068 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "D9B7F963D5B42C6DB5E128A720896C0D5D4727FD7C340830783C4137CD0AC3A7",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-069",
+      "coveredCases": [
+        "TC-PFL-069"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-069 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-069 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "18B8DE4DEAA1D47C311CEE0ADB1E541CF49C7622FAC43A41D2B61FB62E899CE5",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-070",
+      "coveredCases": [
+        "TC-PFL-070"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/frontendLint.cli.test.ts -t TC-PFL-070",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "1441E04BD2C3BA30AAB9D9BD7D19FE1F129436A236E66A8518F05FDFC2E0C9FA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/frontendLint.cli.test.ts",
+          "sha256": "62AA3CAC16CA2674B2895A3C65AC8891860982A54BE19DC7F4DEA08CC0106482"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-071",
+      "coveredCases": [
+        "TC-PFL-071"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-071 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-071 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "06970CC54917B61C1696D577CB937E84A3864384092291E6C6BACDBAD04BA289",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        },
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/frontendLint.cli.test.ts",
+          "sha256": "62AA3CAC16CA2674B2895A3C65AC8891860982A54BE19DC7F4DEA08CC0106482"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-072",
+      "coveredCases": [
+        "TC-PFL-072"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-072",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "F88F2A71C88DD246E8970DB8A54C2B6CC19AA302A19C54EAE711E8BECA3B4C52",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-073",
+      "coveredCases": [
+        "TC-PFL-073"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "E788731B7A699377548116D8499125D624B0FECD0243CBC3BB3D390E15CDABA2",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-074",
+      "coveredCases": [
+        "TC-PFL-074"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-074",
+      "exitCode": 0,
+      "result": "HOLD",
+      "stdoutSha256": "BAA9DFC3B9ADA7BE28DD720DEFC995C37A9ABC289ED3221F8905567039F3151E",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-075",
+      "coveredCases": [
+        "TC-PFL-075"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-075",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "EA06E8D7CF90719C706881F1FFD81C02271538D8287CA75A1809349A7A8657FA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-076",
+      "coveredCases": [
+        "TC-PFL-076"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-076",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "81D94EBFE691A97EF4DA1E16799CA9802EE8F944C27562E34291B7FAD299C80F",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-077",
+      "coveredCases": [
+        "TC-PFL-077"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-077",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "8C841F4D49B63B44FFBED628E940663BAFB490DEC5928F124EC47730BE57F6E5",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-078",
+      "coveredCases": [
+        "TC-PFL-078"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "C6A6FAF9D4145050F6FC0478DCA8013F4B08FC20493529D8D69C2DCB295105BE",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-079",
+      "coveredCases": [
+        "TC-PFL-079"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "002E4A7BF54B55DE3B953392364229BFBF930E76580B3EFD502624DB74A3E89C",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-080",
+      "coveredCases": [
+        "TC-PFL-080"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/baselineSuppression.test.ts -t TC-PFL-080",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "E39D0448687C4183EC96503F2C1605420319056B14D960C9F90EBE895A4980D4",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/baselineSuppression.test.ts",
+          "sha256": "E34256F108A3BC095E8BF975300576C454032A9D26EBBA91E3AB015738E3C254"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-081",
+      "coveredCases": [
+        "TC-PFL-081"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/baselineSuppression.test.ts -t TC-PFL-081",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "D9DB28933E4669D36292F6106BA50740AA2944587C4562E0A6BB7ABDE2DDDD44",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/baselineSuppression.test.ts",
+          "sha256": "E34256F108A3BC095E8BF975300576C454032A9D26EBBA91E3AB015738E3C254"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-082",
+      "coveredCases": [
+        "TC-PFL-082"
+      ],
+      "command": "npm --prefix frontend run test -- test/lint/moduleMatrix.config.test.ts -t TC-PFL-082",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "B11601851B5BDBD60970570575F4777E2EC48FA2C3853917545A7031202D9A7F",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "frontend/eslint-rules/index.mjs",
+          "sha256": "B5D5163C488A471BA6B9EAF8ED74A0FA8FEE0733DE629D81468D77E26AE93E42"
+        },
+        {
+          "path": "frontend/scripts/frontend-lint.mjs",
+          "sha256": "56974883A7EC27B78B30B8F877F222D51C454EA2F79DB7D09DC04CCBFE862742"
+        },
+        {
+          "path": "frontend/test/lint/moduleMatrix.config.test.ts",
+          "sha256": "DFD6E3C31F953F59BB1D9FF935D7A482E93060BB3511DFE5AE60EB479D9F6191"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-083",
+      "coveredCases": [
+        "TC-PFL-083"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-083",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "368011D4E40BC99751641DB51C1898F5A600A6AFB087E02D4FAA4FCE835FC81D",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-084",
+      "coveredCases": [
+        "TC-PFL-084"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-084",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "AE57B4EF9FB91FB424D6CC676D9F5BAE823336FA62CC47ADC086C303054A27A7",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-085",
+      "coveredCases": [
+        "TC-PFL-085"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-085",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "A3E5EB7433DF08D0467377681877918B48AAFEC68B2E51797C204BD38C01B027",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-086",
+      "coveredCases": [
+        "TC-PFL-086"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-086 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-086 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "A21F340352C2F73558CD53D719C9BB63403A9CD5CD518581594C24914C6FB689",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-087",
+      "coveredCases": [
+        "TC-PFL-087"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-087 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-087 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "373A2F63D7D552ECDE0BCEB8E1C110B1FA352ED0ECA96238AF6AAAFE14FA2D22",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-088",
+      "coveredCases": [
+        "TC-PFL-088"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-088 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-088 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "8E02F9ED6B8BB898114D619423C42B1FD279DB02799D6BBABA8120843B279A0A",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-089",
+      "coveredCases": [
+        "TC-PFL-089"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-089 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-089 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "C6309EF774DDCD885805772F230D818A3D50F2891AFDA48D60C47E740678C049",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-090",
+      "coveredCases": [
+        "TC-PFL-090"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-090 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-090 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "72CEF68369298F43BC5ED3F4D56B0871C43D0AD62C079A0374DDEBAA275A0A45",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-091",
+      "coveredCases": [
+        "TC-PFL-091"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-091 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-091 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "FFF0AEAEBA42F422E0706F50B890D604A38A888C8CD82607CEB610AAA4A2F5DC",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-092",
+      "coveredCases": [
+        "TC-PFL-092"
+      ],
+      "command": "pwsh -NoProfile -File scripts/check.contract.tests.ps1 -Case TC-PFL-092",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "57C02DF87927A938B7435C4A6A62B1450BBDB0A1DF0BFB90C86EA6C3FB7A96AA",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/check.ps1",
+          "sha256": "86C7CB4C148A2F75CB11356CD887BB5D2AB458A9FCA1D5EA46B2EEB3CBA385D9"
+        },
+        {
+          "path": "scripts/check.contract.tests.ps1",
+          "sha256": "A48D3D8C796CFE6B5EC6761C29B706297B45246E95F63F9199A6C0F5D21DD3B1"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-093",
+      "coveredCases": [
+        "TC-PFL-093"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-093 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-093 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "AE9D3247A389A8F2EDE41E3C570A96D8437496758EB0578B16788E658F902EDE",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-094",
+      "coveredCases": [
+        "TC-PFL-094"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-094 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-094 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "705A4E544456C27380FE73EF9BB98D32EBA8E82DD3BFF956EC4572CDD78EA703",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-095",
+      "coveredCases": [
+        "TC-PFL-095"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-095 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-095 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "20DA4AD2BAE0B571F2DF9B1730A1251F22C7E718207070297F30B192C94348A2",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-096",
+      "coveredCases": [
+        "TC-PFL-096"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-096 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-096 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "1053AD81DD4EE855C1642437AC28A6DE0A2E6F3613BE18BA1CB0A17AA4695623",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-097",
+      "coveredCases": [
+        "TC-PFL-097"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-097 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-097 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "E51B5444BB446DCD5D2D49217CDC70E7B5C453844EBBC9357E3FAD31635EB0F6",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-098",
+      "coveredCases": [
+        "TC-PFL-098"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-098 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-098 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "7309028CFC2598360220FDD18B08CD8EF1675A76E809AC928F84D732CAED6623",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-099",
+      "coveredCases": [
+        "TC-PFL-099"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-099 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-099 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "8E3A7E92EC9813BC6A826FFECEAECC1634DB4F37ADEC5424BDA4EF3E18EB7F22",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-100",
+      "coveredCases": [
+        "TC-PFL-100"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-100 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-100 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "04F4E0436461A4C0641A45C3CD3E1641DEB1B0619781FDEB9F0DB5B7D59E2FF3",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-101",
+      "coveredCases": [
+        "TC-PFL-101"
+      ],
+      "command": "pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-101 -Format Text<br>pwsh -NoProfile -File scripts/project-lint.tests.ps1 -Case TC-PFL-101 -Format Json",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "1D9A97DA9EB55A68EED3E2826DAA8975EF5006C116E1103F5F9D66258E6CFB6F",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "scripts/project-lint.ps1",
+          "sha256": "D99FAE86A295CB1F87828F520009C5EC33701941604B320B198032CD04EA353E"
+        },
+        {
+          "path": "scripts/project-lint.tests.ps1",
+          "sha256": "BBC1372540DF964602D44E442FAF38DE022358958F34122520652B89DA322008"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-102",
+      "coveredCases": [
+        "TC-PFL-102"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "9E96CE40A23D931C17CE3866EAF0E0D4631182041388E0A3818EFF20FF9047B6",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-103",
+      "coveredCases": [
+        "TC-PFL-103"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "90F9127D9C64A060A684DD610D4EBC6569DACDB4324D5E2394025F21A4C36712",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-104",
+      "coveredCases": [
+        "TC-PFL-104"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "ED549A5598801339CFB8DB19DE142CD16A4EED717850595B0C8B146314946666",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    },
+    {
+      "id": "exec-TC-PFL-105",
+      "coveredCases": [
+        "TC-PFL-105"
+      ],
+      "command": "backend\\mvnw.cmd -B -Dtest=EndpointMetadataRegistryContractTest test",
+      "exitCode": 0,
+      "result": "PASS",
+      "stdoutSha256": "B69B1C08D4827BFF3D5D3F831563C8F17BFDC016C78D87A3A07E413E0A26022D",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "sourceArtifacts": [
+        {
+          "path": "backend/src/main/java/com/example/dailyreport/observability/EndpointMetadataRegistry.java",
+          "sha256": "8755A3408050E5612DCE14F11599261BA9CD0CFECF555829490BC92E9B14433B"
+        },
+        {
+          "path": "backend/src/test/java/com/example/dailyreport/observability/EndpointMetadataRegistryContractTest.java",
+          "sha256": "A1716713CF8036187DB8FF7AD5F91790419F7CDE9C4AE5C1BE2A47C50D00C611"
+        }
+      ]
+    }
+  ]
+}

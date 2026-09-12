@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "policyId": "PF-GATE-001",
+      "engineRuleId": "gate/catalog-owner-and-connections",
+      "adapterOwner": "B",
+      "phase": 1,
+      "severity": "Error",
+      "targets": {
+        "seams": ["B"],
+        "scopes": ["Harness"],
+        "include": ["scripts", "config"],
+        "diagnosticTarget": "catalog and gate connections"
+      },
+      "exceptions": []
+    },
+    {
+      "policyId": "PF-FE-001",
+      "engineRuleId": "frontend/no-direct-transport-access",
+      "adapterOwner": "A",
+      "phase": 1,
+      "severity": "Error",
+      "targets": {
+        "seams": ["A"],
+        "scopes": ["frontend/src/**/*.ts(x)"],
+        "include": ["frontend/src"],
+        "diagnosticTarget": "global transport access"
+      },
+      "exceptions": []
+    },
+    {
+      "policyId": "PF-FE-002",
+      "engineRuleId": "frontend/module-matrix-and-target-coverage",
+      "adapterOwner": "A",
+      "phase": 1,
+      "severity": "Error",
+      "targets": {
+        "seams": ["A"],
+        "scopes": ["frontend/src/**"],
+        "include": ["frontend/src", "frontend/scripts"],
+        "diagnosticTarget": "module matrix and lint targets"
+      },
+      "exceptions": []
+    },
+    {
+      "policyId": "PF-TEST-001",
+      "engineRuleId": "repository/test-placement-runner-separation",
+      "adapterOwner": "B",
+      "phase": 1,
+      "severity": "Error",
+      "targets": {
+        "seams": ["B"],
+        "scopes": ["repository"],
+        "include": ["frontend/test", "frontend/e2e", "backend/src/test", "scripts"],
+        "diagnosticTarget": "test placement and runner separation"
+      },
+      "exceptions": []
+    },
+    {
+      "policyId": "PF-SUPPRESS-001",
+      "engineRuleId": "frontend/suppression-reason",
+      "adapterOwner": "A",
+      "phase": 1,
+      "severity": "Error",
+      "targets": {
+        "seams": ["A"],
+        "scopes": ["frontend/src/**"],
+        "include": ["frontend/src"],
+        "diagnosticTarget": "ESLint suppression reason"
+      },
+      "exceptions": []
+    },
+    {
+      "policyId": "PF-OBS-001",
+      "engineRuleId": "backend/endpoint-metadata-registry",
+      "adapterOwner": "D",
+      "phase": 1,
+      "severity": "Error",
+      "targets": {
+        "seams": ["D"],
+        "scopes": ["backend"],
+        "include": ["backend/src/main", "backend/src/test"],
+        "diagnosticTarget": "Spring endpoint metadata registry"
+      },
+      "exceptions": []
+    }
+  ]
+}

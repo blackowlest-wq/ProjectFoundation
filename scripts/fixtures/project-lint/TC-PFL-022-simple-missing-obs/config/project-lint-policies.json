@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    { "policyId": "PF-GATE-001" },
+    { "policyId": "PF-TEST-001" }
+  ]
+}

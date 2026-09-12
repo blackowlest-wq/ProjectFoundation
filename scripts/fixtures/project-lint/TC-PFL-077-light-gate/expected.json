@@ -1,0 +1,5 @@
+{
+  "quick": ["staged-whitespace", "staged-artifacts", "staged-secrets"],
+  "prePush": ["pre-push-diff-check", "pre-push-artifact-check", "pre-push-secrets"],
+  "customPolicyInvocationCount": 0
+}

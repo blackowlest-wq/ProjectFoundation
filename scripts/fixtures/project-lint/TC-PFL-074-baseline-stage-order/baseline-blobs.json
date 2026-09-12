@@ -1,0 +1,36 @@
+{
+  "fixedHead": "905a9676a7d48a86bf9aab6fb34dcbf08c65f402",
+  "evidenceStatus": "notCaptured",
+  "decision": "hold",
+  "reason": "The public A/D execution artifact after Stage 1 and before Stage 2 was not captured or preserved immutably.",
+  "recheckCondition": "On the next change, run public A/D immediately after Stage 1 and before Stage 2, then capture and preserve the immutable artifact before making the baseline fix.",
+  "postFixCaseIds": [
+    "TC-PFL-078",
+    "TC-PFL-079",
+    "TC-PFL-080",
+    "TC-PFL-081",
+    "TC-PFL-082"
+  ],
+  "files": [
+    {
+      "path": "backend/src/main/java/com/example/dailyreport/observability/RequestContext.java",
+      "blob": "ce1b7b9466a9b57188752368e20fec6a58be149d"
+    },
+    {
+      "path": "backend/src/main/java/com/example/dailyreport/observability/RequestMetadataInterceptor.java",
+      "blob": "f511ce6eab71af4433aeffc8d1a321c4dddabeb2"
+    },
+    {
+      "path": "frontend/src/monthlySummary/MonthlySummaryPage.tsx",
+      "blob": "4d2fdc6829166dcf7059bb83887c42b7495411e0"
+    },
+    {
+      "path": "frontend/src/dailyReport/DailyReportPendingApprovalList.tsx",
+      "blob": "52390b5f06ede26fce702d37e3fed3d72438beb9"
+    },
+    {
+      "path": "frontend/eslint.config.mjs",
+      "blob": "a615497bef49318fc6e3692e7509972b084158fb"
+    }
+  ]
+}

@@ -46,6 +46,7 @@ export function MonthlySummaryPage({ onUnauthorized }: MonthlySummaryPageProps) 
   useEffect(() => {
     void load(localYearMonth());
     // 初期表示だけを自動取得し、年月入力中は通信しない。
+    // Why not: 初期表示だけを自動取得し、年月入力中は通信しないため依存配列へloadを追加しない。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
